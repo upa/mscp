@@ -8,6 +8,8 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
+extern int verbose;
+
 #define pr_v(level, fmt, ...) do {				\
 		if (verbose >= level) {				\
 			fprintf(stdout, "\x1b[1m\x1b[34m"	\
@@ -32,14 +34,9 @@
 				 "ERR:%s(): " fmt "\x1b[0m",	\
 				 __func__, ##__VA_ARGS__)
 
-#define pr_debug(fmt, ...)					\
-	do {							\
-		if (unlikely(debug)) {				\
-			fprintf(stderr, "\x1b[1m\x1b[33m"	\
+#define pr_debug(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"    \
 				"DEBUG:%s(): " fmt "\x1b[0m",	\
-				__func__, ##__VA_ARGS__);	\
-		}						\
-	} while (0)
+				__func__, ##__VA_ARGS__);
 
 
 #define strerrno() strerror(errno)

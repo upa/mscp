@@ -20,5 +20,8 @@ struct ssh_opts {
  * user@hostname and hostname notations (by libssh).
  */
 sftp_session ssh_make_sftp_session(char *sshdst, struct ssh_opts *opts);
+void ssh_sftp_close(sftp_session sftp);
+
+#define sftp_ssh(sftp) (sftp)->session
 
 #endif /* _SSH_H_ */

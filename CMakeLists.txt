@@ -4,7 +4,9 @@ project(sscp C)
 
 set(CMAKE_C_FLAGS "-Wall -g")
 
-add_executable(sscp src/main.c src/platform.c src/ssh.c)
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+
+add_executable(sscp src/main.c src/platform.c src/ssh.c src/file.c)
 target_include_directories(sscp PUBLIC ./src /usr/local/include)
 target_link_directories(sscp PUBLIC /usr/local/lib)
 target_link_libraries(sscp ssh)

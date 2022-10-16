@@ -235,3 +235,11 @@ static int ssh_verify_known_hosts(ssh_session session)
         ssh_clean_pubkey_hash(&hash);
         return 0;
 }
+
+void ssh_sftp_close(sftp_session sftp)
+{
+        ssh_session ssh = sftp_ssh(sftp);
+        sftp_free(sftp);
+        ssh_disconnect(ssh);
+        ssh_free(ssh);
+}
