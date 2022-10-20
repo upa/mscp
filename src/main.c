@@ -18,6 +18,7 @@ struct sscp {
         sftp_session            ctrl;   /* control sftp session */
 
         struct list_head        file_list;
+        struct list_head        chunk_list;
         char *target;
         bool target_is_remote;
 };
@@ -109,6 +110,7 @@ int main(int argc, char **argv)
         memset(&opts, 0, sizeof(opts));
         memset(&sscp, 0, sizeof(sscp));
         INIT_LIST_HEAD(&sscp.file_list);
+        INIT_LIST_HEAD(&sscp.chunk_list);
 
 	while ((ch = getopt(argc, argv, "n:s:S:l:p:i:c:Cvh")) != -1) {
 		switch (ch) {
@@ -211,15 +213,28 @@ int main(int argc, char **argv)
                 return 1;
         }
 
+        /* fill file list */
         ret = file_fill(sscp.ctrl, &sscp.file_list, &argv[optind], argc - optind - 1);
         if (ret < 0) {
                 ssh_sftp_close(sscp.ctrl);
                 return 1;
         }
-
 #ifdef DEBUG
         file_dump(&sscp.file_list);
 #endif
+
+        /* fill chunk list */
+        ret = chunk_fill(&sscp.file_list, &sscp.chunk_list,
+                         nr_conn, min_chunk_sz, max_chunk_sz);
+        if (ret < 0) {
+                ssh_sftp_close(sscp.ctrl);
+                return 1;
+        }
+#ifdef DEBUG
+        chunk_dump(&sscp.chunk_list);
+#endif
+
+
 
         ssh_sftp_close(sscp.ctrl);
 	return 0;

@@ -97,7 +97,7 @@ int file_is_directory(char *path, sftp_session sftp)
         return ret;
 }
 
-static struct file *file_allocate(char *path, size_t size, bool remote)
+static struct file *file_alloc(char *path, size_t size, bool remote)
 {
         struct file *f;
 
@@ -167,12 +167,12 @@ static int file_fill_local_recursive(char *path, struct list_head *head)
 
                 if ((statbuf.st_mode & S_IFMT) == S_IFREG ||
                     (statbuf.st_mode & S_IFMT) == S_IFLNK) {
-                        struct file *f = file_allocate(path, statbuf.st_size, false);
+                        struct file *f = file_alloc(path, statbuf.st_size, false);
                         if (!f) {
                                 pr_err("%s\n", strerrno());
                                 return -1;
                         }
-                        list_add(&f->list, head);
+                        list_add_tail(&f->list, head);
                 }
         }
 
@@ -234,7 +234,7 @@ static int file_fill_remote_recursive(char *path, sftp_session sftp,
                 /* skip special and unknown files */
                 if (attr->type == SSH_FILEXFER_TYPE_REGULAR ||
                     attr->type == SSH_FILEXFER_TYPE_SYMLINK) {
-                        struct file *f = file_allocate(path, attr->size, true);
+                        struct file *f = file_alloc(path, attr->size, true);
                         if (!f) {
                                 pr_err("%s\n", strerrno());
                                 return -1;
@@ -269,13 +269,97 @@ int file_fill(sftp_session sftp, struct list_head *head, char **src_array, int c
 
 
 #ifdef DEBUG
-void file_dump(struct list_head *head)
+void file_dump(struct list_head *file_head)
 {
         struct file *f;
 
-        list_for_each_entry(f, head, list) {
+        list_for_each_entry(f, file_head, list) {
                 pr_debug("%s %s %lu-byte\n", f->path,
                          f->remote ? "(remote)" : "(local)", f->size);
+        }
+}
+#endif
+
+
+static void *chunk_alloc(struct file *f)
+{
+        struct chunk *c;
+
+        c = malloc(sizeof(*c));
+        if (!c) {
+                pr_err("%s\n", strerrno());
+                return NULL;
+        }
+        memset(c, 0, sizeof(*c));
+
+        c->f = f;
+        c->off = 0;
+        c->len = 0;
+        return c;
+}
+
+static int get_page_mask(void)
+{
+        int n;
+        long page_sz = sysconf(_SC_PAGESIZE);
+        size_t page_mask = 0;
+
+        for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
+                page_mask <<= 1;
+                page_mask |= 1;
+        }
+
+        return page_mask >> 1;
+}
+
+int chunk_fill(struct list_head *file_head, struct list_head *chunk_head,
+               int nr_conn, int min_chunk_sz, int max_chunk_sz)
+{
+        struct chunk *c;
+        struct file *f;
+        size_t page_mask;
+        size_t chunk_sz;
+        size_t size;
+
+        page_mask = get_page_mask();
+
+        list_for_each_entry(f, file_head, list) {
+                if (f->size <= min_chunk_sz)
+                        chunk_sz = f->size;
+                else if (max_chunk_sz)
+                        chunk_sz = max_chunk_sz;
+                else {
+                        chunk_sz = (f->size - (f->size % nr_conn)) / nr_conn;
+                        chunk_sz &= ~page_mask; /* align in page_sz */
+                        if (chunk_sz <= min_chunk_sz)
+                                chunk_sz = min_chunk_sz;
+                }
+
+                pr_debug("%s chunk_sz %lu-byte\n", f->path, chunk_sz);
+
+                for (size = f->size; size > 0;) {
+                        c = chunk_alloc(f);
+                        if (!c)
+                                return -1;
+                        c->off = f->size - size;
+                        c->len = size < chunk_sz ? size : chunk_sz;
+                        size -= c->len;
+                        list_add_tail(&c->list, chunk_head);
+                }
+        }
+
+        return 0;
+}
+
+#ifdef DEBUG
+void chunk_dump(struct list_head *chunk_head)
+{
+        struct chunk *c;
+
+        list_for_each_entry(c, chunk_head, list) {
+                pr_debug("%s %s 0x%010lx-0x%010lx %lu-byte\n",
+                         c->f->path, c->f->remote ? "(remote)" : "(local)",
+                         c->off, c->off + c->len, c->len);
         }
 }
 #endif
