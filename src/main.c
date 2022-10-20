@@ -7,6 +7,7 @@
 #include <util.h>
 #include <ssh.h>
 #include <file.h>
+#include <atomic.h>
 #include <platform.h>
 
 int verbose = 0; /* util.h */
@@ -19,6 +20,8 @@ struct sscp {
 
         struct list_head        file_list;
         struct list_head        chunk_list;
+        lock                    chunk_lock;  /* lock for chunk list */
+
         char *target;
         bool target_is_remote;
 };
@@ -111,6 +114,7 @@ int main(int argc, char **argv)
         memset(&sscp, 0, sizeof(sscp));
         INIT_LIST_HEAD(&sscp.file_list);
         INIT_LIST_HEAD(&sscp.chunk_list);
+        lock_init(&sscp.chunk_lock);
 
 	while ((ch = getopt(argc, argv, "n:s:S:l:p:i:c:Cvh")) != -1) {
 		switch (ch) {

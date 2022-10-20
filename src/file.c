@@ -117,6 +117,7 @@ static struct file *file_alloc(char *path, size_t size, bool remote)
 
         f->size = size;
         f->remote = remote;
+        lock_init(&f->lock);
 
         return f;
 }
@@ -269,11 +270,11 @@ int file_fill(sftp_session sftp, struct list_head *head, char **src_array, int c
 
 
 #ifdef DEBUG
-void file_dump(struct list_head *file_head)
+void file_dump(struct list_head *file_list)
 {
         struct file *f;
 
-        list_for_each_entry(f, file_head, list) {
+        list_for_each_entry(f, file_list, list) {
                 pr_debug("%s %s %lu-byte\n", f->path,
                          f->remote ? "(remote)" : "(local)", f->size);
         }
@@ -295,6 +296,7 @@ static void *chunk_alloc(struct file *f)
         c->f = f;
         c->off = 0;
         c->len = 0;
+        refcnt_inc(&f->refcnt);
         return c;
 }
 
@@ -312,7 +314,7 @@ static int get_page_mask(void)
         return page_mask >> 1;
 }
 
-int chunk_fill(struct list_head *file_head, struct list_head *chunk_head,
+int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
                int nr_conn, int min_chunk_sz, int max_chunk_sz)
 {
         struct chunk *c;
@@ -323,7 +325,7 @@ int chunk_fill(struct list_head *file_head, struct list_head *chunk_head,
 
         page_mask = get_page_mask();
 
-        list_for_each_entry(f, file_head, list) {
+        list_for_each_entry(f, file_list, list) {
                 if (f->size <= min_chunk_sz)
                         chunk_sz = f->size;
                 else if (max_chunk_sz)
@@ -344,7 +346,7 @@ int chunk_fill(struct list_head *file_head, struct list_head *chunk_head,
                         c->off = f->size - size;
                         c->len = size < chunk_sz ? size : chunk_sz;
                         size -= c->len;
-                        list_add_tail(&c->list, chunk_head);
+                        list_add_tail(&c->list, chunk_list);
                 }
         }
 
@@ -352,14 +354,30 @@ int chunk_fill(struct list_head *file_head, struct list_head *chunk_head,
 }
 
 #ifdef DEBUG
-void chunk_dump(struct list_head *chunk_head)
+void chunk_dump(struct list_head *chunk_list)
 {
         struct chunk *c;
 
-        list_for_each_entry(c, chunk_head, list) {
+        list_for_each_entry(c, chunk_list, list) {
                 pr_debug("%s %s 0x%010lx-0x%010lx %lu-byte\n",
                          c->f->path, c->f->remote ? "(remote)" : "(local)",
                          c->off, c->off + c->len, c->len);
         }
 }
 #endif
+
+
+struct chunk *chunk_acquire(struct list_head *chunk_list)
+{
+        /* under the lock for chunk_list */
+
+        struct list_head *first = chunk_list->next;
+        struct chunk *c = NULL;
+
+        if (list_empty(chunk_list))
+                return NULL; /* empty list */
+
+        c = list_entry(first, struct chunk, list);
+        list_del(first);
+        return c;
+}
