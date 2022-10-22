@@ -607,7 +607,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
 
                 for (remaind2 = ret; remaind2 > 0;) {
                         ret2 = sftp_write(sf, buf + (ret - remaind2), remaind2);
-                        if (ret2 < 2) {
+                        if (ret2 < 0) {
                                 pr_err("failed to write to %s: %s\n", f->dst_path,
                                        ssh_get_error(sftp_ssh(sftp)));
                                 ret = -1;
@@ -667,7 +667,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
 
                 for (remaind2 = ret; remaind2 > 0;) {
                         ret2 = write(fd, buf + (ret - remaind2), remaind2);
-                        if (ret2 < 2) {
+                        if (ret2 < 0) {
                                 pr_err("failed to write to %s: %s\n", f->dst_path,
                                        strerrno());
                                 ret = -1;
