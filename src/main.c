@@ -68,7 +68,8 @@ void stop_all(int sig)
 void usage(bool print_help) {
         printf("sscp: super scp, copy files over multiple ssh connections\n"
                "\n"
-               "Usage: sscp [rvC] [-n max_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+               "Usage: sscp [Cvh] [-n max_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+               "            [-b buf_sz]\n"
                "            [-l login_name] [-p port] [-i identity_file]\n"
                "            [-c cipher_spec] source ... target_directory\n"
                "\n");
@@ -77,12 +78,11 @@ void usage(bool print_help) {
                 return;
 
         printf("    -n NR_CONNECTIONS  max number of connections (default: # of cpu cores)\n"
-               "    -s MIN_CHUNKSIZE   min chunk size (default: 64MB)\n"
-               "    -S MAX_CHUNKSIZE   max chunk size (default: filesize / nr_conn)\n"
+               "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
+               "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
                "    -b BUFFER_SIZE     buffer size for read/write (default 32768B)\n"
                "                       Note that this value is derived from\n"
-               "                       CHANNEL_MAX_PACKET in libssh. Recommend NOT\n"
-               "                       exceeds the default value.\n"
+               "                       CHANNEL_MAX_PACKET in libssh.\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
