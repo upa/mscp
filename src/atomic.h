@@ -12,9 +12,9 @@ static inline void refcnt_inc(refcnt *cnt)
         __sync_add_and_fetch(cnt, 1);
 }
 
-static inline void refcnt_dec(refcnt *cnt)
+static inline refcnt refcnt_dec(refcnt *cnt)
 {
-        __sync_sub_and_fetch(cnt, 1);
+        return __sync_sub_and_fetch(cnt, 1);
 }
 
 

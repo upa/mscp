@@ -2,11 +2,12 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <limits.h>
+#include <fcntl.h>
 
 #include <ssh.h>
 #include <util.h>
 #include <file.h>
+#include <platform.h>
 
 bool file_has_hostname(char *path)
 {
@@ -14,12 +15,10 @@ bool file_has_hostname(char *path)
 
         p = strchr(path, ':');
         if (p) {
-                if (p == path || ((p > path) && *(p - 1) == '\\')) {
-                        /* first byte is colon or escaped colon, skip */
-                        return false;
-                } else {
+                if (p == path || ((p > path) && *(p - 1) == '\\'))
+                        return false; /* first byte is colon or escaped colon, skip */
+                else
                         return true;
-                }
         }
 
         return false;
@@ -79,7 +78,7 @@ int file_is_directory(char *path, sftp_session sftp)
                 char *p = *remote_path == '\0' ? "." : remote_path;
                 attr = sftp_stat(sftp, p);
                 if (!attr) {
-                        pr_err("file %s: %s\n", p,
+                        pr_err("%s: %s\n", p,
                                ssh_get_error(sftp_ssh(sftp)));
                         ret = -1;
                 } else if (attr->type == SSH_FILEXFER_TYPE_DIRECTORY)
@@ -88,8 +87,43 @@ int file_is_directory(char *path, sftp_session sftp)
         } else {
                 struct stat statbuf;
                 if (stat(path, &statbuf) < 0) {
-                        pr_err("file %s: %s\n", path, strerrno());
+                        pr_err("%s: %s\n", path, strerrno());
                         ret = -1;
+                } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
+                        ret = 1;
+        }
+
+        return ret;
+}
+
+/* return 1 when directory exists, 0 not exists, and -1 on error */
+int file_directory_exists(char *path, sftp_session sftp)
+{
+        int ret = 0;
+
+        if (sftp) {
+                sftp_attributes attr;
+                attr = sftp_stat(sftp, path);
+                if (!attr) {
+                        if (sftp_get_error(sftp) == SSH_FX_NO_SUCH_PATH ||
+                            sftp_get_error(sftp) == SSH_FX_NO_SUCH_FILE)
+                                ret = 0;
+                        else {
+                                pr_err("%s: %s\n", path, ssh_get_error(sftp_ssh(sftp)));
+                                ret = -1;
+                        }
+                } else if (attr->type == SSH_FILEXFER_TYPE_DIRECTORY)
+                        ret = 1;
+                sftp_attributes_free(attr);
+        } else {
+                struct stat statbuf;
+                if (stat(path, &statbuf) < 0) {
+                        if (errno == ENOENT)
+                                ret = 0;
+                        else {
+                                pr_err("%s: %s\n", path, strerrno());
+                                ret = -1;
+                        }
                 } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
                         ret = 1;
         }
@@ -108,13 +142,7 @@ static struct file *file_alloc(char *path, size_t size, bool remote)
         }
         memset(f, 0, sizeof(*f));
 
-        f->path = strdup(path);
-        if (!f->path) {
-                pr_err("%s\n", strerrno());
-                free(f);
-                return NULL;
-        }
-
+        strncpy(f->path, path, PATH_MAX);
         f->size = size;
         f->remote = remote;
         lock_init(&f->lock);
@@ -248,21 +276,81 @@ static int file_fill_remote_recursive(char *path, sftp_session sftp,
         return 0;
 }
 
-int file_fill(sftp_session sftp, struct list_head *head, char **src_array, int count)
+int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt)
 {
         char *src, *path;
         int ret, n;
 
-        for (n = 0; n < count; n++) {
+        for (n = 0; n < cnt; n++) {
                 src = *(src_array + n);
                 path = file_find_path(src);
                 path = *path == '\0' ? "." : path;
                 if (file_has_hostname(src))
-                        ret = file_fill_remote_recursive(path, sftp, head);
+                        ret = file_fill_remote_recursive(path, sftp, file_list);
                 else
-                        ret = file_fill_local_recursive(path, head);
+                        ret = file_fill_local_recursive(path, file_list);
                 if (ret < 0)
                         return -1;
+        }
+
+        return 0;
+}
+
+int file_fill_dst(char *target, struct list_head *file_list)
+{
+        bool dst_remote = file_find_hostname(target) ? true : false;
+        char *dst_path = file_find_path(target);
+        struct file *f;
+
+        dst_path = *dst_path == '\0' ? "." : dst_path;
+
+        list_for_each_entry(f, file_list, list) {
+                f->dst_remote = dst_remote;
+                snprintf(f->dst_path, PATH_MAX, "%s/%s", dst_path, f->path);
+        }
+
+        return 0;
+}
+
+/* based on
+ * https://stackoverflow.com/questions/2336242/recursive-mkdir-system-call-on-unix */
+static int file_dst_prepare(struct file *f, sftp_session sftp)
+{
+        /* XXX: should reflect the permission of the original directory? */
+        mode_t mode =  S_IRWXU | S_IRWXG | S_IRWXO;
+        char path[PATH_MAX];
+        char *p;
+        int ret;
+
+        strncpy(path, f->dst_path, sizeof(path));
+
+        for (p = strchr(path + 1, '/'); p; p = strchr(p + 1, '/')) {
+                *p = '\0';
+
+                ret = file_directory_exists(path, sftp);
+                if (ret < -1)
+                        return -1;
+                if (ret == 1)
+                        goto next;
+
+                pr_debug("mkdir %s\n", path);
+
+                if (sftp) {
+                        ret = sftp_mkdir(sftp, path, mode);
+                        if (ret < 0) {
+                                pr_err("failed to create %s: %s\n",
+                                       path, ssh_get_error(sftp_ssh(sftp)));
+                                return -1;
+                        }
+                } else {
+                        if (mkdir(path, mode) == -1) {
+                                pr_err("failed to create %s: %s\n",
+                                       path, strerrno());
+                                return -1;
+                        }
+                }
+        next:
+                *p = '/';
         }
 
         return 0;
@@ -275,8 +363,10 @@ void file_dump(struct list_head *file_list)
         struct file *f;
 
         list_for_each_entry(f, file_list, list) {
-                pr_debug("%s %s %lu-byte\n", f->path,
-                         f->remote ? "(remote)" : "(local)", f->size);
+                pr_debug("%s %s -> %s %s %lu-byte\n",
+                         f->path, f->remote ? "(remote)" : "(local)",
+                         f->dst_path, f->dst_remote ? "(remote)" : "(local)",
+                         f->size);
         }
 }
 #endif
@@ -375,9 +465,246 @@ struct chunk *chunk_acquire(struct list_head *chunk_list)
         struct chunk *c = NULL;
 
         if (list_empty(chunk_list))
-                return NULL; /* empty list */
+                return NULL; /* list is empty */
 
         c = list_entry(first, struct chunk, list);
         list_del(first);
         return c;
+}
+
+int chunk_prepare(struct chunk *c, sftp_session sftp)
+{
+        struct file *f = c->f;
+        int ret = 0;
+
+        lock_acquire(&f->lock); /* XXX: is always acquiring lock per-chunk heavy? */
+        if (f->state == FILE_STATE_INIT) {
+                if (file_dst_prepare(f, sftp) < 0) {
+                        ret = -1;
+                        goto out;
+                }
+                f->state = FILE_STATE_OPENED;
+        }
+
+out:
+        lock_release(&f->lock);
+        return ret;
+}
+
+static mode_t chunk_get_mode(const char *path, sftp_session sftp)
+{
+        mode_t mode;
+
+        if (sftp) {
+                sftp_attributes attr = sftp_stat(sftp, path);
+                if (!attr) {
+                        pr_err("failed to get stat for %s: %s\n",
+                               path, ssh_get_error(sftp_ssh(sftp)));
+                        return -1;
+                }
+                mode = attr->permissions;
+                sftp_attributes_free(attr);
+        } else {
+                struct stat statbuf;
+                if (stat(path, &statbuf) < 0) {
+                        pr_err("failed to get stat for %s: %s\n",
+                               path, strerrno());
+                        return -1;
+                }
+                mode = statbuf.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO);
+        }
+        return mode;
+}
+
+static int chunk_set_mode(const char *path, mode_t mode, sftp_session sftp)
+{
+        if (sftp) {
+                if (sftp_chmod(sftp, path, mode) < 0) {
+                        pr_err("failed to chmod %s: %s\n",
+                               path, ssh_get_error(sftp_ssh(sftp)));
+                        return -1;
+                }
+        } else {
+                if (chmod(path, mode) < 0) {
+                        pr_err("failed to chmod %s: %s\n",
+                               path, strerrno());
+                        return -1;
+                }
+        }
+
+        return 0;
+}
+
+static int chunk_open_local(const char *path, int flags, size_t off)
+{
+        int fd;
+
+        fd = open(path, flags);
+        if (fd < 0) {
+                pr_err("open failed for %s: %s\n", path, strerrno());
+                return -1;
+        }
+        if (lseek(fd, off, SEEK_SET) < 0) {
+                pr_err("seek error for %s: %s\n", path, strerrno());
+                close(fd);
+                return -1;
+        }
+
+        return fd;
+}
+
+static sftp_file chunk_open_remote(const char *path, int flags, size_t off,
+                                   sftp_session sftp)
+{
+        sftp_file sf;
+
+        sf = sftp_open(sftp, path, flags, S_IRWXU); /* chmdo after copy finished */
+
+        if (!sf) {
+                pr_err("open failed for remote %s: %s\n",
+                       path, ssh_get_error(sftp_ssh(sftp)));
+                return NULL;
+        }
+
+        if (sftp_seek64(sf, off) < 0) {
+                pr_err("seek error for %s: %s\n", path, ssh_get_error(sftp_ssh(sftp)));
+                return NULL;
+        }
+
+        return sf;
+}
+
+static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t buf_sz)
+{
+        struct file *f = c->f;
+        char buf[buf_sz];
+        size_t remaind;
+        sftp_file sf = NULL;
+        mode_t mode;
+        int fd = 0;
+        int ret;
+
+        if ((fd = chunk_open_local(f->path, O_RDONLY, c->off)) < 0) {
+                ret = -1;
+                goto out;
+        }
+
+        if (!(sf = chunk_open_remote(f->dst_path, O_WRONLY | O_CREAT, c->off, sftp))) {
+                ret = -1;
+                goto out;
+        }
+
+        for (remaind = c->len; remaind > 0;) {
+                ret = read(fd, buf, buf_sz);
+                if (ret < 0) {
+                        pr_err("failed to read %s: %s\n", f->path, strerrno());
+                        ret = -1;
+                        goto out;
+                }
+
+                ret = sftp_write(sf, buf, ret);
+                if (ret < 0) {
+                        pr_err("failed to write to %s: %s\n", f->dst_path,
+                               ssh_get_error(sftp_ssh(sftp)));
+                        ret = -1;
+                        goto out;
+                }
+
+                remaind -= ret;
+        }
+
+        if ((mode = chunk_get_mode(f->path, NULL)) < 0) {
+                ret = -1;
+                goto out;
+        }
+        if (chunk_set_mode(f->dst_path, mode, sftp) < 0) {
+                ret = -1;
+        }
+
+out:
+        if (fd > 0)
+                close(fd);
+        if (sf)
+                sftp_close(sf);
+        return ret;
+}
+
+static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t buf_sz)
+{
+        struct file *f = c->f;
+        char buf[buf_sz];
+        size_t remaind;
+        sftp_file sf = NULL;
+        mode_t mode;
+        int fd = 0;
+        int ret;
+
+        if ((fd = chunk_open_local(f->dst_path, O_WRONLY | O_CREAT, c->off)) < 0) {
+                ret = -1;
+                goto out;
+        }
+
+        if (!(sf = chunk_open_remote(f->path, O_RDONLY, c->off, sftp))) {
+                ret = -1;
+                goto out;
+        }
+
+        for (remaind = c->len; remaind > 0;) {
+                ret = sftp_read(sf, buf, ret);
+                if (ret < 0) {
+                        pr_err("failed to write to %s: %s\n", f->dst_path,
+                               ssh_get_error(sftp_ssh(sftp)));
+                        ret = -1;
+                        goto out;
+                }
+
+                ret = write(fd, buf, buf_sz);
+                if (ret < 0) {
+                        pr_err("failed to read %s: %s\n", f->path, strerrno());
+                        ret = -1;
+                        goto out;
+                }
+
+
+                remaind -= ret;
+        }
+
+        if ((mode = chunk_get_mode(f->path, sftp)) < 0) {
+                ret = -1;
+                goto out;
+        }
+        if (chunk_set_mode(f->dst_path, mode, NULL) < 0) {
+                ret = -1;
+        }
+
+out:
+        if (fd > 0)
+                close(fd);
+        if (sf)
+                sftp_close(sf);
+
+        return ret;
+}
+
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz)
+{
+        struct file *f = c->f;
+        int ret;
+
+        pr_debug("copy %s %s -> %s %s\n",
+                 f->path, f->remote ? "(remote)" : "(local)",
+                 f->dst_path, f->dst_remote ? "(remote)" : "(local)")
+
+        if (f->dst_remote)
+                ret = chunk_copy_local_to_remote(c, sftp, buf_sz);
+        else
+                ret = chunk_copy_remote_to_local(c, sftp, buf_sz);
+
+        if (ret < 0)
+                return ret;
+
+        if (refcnt_dec(&f->refcnt) == 0)
+                f->state = FILE_STATE_DONE;
+
+        return ret;
 }

@@ -1,19 +1,23 @@
 #ifndef _FILE_H_
 #define _FILE_H_
 
+#include <limits.h>
 #include <pthread.h>
 #include <libssh/libssh.h>
 #include <libssh/sftp.h>
+
 #include <list.h>
 #include <atomic.h>
 
 struct file {
         struct list_head        list;   /* sscp->file_list */
 
-        char    *path;          /* copy source path */
-        char    *dst_path;      /* copy destination path */
-        bool    remote;
-        size_t  size;   /* size of this file */
+        char    path[PATH_MAX]; /* copy source path */
+        bool    remote;         /* source is remote */
+        size_t  size;           /* size of this file */
+
+        char    dst_path[PATH_MAX];     /* copy destination path */
+        bool    dst_remote;             /* destination is remote */
 
         int     state;  /* destination file state */
         lock    lock;   /* mutex to protect state */
@@ -33,7 +37,7 @@ struct file {
  * if the file state of the chunk is INIT:
  *     acquire the file lock
  * *         if file state is INIT:
- *             create destination file
+ *             create destination file and directory if necessary
  *             set file state OPENED.
  *             // only the first thread in the lock open the destination file
  *     release the file lock
@@ -60,12 +64,15 @@ char *file_find_hostname(char *path);
 bool file_has_hostname(char *path);
 int file_is_directory(char *path, sftp_session sftp);
 
-int file_fill(sftp_session sftp, struct list_head *head, char **src_array, int count);
+int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt);
+int file_fill_dst(char *target, struct list_head *file_list);
 
 int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
                int nr_conn, int min_chunk_sz, int max_chunk_sz);
 
 struct chunk *chunk_acquire(struct list_head *chunk_list);
+int chunk_prepare(struct chunk *c, sftp_session sftp);
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz);
 
 #ifdef DEBUG
 void file_dump(struct list_head *file_list);

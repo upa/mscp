@@ -23,7 +23,6 @@ struct sscp {
         lock                    chunk_lock;  /* lock for chunk list */
 
         char *target;
-        bool target_is_remote;
 };
 
 void usage(bool print_help) {
@@ -196,7 +195,6 @@ int main(int argc, char **argv)
         }
 
         sscp.target = argv[argc - 1];
-        sscp.target_is_remote = file_has_hostname(sscp.target);
 
         /* create control session */
         sscp.host = find_hostname(optind, argc, argv);
@@ -209,7 +207,8 @@ int main(int argc, char **argv)
                 return 1;
 
         /* check target is directory */
-        ret = file_is_directory(sscp.target, sscp.target_is_remote ? sscp.ctrl : NULL);
+        ret = file_is_directory(sscp.target,
+                                file_find_hostname(sscp.target) ? sscp.ctrl : NULL);
         if (ret < 0)
                 return 1;
         if (ret == 0) {
@@ -222,6 +221,11 @@ int main(int argc, char **argv)
         if (ret < 0) {
                 ssh_sftp_close(sscp.ctrl);
                 return 1;
+        }
+        ret = file_fill_dst(sscp.target, &sscp.file_list);
+        if (ret < 0){
+                ssh_sftp_close(sscp.ctrl);
+                return -1;
         }
 #ifdef DEBUG
         file_dump(&sscp.file_list);
@@ -238,6 +242,11 @@ int main(int argc, char **argv)
         chunk_dump(&sscp.chunk_list);
 #endif
 
+        struct chunk *c;
+        list_for_each_entry(c, &sscp.chunk_list, list) {
+                chunk_prepare(c, sscp.ctrl);
+                chunk_copy(c, sscp.ctrl, 8192);
+        }
 
 
         ssh_sftp_close(sscp.ctrl);

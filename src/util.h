@@ -34,10 +34,13 @@ extern int verbose;
 				 "ERR:%s(): " fmt "\x1b[0m",	\
 				 __func__, ##__VA_ARGS__)
 
+#ifdef DEBUG
 #define pr_debug(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"    \
 				"DEBUG:%s(): " fmt "\x1b[0m",	\
 				__func__, ##__VA_ARGS__);
-
+#else
+#define pr_debug(fmt, ...)
+#endif
 
 #define strerrno() strerror(errno)
 
