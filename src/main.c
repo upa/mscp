@@ -46,7 +46,7 @@ void usage(bool print_help) {
                "    -b BUFFER_SIZE     buffer size for read/write (default 32768B)\n"
                "                       Note that this value is derived from\n"
                "                       CHANNEL_MAX_PACKET in libssh. Recommend NOT\n"
-               "                       exceeds this value.\n"
+               "                       exceeds the default value.\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
