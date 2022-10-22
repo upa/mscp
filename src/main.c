@@ -12,7 +12,9 @@
 
 int verbose = 0; /* util.h */
 
-#define DEFAULT_MIN_CHUNK_SZ      (64 << 20)       /* 64MB */
+#define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
+#define DEFAULT_BUF_SZ          32768           /* CHANNEL_MAX_PACKET in libssh */
+/* XXX: passing over CHANNEL_MAX_PACKET bytes to sftp_write stalls */
 
 struct sscp {
         char                    *host;  /* remote host (and username) */
@@ -22,7 +24,9 @@ struct sscp {
         struct list_head        chunk_list;
         lock                    chunk_lock;  /* lock for chunk list */
 
-        char *target;
+        char    *target;
+
+        int     buf_sz;
 };
 
 void usage(bool print_help) {
@@ -39,6 +43,10 @@ void usage(bool print_help) {
         printf("    -n NR_CONNECTIONS  max number of connections (default: # of cpu cores)\n"
                "    -s MIN_CHUNKSIZE   min chunk size (default: 64MB)\n"
                "    -S MAX_CHUNKSIZE   max chunk size (default: filesize / nr_conn)\n"
+               "    -b BUFFER_SIZE     buffer size for read/write (default 32768B)\n"
+               "                       Note that this value is derived from\n"
+               "                       CHANNEL_MAX_PACKET in libssh. Recommend NOT\n"
+               "                       exceeds this value.\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
@@ -114,8 +122,9 @@ int main(int argc, char **argv)
         INIT_LIST_HEAD(&sscp.file_list);
         INIT_LIST_HEAD(&sscp.chunk_list);
         lock_init(&sscp.chunk_lock);
+        sscp.buf_sz = DEFAULT_BUF_SZ;
 
-	while ((ch = getopt(argc, argv, "n:s:S:l:p:i:c:Cvh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:l:p:i:c:Cvh")) != -1) {
 		switch (ch) {
                 case 'n':
                         nr_conn = atoi(optarg);
@@ -151,6 +160,13 @@ int main(int argc, char **argv)
                                 pr_err("max chunk size must be "
                                        "multiple of page size %d: %s\n",
                                        getpagesize(), optarg);
+                                return -1;
+                        }
+                        break;
+                case 'b':
+                        sscp.buf_sz = atoi(optarg);
+                        if (sscp.buf_sz < 1) {
+                                pr_err("invalid buffer size: %s\n", optarg);
                                 return -1;
                         }
                         break;
@@ -245,7 +261,7 @@ int main(int argc, char **argv)
         struct chunk *c;
         list_for_each_entry(c, &sscp.chunk_list, list) {
                 chunk_prepare(c, sscp.ctrl);
-                chunk_copy(c, sscp.ctrl, 8192);
+                chunk_copy(c, sscp.ctrl, sscp.buf_sz);
         }
 
 

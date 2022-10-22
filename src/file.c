@@ -324,10 +324,13 @@ static int file_dst_prepare(struct file *f, sftp_session sftp)
 
         strncpy(path, f->dst_path, sizeof(path));
 
+        pr_debug("prepare for %s\n", path);
+
         for (p = strchr(path + 1, '/'); p; p = strchr(p + 1, '/')) {
                 *p = '\0';
 
                 ret = file_directory_exists(path, sftp);
+                pr_debug("check %s ret=%d\n", path, ret);
                 if (ret < -1)
                         return -1;
                 if (ret == 1)
@@ -479,7 +482,7 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
 
         lock_acquire(&f->lock); /* XXX: is always acquiring lock per-chunk heavy? */
         if (f->state == FILE_STATE_INIT) {
-                if (file_dst_prepare(f, sftp) < 0) {
+                if (file_dst_prepare(f, f->dst_remote ? sftp : NULL) < 0) {
                         ret = -1;
                         goto out;
                 }
@@ -578,11 +581,11 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
 {
         struct file *f = c->f;
         char buf[buf_sz];
-        size_t remaind;
+        size_t remaind, remaind2;
         sftp_file sf = NULL;
         mode_t mode;
         int fd = 0;
-        int ret;
+        int ret, ret2;
 
         if ((fd = chunk_open_local(f->path, O_RDONLY, c->off)) < 0) {
                 ret = -1;
@@ -602,12 +605,15 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
                         goto out;
                 }
 
-                ret = sftp_write(sf, buf, ret);
-                if (ret < 0) {
-                        pr_err("failed to write to %s: %s\n", f->dst_path,
-                               ssh_get_error(sftp_ssh(sftp)));
-                        ret = -1;
-                        goto out;
+                for (remaind2 = ret; remaind2 > 0;) {
+                        ret2 = sftp_write(sf, buf + (ret - remaind2), remaind2);
+                        if (ret2 < 2) {
+                                pr_err("failed to write to %s: %s\n", f->dst_path,
+                                       ssh_get_error(sftp_ssh(sftp)));
+                                ret = -1;
+                                goto out;
+                        }
+                        remaind2 -= ret;
                 }
 
                 remaind -= ret;
@@ -633,11 +639,11 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
 {
         struct file *f = c->f;
         char buf[buf_sz];
-        size_t remaind;
+        size_t remaind, remaind2;
         sftp_file sf = NULL;
         mode_t mode;
         int fd = 0;
-        int ret;
+        int ret, ret2;
 
         if ((fd = chunk_open_local(f->dst_path, O_WRONLY | O_CREAT, c->off)) < 0) {
                 ret = -1;
@@ -650,21 +656,24 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
         }
 
         for (remaind = c->len; remaind > 0;) {
-                ret = sftp_read(sf, buf, ret);
+                ret = sftp_read(sf, buf, buf_sz);
                 if (ret < 0) {
-                        pr_err("failed to write to %s: %s\n", f->dst_path,
+                        pr_err("failed to read from %s: %s\n", f->dst_path,
                                ssh_get_error(sftp_ssh(sftp)));
                         ret = -1;
                         goto out;
                 }
 
-                ret = write(fd, buf, buf_sz);
-                if (ret < 0) {
-                        pr_err("failed to read %s: %s\n", f->path, strerrno());
-                        ret = -1;
-                        goto out;
+                for (remaind2 = ret; remaind2 > 0;) {
+                        ret2 = write(fd, buf + (ret - remaind2), remaind2);
+                        if (ret2 < 2) {
+                                pr_err("failed to write to %s: %s\n", f->dst_path,
+                                       strerrno());
+                                ret = -1;
+                                goto out;
+                        }
+                        remaind2 -= ret;
                 }
-
 
                 remaind -= ret;
         }
