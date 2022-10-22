@@ -422,16 +422,21 @@ void *sscp_monitor_thread(void *arg)
                 total += f->size;
         }
         total_round = total;
-        for (byte_tu = 0; total_round > 1000 && byte_tu < 5; byte_tu++)
+        for (byte_tu = 0; total_round > 1000 && byte_tu < 4; byte_tu++)
                 total_round /= 1024;
 
         while (1) {
-
-                gettimeofday(&b, NULL);
-                sleep(1);
-
                 all_done = true;
+                last = 0;
                 done = 0;
+
+                for (n = 0; n < nr_threads; n++) {
+                        t = &threads[n];
+                        last += t->done;
+                }
+                gettimeofday(&b, NULL);
+
+                sleep(1);
 
                 for (n = 0; n < nr_threads; n++) {
                         t = &threads[n];
@@ -439,14 +444,13 @@ void *sscp_monitor_thread(void *arg)
                         if (!t->finished)
                                 all_done = false;
                 }
-
                 gettimeofday(&a, NULL);
 
-                percent = floor(((double)(done) / (double)total) * 100);
-                for (byte_du = 0; done > 1000 && byte_du < 5; byte_du++) done /= 1024;
-
                 bps = calculate_bps(done - last, &b, &a);
-                for (bps_u = 0; bps > 1000 && bps_u < 4; bps_u++) bps /= 1000;
+                for (bps_u = 0; bps > 1000 && bps_u < 3; bps_u++) bps /= 1000;
+
+                percent = floor(((double)(done) / (double)total) * 100);
+                for (byte_du = 0; done > 1000 && byte_du < 4; byte_du++) done /= 1024;
 
                 printf("%d%% (%lu%s/%lu%s) %.2f %s\n",
                        percent,
@@ -455,9 +459,6 @@ void *sscp_monitor_thread(void *arg)
 
                 if (all_done || total == done)
                         break;
-
-                last = done;
-                b = a;
         }
 
         return NULL;

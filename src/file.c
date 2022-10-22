@@ -724,8 +724,10 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counte
         if (ret < 0)
                 return ret;
 
-        if (refcnt_dec(&f->refcnt) == 0)
+        if (refcnt_dec(&f->refcnt) == 0) {
                 f->state = FILE_STATE_DONE;
+                pr("copy done: %s\n", f->path);
+        }
 
         return ret;
 }
