@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
 #include <math.h>
 #include <pthread.h>
 
@@ -399,19 +400,63 @@ static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
         return (double)diff / sec * 8;
 }
 
+static void print_progress(double percent, char *suffix)
+{
+        int n, thresh, bar_width;
+        struct winsize ws;
+        char buf[128];
+
+        /*
+         * [=======>   ] XX.X% SUFFIX
+         */
+
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
+                return; /* XXX */
+
+        fputs("\r\033[K", stderr);
+
+        bar_width = ws.ws_col - strlen(suffix) - 8;
+        if (bar_width < 0)
+                goto suffix_only;
+
+        memset(buf, 0, sizeof(buf));
+        thresh = floor(bar_width * (percent / 100)) - 1;
+
+        buf[0] = '[';
+        for (n = 1; n < bar_width - 1; n++) {
+                if (n <= thresh)
+                        buf[n] = '=';
+                else
+                        buf[n] = ' ';
+        }
+        buf[thresh] = '>';
+        buf[bar_width - 1] = ']';
+
+        snprintf(buf + bar_width, sizeof(buf) - bar_width,
+                 " %3d%% ", (int)floor(percent));
+
+        fputs(buf, stderr);
+suffix_only:
+        fputs(suffix, stderr);
+        fflush(stderr);
+}
+
 void *sscp_monitor_thread(void *arg)
 {
         struct sscp *sscp = arg;
         struct sscp_thread *t;
         struct timeval a, b;
         struct file *f;
+        char suffix[128];
         bool all_done;
         size_t total, total_round, done, last;
         int percent;
         double bps;
         char *bps_units[] = { "bps", "Kbps", "Mbps", "Gbps" };
-        char *byte_units[] = { "B", "KB", "MB", "GB", "TB" };
+        char *byte_units[] = { "B", "KB", "MB", "GB", "TB", "PB" };
         int n, bps_u, byte_tu, byte_du;
+
+#define array_size(a) (sizeof(a) / sizeof(a[0]))
 
         total = 0;
         done = 0;
@@ -422,7 +467,8 @@ void *sscp_monitor_thread(void *arg)
                 total += f->size;
         }
         total_round = total;
-        for (byte_tu = 0; total_round > 1000 && byte_tu < 4; byte_tu++)
+        for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
+             byte_tu++)
                 total_round /= 1024;
 
         while (1) {
@@ -436,7 +482,7 @@ void *sscp_monitor_thread(void *arg)
                 }
                 gettimeofday(&b, NULL);
 
-                sleep(1);
+                usleep(500000);
 
                 for (n = 0; n < nr_threads; n++) {
                         t = &threads[n];
@@ -447,19 +493,25 @@ void *sscp_monitor_thread(void *arg)
                 gettimeofday(&a, NULL);
 
                 bps = calculate_bps(done - last, &b, &a);
-                for (bps_u = 0; bps > 1000 && bps_u < 3; bps_u++) bps /= 1000;
+                for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
+                        bps /= 1000;
 
                 percent = floor(((double)(done) / (double)total) * 100);
-                for (byte_du = 0; done > 1000 && byte_du < 4; byte_du++) done /= 1024;
+                for (byte_du = 0;
+                     done > 1000 && byte_du < array_size(byte_units) - 1;
+                     byte_du++)
+                        done /= 1024;
 
-                printf("%d%% (%lu%s/%lu%s) %.2f %s\n",
-                       percent,
-                       done, byte_units[byte_du], total_round, byte_units[byte_tu],
-                       bps, bps_units[bps_u]);
+                snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s",
+                         done, byte_units[byte_du], total_round, byte_units[byte_tu],
+                         bps, bps_units[bps_u]);
+                print_progress(percent, suffix);
 
                 if (all_done || total == done)
                         break;
         }
+
+        fputs("\n", stderr);
 
         return NULL;
 }
