@@ -340,13 +340,14 @@ static int file_dst_prepare(struct file *f, sftp_session sftp)
 
                 if (sftp) {
                         ret = sftp_mkdir(sftp, path, mode);
-                        if (ret < 0) {
+                        if (ret < 0 &&
+                            sftp_get_error(sftp) != SSH_FX_FILE_ALREADY_EXISTS) {
                                 pr_err("failed to create %s: %s\n",
                                        path, ssh_get_error(sftp_ssh(sftp)));
                                 return -1;
                         }
                 } else {
-                        if (mkdir(path, mode) == -1) {
+                        if (mkdir(path, mode) == -1 && errno != EEXIST) {
                                 pr_err("failed to create %s: %s\n",
                                        path, strerrno());
                                 return -1;
@@ -487,6 +488,7 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
                         goto out;
                 }
                 f->state = FILE_STATE_OPENED;
+                pr("copy start: %s\n", f->path);
         }
 
 out:
@@ -577,11 +579,12 @@ static sftp_file chunk_open_remote(const char *path, int flags, size_t off,
         return sf;
 }
 
-static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t buf_sz)
+static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t buf_sz,
+                                      size_t *counter)
 {
         struct file *f = c->f;
         char buf[buf_sz];
-        size_t remaind, remaind2;
+        size_t remaind, remaind2, read_size;
         sftp_file sf = NULL;
         mode_t mode;
         int fd = 0;
@@ -598,12 +601,15 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
         }
 
         for (remaind = c->len; remaind > 0;) {
-                ret = read(fd, buf, buf_sz);
+                read_size = buf_sz < remaind ? buf_sz : remaind;
+                ret = read(fd, buf, read_size);
                 if (ret < 0) {
                         pr_err("failed to read %s: %s\n", f->path, strerrno());
                         ret = -1;
                         goto out;
                 }
+                if (ret == 0)
+                        break;
 
                 for (remaind2 = ret; remaind2 > 0;) {
                         ret2 = sftp_write(sf, buf + (ret - remaind2), remaind2);
@@ -613,8 +619,9 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
                                 ret = -1;
                                 goto out;
                         }
-                        remaind2 -= ret2;
                         c->done += ret2;
+                        *counter += ret2;
+                        remaind2 -= ret2;
                 }
 
                 remaind -= ret;
@@ -636,11 +643,12 @@ out:
         return ret;
 }
 
-static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t buf_sz)
+static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t buf_sz,
+                                      size_t *counter)
 {
         struct file *f = c->f;
         char buf[buf_sz];
-        size_t remaind, remaind2;
+        size_t remaind, remaind2, read_size;
         sftp_file sf = NULL;
         mode_t mode;
         int fd = 0;
@@ -657,7 +665,8 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
         }
 
         for (remaind = c->len; remaind > 0;) {
-                ret = sftp_read(sf, buf, buf_sz);
+                read_size = buf_sz < remaind ? buf_sz : remaind;
+                ret = sftp_read(sf, buf, read_size);
                 if (ret < 0) {
                         pr_err("failed to read from %s: %s\n", f->dst_path,
                                ssh_get_error(sftp_ssh(sftp)));
@@ -673,8 +682,9 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
                                 ret = -1;
                                 goto out;
                         }
-                        remaind2 -= ret2;
                         c->done += ret2;
+                        *counter += ret2;
+                        remaind2 -= ret2;
                 }
 
                 remaind -= ret;
@@ -697,19 +707,19 @@ out:
         return ret;
 }
 
-int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz)
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counter)
 {
         struct file *f = c->f;
         int ret;
 
-        pr_debug("copy %s %s -> %s %s\n",
+        pr_debug("copy %s %s -> %s %s off=0x%010lx\n",
                  f->path, f->remote ? "(remote)" : "(local)",
-                 f->dst_path, f->dst_remote ? "(remote)" : "(local)")
+                 f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
 
         if (f->dst_remote)
-                ret = chunk_copy_local_to_remote(c, sftp, buf_sz);
+                ret = chunk_copy_local_to_remote(c, sftp, buf_sz, counter);
         else
-                ret = chunk_copy_remote_to_local(c, sftp, buf_sz);
+                ret = chunk_copy_remote_to_local(c, sftp, buf_sz, counter);
 
         if (ret < 0)
                 return ret;

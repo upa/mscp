@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <math.h>
+#include <pthread.h>
 
 #include <list.h>
 #include <util.h>
@@ -12,22 +16,53 @@
 
 int verbose = 0; /* util.h */
 
+
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
 #define DEFAULT_BUF_SZ          32768           /* CHANNEL_MAX_PACKET in libssh */
 /* XXX: passing over CHANNEL_MAX_PACKET bytes to sftp_write stalls */
 
 struct sscp {
         char                    *host;  /* remote host (and username) */
+        struct ssh_opts         *opts;  /* ssh parameters */
         sftp_session            ctrl;   /* control sftp session */
 
+
         struct list_head        file_list;
-        struct list_head        chunk_list;
+        struct list_head        chunk_list;     /* stack of chunks */
         lock                    chunk_lock;  /* lock for chunk list */
 
         char    *target;
 
         int     buf_sz;
 };
+
+struct sscp_thread {
+        struct sscp     *sscp;
+        sftp_session    sftp;
+
+        pthread_t       tid;
+        size_t          done;           /* copied bytes */
+        bool            finished;
+};
+
+void *sscp_copy_thread(void *arg);
+void *sscp_monitor_thread(void *arg);
+
+static pthread_t mtid;
+struct sscp_thread *threads;
+int nr_threads;
+
+void stop_all(int sig)
+{
+        int n;
+
+        pr("stopping...\n");
+        for (n = 0; n < nr_threads; n++) {
+                pthread_cancel(threads[n].tid);
+        }
+        pthread_cancel(mtid);
+}
+
 
 void usage(bool print_help) {
         printf("sscp: super scp, copy files over multiple ssh connections\n"
@@ -111,10 +146,9 @@ int main(int argc, char **argv)
 {
         struct sscp sscp;
 	struct ssh_opts opts;
-        int nr_conn = nr_cpus();
         int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
         int max_chunk_sz = 0;
-        int ret = 0;
+        int ret = 0, n;
         char ch;
 
         memset(&opts, 0, sizeof(opts));
@@ -124,11 +158,13 @@ int main(int argc, char **argv)
         lock_init(&sscp.chunk_lock);
         sscp.buf_sz = DEFAULT_BUF_SZ;
 
+        nr_threads = nr_cpus();
+
 	while ((ch = getopt(argc, argv, "n:s:S:b:l:p:i:c:Cvh")) != -1) {
 		switch (ch) {
                 case 'n':
-                        nr_conn = atoi(optarg);
-                        if (nr_conn < 1) {
+                        nr_threads = atoi(optarg);
+                        if (nr_threads < 1) {
                                 pr_err("invalid number of connections: %s\n", optarg);
                                 return 1;
                         }
@@ -221,50 +257,208 @@ int main(int argc, char **argv)
         sscp.ctrl = ssh_make_sftp_session(sscp.host, &opts);
         if (!sscp.ctrl)
                 return 1;
+        sscp.opts = &opts; /* save ssh-able ssh_opts */
 
         /* check target is directory */
         ret = file_is_directory(sscp.target,
                                 file_find_hostname(sscp.target) ? sscp.ctrl : NULL);
         if (ret < 0)
-                return 1;
+                goto out;
         if (ret == 0) {
                 pr_err("target must be directory\n");
-                return 1;
+                goto out;
         }
 
         /* fill file list */
         ret = file_fill(sscp.ctrl, &sscp.file_list, &argv[optind], argc - optind - 1);
-        if (ret < 0) {
-                ssh_sftp_close(sscp.ctrl);
-                return 1;
-        }
+        if (ret < 0)
+                goto out;
+
         ret = file_fill_dst(sscp.target, &sscp.file_list);
-        if (ret < 0){
-                ssh_sftp_close(sscp.ctrl);
-                return -1;
-        }
+        if (ret < 0)
+                goto out;
+
 #ifdef DEBUG
         file_dump(&sscp.file_list);
 #endif
 
         /* fill chunk list */
         ret = chunk_fill(&sscp.file_list, &sscp.chunk_list,
-                         nr_conn, min_chunk_sz, max_chunk_sz);
-        if (ret < 0) {
-                ssh_sftp_close(sscp.ctrl);
-                return 1;
-        }
+                         nr_threads, min_chunk_sz, max_chunk_sz);
+        if (ret < 0)
+                goto out;
+
 #ifdef DEBUG
         chunk_dump(&sscp.chunk_list);
 #endif
 
-        struct chunk *c;
-        list_for_each_entry(c, &sscp.chunk_list, list) {
-                chunk_prepare(c, sscp.ctrl);
-                chunk_copy(c, sscp.ctrl, sscp.buf_sz);
+        /* register SIGINT to stop thrads */
+        if (signal(SIGINT, stop_all) == SIG_ERR) {
+                pr_err("cannot set signal: %s\n", strerrno());
+                ret = 1;
+                goto out;
+        }
+
+        /* spawn threads */
+        threads = calloc(nr_threads, sizeof(struct sscp_thread));
+        memset(threads, 0, nr_threads * sizeof(struct sscp_thread));
+        for (n = 0; n < nr_threads; n++) {
+                struct sscp_thread *t = &threads[n];
+                t->sscp = &sscp;
+                t->finished = false;
+                ret = pthread_create(&t->tid, NULL, sscp_copy_thread, t);
+                if (ret < 0) {
+                        pr_err("pthread_create error: %d\n", ret);
+                        stop_all(0);
+                        goto join_out;
+                }
+        }
+
+        /* spawn count thread */
+        ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
+        if (ret < 0) {
+                pr_err("pthread_create error: %d\n", ret);
+                stop_all(0);
+                goto join_out;
         }
 
 
-        ssh_sftp_close(sscp.ctrl);
-	return 0;
+join_out:
+        /* waiting for threads join... */
+        for (n = 0; n < nr_threads; n++)
+                if (threads[n].tid)
+                        pthread_join(threads[n].tid, NULL);
+
+        if (mtid != 0)
+                pthread_join(mtid, NULL);
+
+out:
+        if (sscp.ctrl)
+                ssh_sftp_close(sscp.ctrl);
+
+	return ret;
+}
+
+void sscp_copy_thread_cleanup(void *arg)
+{
+        struct sscp_thread *t = arg;
+        if (t->sftp)
+                ssh_sftp_close(t->sftp);
+        t->finished = true;
+}
+
+void *sscp_copy_thread(void *arg)
+{
+        struct sscp_thread *t = arg;
+        struct sscp *sscp = t->sscp;
+        sftp_session sftp;
+        struct chunk *c;
+
+        /* create sftp session */
+        sftp = ssh_make_sftp_session(sscp->host, sscp->opts);
+        if (!sftp)
+                return NULL;
+
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+        pthread_cleanup_push(sscp_copy_thread_cleanup, t);
+
+        while (1) {
+                lock_acquire(&sscp->chunk_lock);
+                c = chunk_acquire(&sscp->chunk_list);
+                lock_release(&sscp->chunk_lock);
+
+                if (!c)
+                        break; /* no more chunks */
+
+                if (chunk_prepare(c, sftp) < 0)
+                        break;
+
+                if (chunk_copy(c, sftp, sscp->buf_sz, &t->done) < 0)
+                        break;
+        }
+
+        pthread_cleanup_pop(1);
+
+        return NULL;
+}
+
+static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
+{
+        double sec, usec;
+
+        if (a->tv_usec < b->tv_usec) {
+                a->tv_usec += 1000000;
+                a->tv_sec--;
+        }
+
+        sec = a->tv_sec - b->tv_sec;
+        usec = a->tv_usec - b->tv_usec;
+        sec += usec / 1000000;
+
+        return (double)diff / sec * 8;
+}
+
+void *sscp_monitor_thread(void *arg)
+{
+        struct sscp *sscp = arg;
+        struct sscp_thread *t;
+        struct timeval a, b;
+        struct file *f;
+        bool all_done;
+        size_t total, total_round, done, last;
+        int percent;
+        double bps;
+        char *bps_units[] = { "bps", "Kbps", "Mbps", "Gbps" };
+        char *byte_units[] = { "B", "KB", "MB", "GB", "TB" };
+        int n, bps_u, byte_tu, byte_du;
+
+        total = 0;
+        done = 0;
+        last = 0;
+
+        /* get total byte to be transferred */
+        list_for_each_entry(f, &sscp->file_list, list) {
+                total += f->size;
+        }
+        total_round = total;
+        for (byte_tu = 0; total_round > 1000 && byte_tu < 5; byte_tu++)
+                total_round /= 1024;
+
+        while (1) {
+
+                gettimeofday(&b, NULL);
+                sleep(1);
+
+                all_done = true;
+                done = 0;
+
+                for (n = 0; n < nr_threads; n++) {
+                        t = &threads[n];
+                        done += t->done;
+                        if (!t->finished)
+                                all_done = false;
+                }
+
+                gettimeofday(&a, NULL);
+
+                percent = floor(((double)(done) / (double)total) * 100);
+                for (byte_du = 0; done > 1000 && byte_du < 5; byte_du++) done /= 1024;
+
+                bps = calculate_bps(done - last, &b, &a);
+                for (bps_u = 0; bps > 1000 && bps_u < 4; bps_u++) bps /= 1000;
+
+                printf("%d%% (%lu%s/%lu%s) %.2f %s\n",
+                       percent,
+                       done, byte_units[byte_du], total_round, byte_units[byte_tu],
+                       bps, bps_units[bps_u]);
+
+                if (all_done || total == done)
+                        break;
+
+                last = done;
+                b = a;
+        }
+
+        return NULL;
 }

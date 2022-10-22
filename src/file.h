@@ -22,8 +22,6 @@ struct file {
         int     state;  /* destination file state */
         lock    lock;   /* mutex to protect state */
         refcnt  refcnt; /* chunks referencing this file */
-
-        size_t  done;   /* copied bytes. a control thread totaling up done of chunks */
 };
 #define FILE_STATE_INIT         0
 #define FILE_STATE_OPENED       1
@@ -72,7 +70,7 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
 
 struct chunk *chunk_acquire(struct list_head *chunk_list);
 int chunk_prepare(struct chunk *c, sftp_session sftp);
-int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz);
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counter);
 
 #ifdef DEBUG
 void file_dump(struct list_head *file_list);
