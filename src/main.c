@@ -422,7 +422,7 @@ static void print_progress(double percent, char *suffix)
         memset(buf, 0, sizeof(buf));
         thresh = floor(bar_width * (percent / 100)) - 1;
 
-        buf[0] = '[';
+
         for (n = 1; n < bar_width - 1; n++) {
                 if (n <= thresh)
                         buf[n] = '=';
@@ -430,6 +430,7 @@ static void print_progress(double percent, char *suffix)
                         buf[n] = ' ';
         }
         buf[thresh] = '>';
+        buf[0] = '[';
         buf[bar_width - 1] = ']';
 
         snprintf(buf + bar_width, sizeof(buf) - bar_width,
@@ -502,7 +503,7 @@ void *sscp_monitor_thread(void *arg)
                      byte_du++)
                         done /= 1024;
 
-                snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s",
+                snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s ",
                          done, byte_units[byte_du], total_round, byte_units[byte_tu],
                          bps, bps_units[bps_u]);
                 print_progress(percent, suffix);
