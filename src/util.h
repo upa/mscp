@@ -27,17 +27,17 @@ extern int verbose;
                                   __func__, ##__VA_ARGS__)
 
 #define pr_warn(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"	\
-				  "WARN:%s(): " fmt "\x1b[0m",	\
+				  "WARN:%s():\x1b[0m " fmt,	\
 				  __func__, ##__VA_ARGS__)
 
 #define pr_err(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[31m"	\
-				 "ERR:%s(): " fmt "\x1b[0m",	\
+				 "ERR:%s():\x1b[0m " fmt,	\
 				 __func__, ##__VA_ARGS__)
 
 #ifdef DEBUG
 #define pr_debug(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"    \
-				"DEBUG:%s(): " fmt "\x1b[0m",	\
-				__func__, ##__VA_ARGS__);
+                                   "DEBUG:%s():\x1b[0m " fmt,	\
+                                   __func__, ##__VA_ARGS__);
 #else
 #define pr_debug(fmt, ...)
 #endif
