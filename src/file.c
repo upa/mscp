@@ -613,7 +613,8 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
                                 ret = -1;
                                 goto out;
                         }
-                        remaind2 -= ret;
+                        remaind2 -= ret2;
+                        c->done += ret2;
                 }
 
                 remaind -= ret;
@@ -672,7 +673,8 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
                                 ret = -1;
                                 goto out;
                         }
-                        remaind2 -= ret;
+                        remaind2 -= ret2;
+                        c->done += ret2;
                 }
 
                 remaind -= ret;
