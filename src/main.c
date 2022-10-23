@@ -307,6 +307,10 @@ int main(int argc, char **argv)
                 struct sscp_thread *t = &threads[n];
                 t->sscp = &sscp;
                 t->finished = false;
+                t->sftp = ssh_make_sftp_session(sscp.host, sscp.opts);
+                if (!t->sftp)
+                        goto join_out;
+
                 ret = pthread_create(&t->tid, NULL, sscp_copy_thread, t);
                 if (ret < 0) {
                         pr_err("pthread_create error: %d\n", ret);
@@ -352,13 +356,8 @@ void *sscp_copy_thread(void *arg)
 {
         struct sscp_thread *t = arg;
         struct sscp *sscp = t->sscp;
-        sftp_session sftp;
+        sftp_session sftp = t->sftp;
         struct chunk *c;
-
-        /* create sftp session */
-        sftp = ssh_make_sftp_session(sscp->host, sscp->opts);
-        if (!sftp)
-                return NULL;
 
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);

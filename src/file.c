@@ -306,7 +306,9 @@ int file_fill_dst(char *target, struct list_head *file_list)
 
         list_for_each_entry(f, file_list, list) {
                 f->dst_remote = dst_remote;
-                snprintf(f->dst_path, PATH_MAX, "%s/%s", dst_path, f->path);
+                strncat(f->dst_path, dst_path, PATH_MAX);
+                strncat(f->dst_path, "/", PATH_MAX);
+                strncat(f->dst_path, f->path, PATH_MAX);
         }
 
         return 0;
