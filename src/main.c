@@ -300,6 +300,14 @@ int main(int argc, char **argv)
                 goto out;
         }
 
+        /* spawn count thread */
+        ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
+        if (ret < 0) {
+                pr_err("pthread_create error: %d\n", ret);
+                stop_all(0);
+                goto join_out;
+        }
+
         /* spawn threads */
         threads = calloc(nr_threads, sizeof(struct sscp_thread));
         memset(threads, 0, nr_threads * sizeof(struct sscp_thread));
@@ -318,15 +326,6 @@ int main(int argc, char **argv)
                         goto join_out;
                 }
         }
-
-        /* spawn count thread */
-        ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
-        if (ret < 0) {
-                pr_err("pthread_create error: %d\n", ret);
-                stop_all(0);
-                goto join_out;
-        }
-
 
 join_out:
         /* waiting for threads join... */
