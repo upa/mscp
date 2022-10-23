@@ -395,7 +395,7 @@ static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
         usec = a->tv_usec - b->tv_usec;
         sec += usec / 1000000;
 
-        return (double)diff / sec * 8;
+        return (double)diff / sec;
 }
 
 static void print_progress(double percent, char *suffix)
@@ -451,7 +451,7 @@ void *sscp_monitor_thread(void *arg)
         size_t total, total_round, done, last;
         int percent;
         double bps;
-        char *bps_units[] = { "bps", "Kbps", "Mbps", "Gbps" };
+        char *bps_units[] = { "B/s", "KB/s", "MB/s", "GB/s" };
         char *byte_units[] = { "B", "KB", "MB", "GB", "TB", "PB" };
         int n, bps_u, byte_tu, byte_du;
 
