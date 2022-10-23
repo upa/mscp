@@ -24,4 +24,8 @@ void ssh_sftp_close(sftp_session sftp);
 
 #define sftp_ssh(sftp) (sftp)->session
 
+/* wrapping multiple sftp_read|write */
+int sftp_write2(sftp_file sf, const void *buf, size_t len);
+int sftp_read2(sftp_file sf, void *buf, size_t len);
+
 #endif /* _SSH_H_ */
