@@ -601,7 +601,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
 
         flags = O_WRONLY|O_CREAT;
         mode = S_IRUSR|S_IWUSR;
-        if (!(sf = chunk_open_remote(f->dst_path, mode, flags, c->off, sftp))) {
+        if (!(sf = chunk_open_remote(f->dst_path, flags, mode, c->off, sftp))) {
                 ret = -1;
                 goto out;
         }
