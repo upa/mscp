@@ -19,14 +19,14 @@ int verbose = 0; /* util.h */
 
 
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
-#define DEFAULT_BUF_SZ          32768           /* CHANNEL_MAX_PACKET in libssh */
-/* XXX: passing over CHANNEL_MAX_PACKET bytes to sftp_write stalls */
+#define DEFAULT_SFTP_BUF_SZ     131072          /* derived from qemu/block/ssh.c */
+#define DEFAULT_IO_BUF_SZ       DEFAULT_SFTP_BUF_SZ
+/* XXX: need to investigate max buf size for sftp_read/sftp_write */
 
 struct sscp {
         char                    *host;  /* remote host (and username) */
         struct ssh_opts         *opts;  /* ssh parameters */
         sftp_session            ctrl;   /* control sftp session */
-
 
         struct list_head        file_list;
         struct list_head        chunk_list;     /* stack of chunks */
@@ -34,7 +34,7 @@ struct sscp {
 
         char    *target;
 
-        int     buf_sz;
+        int     sftp_buf_sz, io_buf_sz;
 };
 
 struct sscp_thread {
@@ -69,7 +69,7 @@ void usage(bool print_help) {
         printf("sscp: super scp, copy files over multiple ssh connections\n"
                "\n"
                "Usage: sscp [Cvh] [-n max_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
-               "            [-b buf_sz]\n"
+               "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
                "            [-l login_name] [-p port] [-i identity_file]\n"
                "            [-c cipher_spec] source ... target_directory\n"
                "\n");
@@ -80,9 +80,10 @@ void usage(bool print_help) {
         printf("    -n NR_CONNECTIONS  max number of connections (default: # of cpu cores)\n"
                "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
                "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
-               "    -b BUFFER_SIZE     buffer size for read/write (default 32768B)\n"
+               "    -b SFTP_BUF_SIZE   buf size for sftp_read/write (default 131072B)\n"
+               "    -B IO_BUF_SIZE     buf size for read/write (default 131072B)\n"
                "                       Note that this value is derived from\n"
-               "                       CHANNEL_MAX_PACKET in libssh.\n"
+               "                       qemu/block/ssh.c. need investigation...\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
@@ -157,11 +158,12 @@ int main(int argc, char **argv)
         INIT_LIST_HEAD(&sscp.file_list);
         INIT_LIST_HEAD(&sscp.chunk_list);
         lock_init(&sscp.chunk_lock);
-        sscp.buf_sz = DEFAULT_BUF_SZ;
+        sscp.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
+        sscp.io_buf_sz = DEFAULT_IO_BUF_SZ;
 
         nr_threads = nr_cpus();
 
-	while ((ch = getopt(argc, argv, "n:s:S:b:l:p:i:c:Cvh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:B:l:p:i:c:Cvh")) != -1) {
 		switch (ch) {
                 case 'n':
                         nr_threads = atoi(optarg);
@@ -201,8 +203,15 @@ int main(int argc, char **argv)
                         }
                         break;
                 case 'b':
-                        sscp.buf_sz = atoi(optarg);
-                        if (sscp.buf_sz < 1) {
+                        sscp.sftp_buf_sz = atoi(optarg);
+                        if (sscp.sftp_buf_sz < 1) {
+                                pr_err("invalid buffer size: %s\n", optarg);
+                                return -1;
+                        }
+                        break;
+                case 'B':
+                        sscp.io_buf_sz = atoi(optarg);
+                        if (sscp.io_buf_sz < 1) {
                                 pr_err("invalid buffer size: %s\n", optarg);
                                 return -1;
                         }
@@ -373,7 +382,8 @@ void *sscp_copy_thread(void *arg)
                 if (chunk_prepare(c, sftp) < 0)
                         break;
 
-                if (chunk_copy(c, sftp, sscp->buf_sz, &t->done) < 0)
+                if (chunk_copy(c, sftp,
+                               sscp->sftp_buf_sz, sscp->io_buf_sz, &t->done) < 0)
                         break;
         }
 

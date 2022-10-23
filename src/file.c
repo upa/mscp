@@ -588,19 +588,23 @@ static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, siz
 }
 
 static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
-                               size_t buf_sz, bool reverse, size_t *counter)
+                               size_t sftp_buf_sz, size_t io_buf_sz,
+                               bool reverse, size_t *counter)
 {
         int remaind, read_bytes, write_bytes;
-        char buf[buf_sz];
+        char buf[io_buf_sz];
 
-        /* if reverse is false, copy fd->sf. if true, copy sf->fd */
+        /* if reverse is false, copy fd->sf (local to remote).
+         * if reverse is true, copy sf->fd (remote to local)
+         */
 
         for (remaind = c->len; remaind > 0;) {
 
                 if (!reverse)
-                        read_bytes = read(fd, buf, min(remaind, buf_sz));
+                        read_bytes = read(fd, buf, min(remaind, io_buf_sz));
                 else
-                        read_bytes = sftp_read2(sf, buf, min(remaind, buf_sz));
+                        read_bytes = sftp_read2(sf, buf, min(remaind, io_buf_sz),
+                                                sftp_buf_sz);
 
                 if (read_bytes < 0) {
                         pr_err("failed to read %s: %s\n", c->f->dst_path,
@@ -610,7 +614,7 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
                 }
 
                 if (!reverse)
-                        write_bytes = sftp_write2(sf, buf, read_bytes);
+                        write_bytes = sftp_write2(sf, buf, read_bytes, sftp_buf_sz);
                 else
                         write_bytes = write(fd, buf, read_bytes);
 
@@ -633,7 +637,8 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
         return 0;
 }
 
-static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t buf_sz,
+static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
+                                      size_t sftp_buf_sz, size_t io_buf_sz,
                                       size_t *counter)
 {
         struct file *f = c->f;
@@ -657,7 +662,8 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
                 goto out;
         }
 
-        if ((ret = chunk_copy_internal(c, fd, sf, buf_sz, false, counter)) < 0)
+        ret = chunk_copy_internal(c, fd, sf, sftp_buf_sz, io_buf_sz, false, counter);
+        if (ret< 0)
                 goto out;
 
         if ((mode = chunk_get_mode(f->path, NULL)) < 0) {
@@ -676,7 +682,8 @@ out:
         return ret;
 }
 
-static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t buf_sz,
+static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
+                                      size_t sftp_buf_sz, size_t io_buf_sz,
                                       size_t *counter)
 {
         struct file *f = c->f;
@@ -700,7 +707,8 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
                 goto out;
         }
 
-        if ((ret = chunk_copy_internal(c, fd, sf, buf_sz, true, counter)) < 0)
+        ret = chunk_copy_internal(c, fd, sf, sftp_buf_sz, io_buf_sz, true, counter);
+        if (ret< 0)
                 goto out;
 
 out:
@@ -714,7 +722,8 @@ out:
 
 
 
-int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counter)
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io_buf_sz,
+               size_t *counter)
 {
         struct file *f = c->f;
         int ret = 0;
@@ -724,9 +733,11 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counte
                  f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
 
         if (f->dst_remote)
-                ret = chunk_copy_local_to_remote(c, sftp, buf_sz, counter);
+                ret = chunk_copy_local_to_remote(c, sftp,
+                                                 sftp_buf_sz, io_buf_sz, counter);
         else
-                ret = chunk_copy_remote_to_local(c, sftp, buf_sz, counter);
+                ret = chunk_copy_remote_to_local(c, sftp,
+                                                 sftp_buf_sz, io_buf_sz, counter);
 
         if (ret < 0)
                 return ret;

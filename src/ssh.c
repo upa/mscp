@@ -245,21 +245,13 @@ void ssh_sftp_close(sftp_session sftp)
 }
 
 
-/* from libssh/src/channels.c:
- *
- * All implementations MUST be able to process packets with an
- * uncompressed payload length of 32768 bytes or less and a total packet
- * size of 35000 bytes or less.
- */
-#define CHANNEL_MAX_PACKET 32768
-
-int sftp_write2(sftp_file sf, const void *buf, size_t len)
+int sftp_write2(sftp_file sf, const void *buf, size_t len, size_t sftp_buf_sz)
 {
-        int n, ret, nbytes;
+        int ret, nbytes;
 
         for (nbytes = 0; nbytes < len;) {
                 ret = sftp_write(sf, buf + nbytes,
-                                 min(len - nbytes, CHANNEL_MAX_PACKET));
+                                 min(len - nbytes, sftp_buf_sz));
                 if (ret < 0)
                         return ret;
                 nbytes += ret;
@@ -267,13 +259,13 @@ int sftp_write2(sftp_file sf, const void *buf, size_t len)
         return nbytes;
 }
 
-int sftp_read2(sftp_file sf, void *buf, size_t len)
+int sftp_read2(sftp_file sf, void *buf, size_t len, size_t sftp_buf_sz)
 {
-        int n, ret, nbytes;
+        int ret, nbytes;
 
         for (nbytes = 0; nbytes < len;) {
                 ret = sftp_read(sf, buf + nbytes,
-                                min(len - nbytes, CHANNEL_MAX_PACKET));
+                                min(len - nbytes, sftp_buf_sz));
                 if (ret < 0)
                         return ret;
                 nbytes += ret;
