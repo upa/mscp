@@ -541,11 +541,11 @@ static int chunk_set_mode(const char *path, mode_t mode, sftp_session sftp)
         return 0;
 }
 
-static int chunk_open_local(const char *path, int flags, size_t off)
+static int chunk_open_local(const char *path, int flags, mode_t mode, size_t off)
 {
         int fd;
 
-        fd = open(path, flags);
+        fd = open(path, flags, mode);
         if (fd < 0) {
                 pr_err("open failed for %s: %s\n", path, strerrno());
                 return -1;
@@ -559,12 +559,12 @@ static int chunk_open_local(const char *path, int flags, size_t off)
         return fd;
 }
 
-static sftp_file chunk_open_remote(const char *path, int flags, size_t off,
+static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, size_t off,
                                    sftp_session sftp)
 {
         sftp_file sf;
 
-        sf = sftp_open(sftp, path, flags, S_IRWXU); /* chmdo after copy finished */
+        sf = sftp_open(sftp, path, flags, mode);
 
         if (!sf) {
                 pr_err("open failed for remote %s: %s\n",
@@ -588,15 +588,20 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
         size_t remaind, remaind2, read_size;
         sftp_file sf = NULL;
         mode_t mode;
+        int flags;
         int fd = 0;
         int ret, ret2;
 
-        if ((fd = chunk_open_local(f->path, O_RDONLY, c->off)) < 0) {
+        flags = O_RDONLY;
+        mode = S_IRUSR;
+        if ((fd = chunk_open_local(f->path, flags, mode, c->off)) < 0) {
                 ret = -1;
                 goto out;
         }
 
-        if (!(sf = chunk_open_remote(f->dst_path, O_WRONLY | O_CREAT, c->off, sftp))) {
+        flags = O_WRONLY|O_CREAT;
+        mode = S_IRUSR|S_IWUSR;
+        if (!(sf = chunk_open_remote(f->dst_path, mode, flags, c->off, sftp))) {
                 ret = -1;
                 goto out;
         }
@@ -652,15 +657,20 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
         size_t remaind, remaind2, read_size;
         sftp_file sf = NULL;
         mode_t mode;
+        int flags;
         int fd = 0;
         int ret, ret2;
 
-        if ((fd = chunk_open_local(f->dst_path, O_WRONLY | O_CREAT, c->off)) < 0) {
+        flags = O_WRONLY|O_CREAT;
+        mode = S_IRUSR|S_IWUSR;
+        if ((fd = chunk_open_local(f->dst_path, flags, mode, c->off)) < 0) {
                 ret = -1;
                 goto out;
         }
 
-        if (!(sf = chunk_open_remote(f->path, O_RDONLY, c->off, sftp))) {
+        flags = O_RDONLY;
+        mode = S_IRUSR;
+        if (!(sf = chunk_open_remote(f->path, flags, mode, c->off, sftp))) {
                 ret = -1;
                 goto out;
         }
