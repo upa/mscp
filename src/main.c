@@ -35,6 +35,8 @@ struct sscp {
         char    *target;
 
         int     sftp_buf_sz, io_buf_sz;
+
+        struct timeval start;   /* timestamp of starting copy */
 };
 
 struct sscp_thread {
@@ -53,7 +55,7 @@ static pthread_t mtid;
 struct sscp_thread *threads;
 int nr_threads;
 
-void stop_all(int sig)
+void stop_copy_threads(int sig)
 {
         int n;
 
@@ -61,7 +63,6 @@ void stop_all(int sig)
         for (n = 0; n < nr_threads; n++) {
                 pthread_cancel(threads[n].tid);
         }
-        pthread_cancel(mtid);
 }
 
 
@@ -303,21 +304,13 @@ int main(int argc, char **argv)
 #endif
 
         /* register SIGINT to stop thrads */
-        if (signal(SIGINT, stop_all) == SIG_ERR) {
+        if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
                 pr_err("cannot set signal: %s\n", strerrno());
                 ret = 1;
                 goto out;
         }
 
-        /* spawn count thread */
-        ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
-        if (ret < 0) {
-                pr_err("pthread_create error: %d\n", ret);
-                stop_all(0);
-                goto join_out;
-        }
-
-        /* spawn threads */
+        /* prepare thread instances */
         threads = calloc(nr_threads, sizeof(struct sscp_thread));
         memset(threads, 0, nr_threads * sizeof(struct sscp_thread));
         for (n = 0; n < nr_threads; n++) {
@@ -327,11 +320,26 @@ int main(int argc, char **argv)
                 t->sftp = ssh_make_sftp_session(sscp.host, sscp.opts);
                 if (!t->sftp)
                         goto join_out;
+        }
 
+        /* spawn count thread */
+        ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
+        if (ret < 0) {
+                pr_err("pthread_create error: %d\n", ret);
+                stop_copy_threads(0);
+                goto join_out;
+        }
+
+        /* save start time */
+        gettimeofday(&sscp.start, NULL);
+
+        /* spawn threads */
+        for (n = 0; n < nr_threads; n++) {
+                struct sscp_thread *t = &threads[n];
                 ret = pthread_create(&t->tid, NULL, sscp_copy_thread, t);
                 if (ret < 0) {
                         pr_err("pthread_create error: %d\n", ret);
-                        stop_all(0);
+                        stop_copy_threads(0);
                         goto join_out;
                 }
         }
@@ -342,8 +350,10 @@ join_out:
                 if (threads[n].tid)
                         pthread_join(threads[n].tid, NULL);
 
-        if (mtid != 0)
+        if (mtid != 0) {
+                pthread_cancel(mtid);
                 pthread_join(mtid, NULL);
+        }
 
 out:
         if (sscp.ctrl)
