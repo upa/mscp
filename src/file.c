@@ -142,7 +142,7 @@ static struct file *file_alloc(char *path, size_t size, bool remote)
         }
         memset(f, 0, sizeof(*f));
 
-        strncpy(f->path, path, PATH_MAX);
+        strncpy(f->path, path, PATH_MAX - 1);
         f->size = size;
         f->remote = remote;
         lock_init(&f->lock);
@@ -250,7 +250,6 @@ static int file_fill_remote_recursive(char *path, sftp_session sftp,
                                ssh_get_error(sftp_ssh(sftp)));
                         return -1;
                 }
-
         } else {
                 /* path is file */
                 attr = sftp_stat(sftp, path);
@@ -300,15 +299,23 @@ int file_fill_dst(char *target, struct list_head *file_list)
 {
         bool dst_remote = file_find_hostname(target) ? true : false;
         char *dst_path = file_find_path(target);
+        int pref_len, path_len;
         struct file *f;
 
         dst_path = *dst_path == '\0' ? "." : dst_path;
 
         list_for_each_entry(f, file_list, list) {
                 f->dst_remote = dst_remote;
-                strncat(f->dst_path, dst_path, PATH_MAX);
-                strncat(f->dst_path, "/", PATH_MAX);
-                strncat(f->dst_path, f->path, PATH_MAX);
+                pref_len = strlen(dst_path);
+                path_len = strlen(f->path);
+                if (pref_len + path_len + 2 > PATH_MAX) { /* +2 is '/' and '\0' */
+                        pr_err("too long path: %s/%s\n", dst_path, f->path);
+                        return -1;
+                }
+                memcpy(f->dst_path, dst_path, pref_len);
+                f->dst_path[pref_len] = '/';
+                memcpy(f->dst_path + pref_len + 1, f->path, path_len);
+                f->dst_path[pref_len + 1 + path_len] = '\0';
         }
 
         return 0;
@@ -590,7 +597,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp, size_t
         mode_t mode;
         int flags;
         int fd = 0;
-        int ret, ret2;
+        int ret = 0, ret2;
 
         flags = O_RDONLY;
         mode = S_IRUSR;
@@ -659,7 +666,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp, size_t
         mode_t mode;
         int flags;
         int fd = 0;
-        int ret, ret2;
+        int ret = 0, ret2;
 
         flags = O_WRONLY|O_CREAT;
         mode = S_IRUSR|S_IWUSR;
@@ -721,7 +728,7 @@ out:
 int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counter)
 {
         struct file *f = c->f;
-        int ret;
+        int ret = 0;
 
         pr_debug("copy %s %s -> %s %s off=0x%010lx\n",
                  f->path, f->remote ? "(remote)" : "(local)",
@@ -734,6 +741,10 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t buf_sz, size_t *counte
 
         if (ret < 0)
                 return ret;
+
+        pr_debug("done %s %s -> %s %s off=0x%010lx\n",
+                 f->path, f->remote ? "(remote)" : "(local)",
+                 f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
 
         if (refcnt_dec(&f->refcnt) == 0)
                 f->state = FILE_STATE_DONE;
