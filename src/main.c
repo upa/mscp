@@ -546,11 +546,11 @@ void *sscp_monitor_thread(void *arg)
                 }
                 gettimeofday(&b, NULL);
 
-                sleep(1);
+                usleep(500000);
 
                 for (n = 0; n < nr_threads; n++) {
                         done += threads[n].done;;
-                        if (threads[n].finished)
+                        if (!threads[n].finished)
                                 all_done = false;
                 }
                 gettimeofday(&a, NULL);
