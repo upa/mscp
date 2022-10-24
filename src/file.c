@@ -487,6 +487,7 @@ struct chunk *chunk_acquire(struct list_head *chunk_list)
 
 int chunk_prepare(struct chunk *c, sftp_session sftp)
 {
+        char output[PATH_MAX + 32];
         struct file *f = c->f;
         int ret = 0;
 
@@ -496,6 +497,9 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
                         ret = -1;
                         goto out;
                 }
+                snprintf(output, sizeof(output), "\r\033[Kcopy start: %s\n", f->path);
+                fputs(output, stderr);
+                fflush(stderr);
                 f->state = FILE_STATE_OPENED;
         }
 
@@ -727,6 +731,7 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
 {
         struct file *f = c->f;
         int ret = 0;
+        char output[PATH_MAX + 16];
 
         pr_debug("copy %s %s -> %s %s off=0x%010lx\n",
                  f->path, f->remote ? "(remote)" : "(local)",
@@ -746,8 +751,12 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
                  f->path, f->remote ? "(remote)" : "(local)",
                  f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
 
-        if (refcnt_dec(&f->refcnt) == 0)
+        if (refcnt_dec(&f->refcnt) == 0) {
+		snprintf(output, sizeof(output), "\r\033[Kcopy done: %s\n", f->path);
+		fputs(output, stderr);
+                fflush(stderr);
                 f->state = FILE_STATE_DONE;
+        }
 
         return ret;
 }

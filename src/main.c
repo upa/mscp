@@ -428,34 +428,31 @@ static void print_progress_bar(double percent, char *suffix)
          * [=======>   ] XX.X% SUFFIX
          */
 
+        buf[0] = '\0';
+
         if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
                 return; /* XXX */
+        bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 8;
+
+        if (bar_width > 8) {
+                memset(buf, 0, sizeof(buf));
+                thresh = floor(bar_width * (percent / 100)) - 1;
+
+                for (n = 1; n < bar_width - 1; n++) {
+                        if (n <= thresh)
+                                buf[n] = '=';
+                        else
+                                buf[n] = ' ';
+                }
+                buf[thresh] = '>';
+                buf[0] = '[';
+                buf[bar_width - 1] = ']';
+                snprintf(buf + bar_width, sizeof(buf) - bar_width,
+                         " %3d%% ", (int)floor(percent));
+        }
 
         fputs("\r\033[K", stderr);
-
-        bar_width = ws.ws_col - strlen(suffix) - 8;
-        if (bar_width < 0)
-                goto suffix_only;
-
-        memset(buf, 0, sizeof(buf));
-        thresh = floor(bar_width * (percent / 100)) - 1;
-
-
-        for (n = 1; n < bar_width - 1; n++) {
-                if (n <= thresh)
-                        buf[n] = '=';
-                else
-                        buf[n] = ' ';
-        }
-        buf[thresh] = '>';
-        buf[0] = '[';
-        buf[bar_width - 1] = ']';
-
-        snprintf(buf + bar_width, sizeof(buf) - bar_width,
-                 " %3d%% ", (int)floor(percent));
-
         fputs(buf, stderr);
-suffix_only:
         fputs(suffix, stderr);
         fflush(stderr);
 }
