@@ -12,11 +12,9 @@
 #include <util.h>
 #include <ssh.h>
 #include <file.h>
+#include <pprint.h>
 #include <atomic.h>
 #include <platform.h>
-
-int verbose = 0; /* util.h */
-
 
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
 #define DEFAULT_SFTP_BUF_SZ     131072          /* derived from qemu/block/ssh.c */
@@ -69,29 +67,31 @@ void stop_copy_threads(int sig)
 void usage(bool print_help) {
         printf("sscp: super scp, copy files over multiple ssh connections\n"
                "\n"
-               "Usage: sscp [Cvh] [-n max_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+               "Usage: sscp [Cvqdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
                "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
                "            [-l login_name] [-p port] [-i identity_file]\n"
-               "            [-c cipher_spec] source ... target_directory\n"
+               "            [-c cipher_spec] []source ... target_directory\n"
                "\n");
                
         if (!print_help)
                 return;
 
-        printf("    -n NR_CONNECTIONS  max number of connections (default: # of cpu cores)\n"
+        printf("    -n NR_CONNECTIONS  number of connections (default: half of # of cpu cores)\n"
                "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
                "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
                "    -b SFTP_BUF_SIZE   buf size for sftp_read/write (default 131072B)\n"
                "    -B IO_BUF_SIZE     buf size for read/write (default 131072B)\n"
                "                       Note that this value is derived from\n"
                "                       qemu/block/ssh.c. need investigation...\n"
+               "    -v                 increment verbose output level\n"
+               "    -q                 disable output\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
                "    -i IDENTITY        identity file for publickey authentication\n"
                "    -c CIPHER          cipher spec, see `ssh -Q cipher`\n"
                "    -C                 enable compression on libssh\n"
-               "    -v                 increment output level\n"
+               "    -d                 increment ssh debug output level\n"
                "    -h                 print this help\n"
                "\n");
 
@@ -151,6 +151,7 @@ int main(int argc, char **argv)
 	struct ssh_opts opts;
         int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
         int max_chunk_sz = 0;
+        int verbose = 1;
         int ret = 0, n;
         char ch;
 
@@ -162,9 +163,10 @@ int main(int argc, char **argv)
         sscp.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
         sscp.io_buf_sz = DEFAULT_IO_BUF_SZ;
 
-        nr_threads = nr_cpus();
+        nr_threads = (int)(nr_cpus() / 2);
+        nr_threads = nr_threads == 0 ? 1 : nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:s:S:b:B:l:p:i:c:Cvh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:B:vql:p:i:c:Cdh")) != -1) {
 		switch (ch) {
                 case 'n':
                         nr_threads = atoi(optarg);
@@ -217,6 +219,12 @@ int main(int argc, char **argv)
                                 return -1;
                         }
                         break;
+                case 'v':
+                        verbose++;
+                        break;
+                case 'q':
+                        verbose = -1;
+                        break;
 		case 'l':
 			opts.login_name = optarg;
 			break;
@@ -232,9 +240,8 @@ int main(int argc, char **argv)
 		case 'C':
 			opts.compress++;
 			break;
-		case 'v':
+		case 'd':
 			opts.debuglevel++;
-                        verbose++;
 			break;
                 case 'h':
                         usage(true);
@@ -244,6 +251,8 @@ int main(int argc, char **argv)
                         return 1;
 		}
         }
+
+        pprint_set_level(verbose);
 
         if (max_chunk_sz > 0 && min_chunk_sz > max_chunk_sz) {
                 pr_err("smaller max chunk size than min chunk size: %d < %d\n",
@@ -265,6 +274,7 @@ int main(int argc, char **argv)
                 pr_err("no remote host given\n");
                 return 1;
         }
+        pprint3("connecting to %s for checking destinations...\n", sscp.host);
         sscp.ctrl = ssh_make_sftp_session(sscp.host, &opts);
         if (!sscp.ctrl)
                 return 1;
@@ -317,6 +327,7 @@ int main(int argc, char **argv)
                 struct sscp_thread *t = &threads[n];
                 t->sscp = &sscp;
                 t->finished = false;
+                pprint3("connecting to %s for a copy thread...\n", sscp.host);
                 t->sftp = ssh_make_sftp_session(sscp.host, sscp.opts);
                 if (!t->sftp)
                         goto join_out;
@@ -451,10 +462,7 @@ static void print_progress_bar(double percent, char *suffix)
                          " %3d%% ", (int)floor(percent));
         }
 
-        fputs("\r\033[K", stderr);
-        fputs(buf, stderr);
-        fputs(suffix, stderr);
-        fflush(stderr);
+        pprint1("%s%s", buf, suffix);
 }
 
 static void print_progress(struct timeval *start, struct timeval *end,
@@ -513,6 +521,7 @@ void sscp_monitor_thread_cleanup(void *arg)
         }
 
         print_progress(&sscp->start, &end, total, 0, done);
+        fputs("\n", stdout); /* the final ouput. we need \n */
 }
 
 void *sscp_monitor_thread(void *arg)
@@ -559,8 +568,6 @@ void *sscp_monitor_thread(void *arg)
         }
 
         pthread_cleanup_pop(1);
-
-        fputs("\n", stderr);
 
         return NULL;
 }

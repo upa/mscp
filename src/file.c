@@ -7,6 +7,7 @@
 #include <ssh.h>
 #include <util.h>
 #include <file.h>
+#include <pprint.h>
 #include <platform.h>
 
 bool file_has_hostname(char *path)
@@ -450,6 +451,8 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
                         c->len = size < chunk_sz ? size : chunk_sz;
                         size -= c->len;
                         list_add_tail(&c->list, chunk_list);
+                        pprint4("chunk %s 0x%010lx-0x%010lx %luB\n",
+                                c->f->path, c->off, c->off + c->len, c->len);
                 }
         }
 
@@ -487,7 +490,6 @@ struct chunk *chunk_acquire(struct list_head *chunk_list)
 
 int chunk_prepare(struct chunk *c, sftp_session sftp)
 {
-        char output[PATH_MAX + 32];
         struct file *f = c->f;
         int ret = 0;
 
@@ -497,10 +499,8 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
                         ret = -1;
                         goto out;
                 }
-                snprintf(output, sizeof(output), "\r\033[Kcopy start: %s\n", f->path);
-                fputs(output, stderr);
-                fflush(stderr);
                 f->state = FILE_STATE_OPENED;
+                pprint2("copy start: %s\n", f->path);
         }
 
 out:
@@ -731,11 +731,14 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
 {
         struct file *f = c->f;
         int ret = 0;
-        char output[PATH_MAX + 16];
 
         pr_debug("copy %s %s -> %s %s off=0x%010lx\n",
                  f->path, f->remote ? "(remote)" : "(local)",
                  f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
+
+        pprint4("copy start: chunk %s 0x%010lx-0x%010lx %luB\n",
+                c->f->path, c->off, c->off + c->len, c->len);
+
 
         if (f->dst_remote)
                 ret = chunk_copy_local_to_remote(c, sftp,
@@ -751,12 +754,14 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
                  f->path, f->remote ? "(remote)" : "(local)",
                  f->dst_path, f->dst_remote ? "(remote)" : "(local)", c->off);
 
+        pprint4("copy done: chunk %s 0x%010lx-0x%010lx %luB\n",
+                c->f->path, c->off, c->off + c->len, c->len);
+
         if (refcnt_dec(&f->refcnt) == 0) {
-		snprintf(output, sizeof(output), "\r\033[Kcopy done: %s\n", f->path);
-		fputs(output, stderr);
-                fflush(stderr);
                 f->state = FILE_STATE_DONE;
+                pprint2("copy done: %s\n", f->path);
         }
+
 
         return ret;
 }
