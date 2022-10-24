@@ -418,7 +418,7 @@ static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
         return (double)diff / sec;
 }
 
-static void print_progress(double percent, char *suffix)
+static void print_progress_bar(double percent, char *suffix)
 {
         int n, thresh, bar_width;
         struct winsize ws;
@@ -460,75 +460,108 @@ suffix_only:
         fflush(stderr);
 }
 
-void *sscp_monitor_thread(void *arg)
+static void print_progress(struct timeval *start, struct timeval *end,
+                           size_t total, size_t last, size_t done)
 {
-        struct sscp *sscp = arg;
-        struct sscp_thread *t;
-        struct timeval a, b;
-        struct file *f;
-        char suffix[128];
-        bool all_done;
-        size_t total, total_round, done, last;
-        int percent;
-        double bps;
         char *bps_units[] = { "B/s", "KB/s", "MB/s", "GB/s" };
         char *byte_units[] = { "B", "KB", "MB", "GB", "TB", "PB" };
-        int n, bps_u, byte_tu, byte_du;
+        char suffix[128];
+        int bps_u, byte_tu, byte_du;
+        size_t total_round;
+        int percent;
+        double bps;
 
 #define array_size(a) (sizeof(a) / sizeof(a[0]))
 
-        total = 0;
-        done = 0;
-        last = 0;
-
-        /* get total byte to be transferred */
-        list_for_each_entry(f, &sscp->file_list, list) {
-                total += f->size;
-        }
         total_round = total;
         for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
              byte_tu++)
                 total_round /= 1024;
 
+        bps = calculate_bps(done - last, start, end);
+        for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
+                bps /= 1000;
+
+        percent = floor(((double)(done) / (double)total) * 100);
+        for (byte_du = 0; done > 1000 && byte_du < array_size(byte_units) - 1; byte_du++)
+                done /= 1024;
+
+        snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s ",
+                 done, byte_units[byte_du], total_round, byte_units[byte_tu],
+                 bps, bps_units[bps_u]);
+
+        print_progress_bar(percent, suffix);
+}
+
+void sscp_monitor_thread_cleanup(void *arg)
+{
+        struct sscp *sscp = arg;
+        struct timeval end;
+        struct file *f;
+        size_t total, done;
+        int n;
+
+        total = done = 0;
+
+        gettimeofday(&end, NULL);
+
+        /* get total byte to be transferred */
+        list_for_each_entry(f, &sscp->file_list, list) {
+                total += f->size;
+        }
+
+        /* get total byte transferred */
+        for (n = 0; n < nr_threads; n++) {
+                done += threads[n].done;
+        }
+
+        print_progress(&sscp->start, &end, total, 0, done);
+}
+
+void *sscp_monitor_thread(void *arg)
+{
+        struct sscp *sscp = arg;
+        struct timeval a, b;
+        struct file *f;
+        bool all_done;
+        size_t total, done, last;
+        int n;
+
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+        pthread_cleanup_push(sscp_monitor_thread_cleanup, sscp);
+
+        /* get total byte to be transferred */
+        total = 0;
+        list_for_each_entry(f, &sscp->file_list, list) {
+                total += f->size;
+        }
+
         while (1) {
                 all_done = true;
-                last = 0;
-                done = 0;
+                last = done = 0;
 
                 for (n = 0; n < nr_threads; n++) {
-                        t = &threads[n];
-                        last += t->done;
+                        last += threads[n].done;
                 }
                 gettimeofday(&b, NULL);
 
-                usleep(500000);
+                sleep(1);
 
                 for (n = 0; n < nr_threads; n++) {
-                        t = &threads[n];
-                        done += t->done;
-                        if (!t->finished)
+                        done += threads[n].done;;
+                        if (threads[n].finished)
                                 all_done = false;
                 }
                 gettimeofday(&a, NULL);
 
-                bps = calculate_bps(done - last, &b, &a);
-                for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
-                        bps /= 1000;
-
-                percent = floor(((double)(done) / (double)total) * 100);
-                for (byte_du = 0;
-                     done > 1000 && byte_du < array_size(byte_units) - 1;
-                     byte_du++)
-                        done /= 1024;
-
-                snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s ",
-                         done, byte_units[byte_du], total_round, byte_units[byte_tu],
-                         bps, bps_units[bps_u]);
-                print_progress(percent, suffix);
+                print_progress(&b, &a, total, last, done);
 
                 if (all_done || total == done)
                         break;
         }
+
+        pthread_cleanup_pop(1);
 
         fputs("\n", stderr);
 
