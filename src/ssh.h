@@ -6,14 +6,14 @@
 
 
 struct ssh_opts {
-        char    *login_name;    /* -l */
-        char    *port;          /* -p */
-        char    *identity;      /* -i */
-        char    *cipher;        /* -c */
-        int     compress;       /* -C */
-        int     debuglevel;     /* -v */
+	char    *login_name;    /* -l */
+	char    *port;          /* -p */
+	char    *identity;      /* -i */
+	char    *cipher;        /* -c */
+	int     compress;       /* -C */
+	int     debuglevel;     /* -v */
 
-        char    *password;      /* filled at the first connecting phase */
+	char    *password;      /* filled at the first connecting phase */
 };
 
 /* ssh_make_sftp_session() creates sftp_session. sshdst accpets

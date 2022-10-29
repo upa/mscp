@@ -12,7 +12,7 @@
 #define pr(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 
 #define pr_info(fmt, ...) fprintf(stderr, "INFO:%s(): " fmt,    \
-                                  __func__, ##__VA_ARGS__)
+				  __func__, ##__VA_ARGS__)
 
 #define pr_warn(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"	\
 				  "WARN:%s():\x1b[0m " fmt,	\
@@ -24,8 +24,8 @@
 
 #ifdef DEBUG
 #define pr_debug(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"    \
-                                   "DEBUG:%s():\x1b[0m " fmt,	\
-                                   __func__, ##__VA_ARGS__);
+				   "DEBUG:%s():\x1b[0m " fmt,	\
+				   __func__, ##__VA_ARGS__);
 #else
 #define pr_debug(fmt, ...)
 #endif

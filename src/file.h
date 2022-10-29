@@ -10,18 +10,18 @@
 #include <atomic.h>
 
 struct file {
-        struct list_head        list;   /* sscp->file_list */
+	struct list_head        list;   /* sscp->file_list */
 
-        char    path[PATH_MAX]; /* copy source path */
-        bool    remote;         /* source is remote */
-        size_t  size;           /* size of this file */
+	char    path[PATH_MAX]; /* copy source path */
+	bool    remote;         /* source is remote */
+	size_t  size;           /* size of this file */
 
-        char    dst_path[PATH_MAX];     /* copy destination path */
-        bool    dst_remote;             /* destination is remote */
+	char    dst_path[PATH_MAX];     /* copy destination path */
+	bool    dst_remote;             /* destination is remote */
 
-        int     state;  /* destination file state */
-        lock    lock;   /* mutex to protect state */
-        refcnt  refcnt; /* chunks referencing this file */
+	int     state;  /* destination file state */
+	lock    lock;   /* mutex to protect state */
+	refcnt  refcnt; /* chunks referencing this file */
 };
 #define FILE_STATE_INIT         0
 #define FILE_STATE_OPENED       1
@@ -51,26 +51,26 @@ struct file {
  */
 
 struct chunk {
-        struct list_head        list;   /* sscp->chunk_list */
-        struct file *f;
-        size_t  off;    /* offset of this chunk on the file f */
-        size_t  len;    /* length of this chunk */
-        size_t  done;   /* copied bytes for this chunk by a thread */
+	struct list_head        list;   /* sscp->chunk_list */
+	struct file *f;
+	size_t  off;    /* offset of this chunk on the file f */
+	size_t  len;    /* length of this chunk */
+	size_t  done;   /* copied bytes for this chunk by a thread */
 };
 
 char *file_find_hostname(char *path);
 bool file_has_hostname(char *path);
 
 int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
-              char *dst);
+	      char *dst);
 
 int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
-               int nr_conn, int min_chunk_sz, int max_chunk_sz);
+	       int nr_conn, int min_chunk_sz, int max_chunk_sz);
 
 struct chunk *chunk_acquire(struct list_head *chunk_list);
 int chunk_prepare(struct chunk *c, sftp_session sftp);
 int chunk_copy(struct chunk *c, sftp_session sftp,
-               size_t sftp_buf_sz, size_t io_buf_sz, size_t *counter);
+	       size_t sftp_buf_sz, size_t io_buf_sz, size_t *counter);
 
 #ifdef DEBUG
 void file_dump(struct list_head *file_list);
