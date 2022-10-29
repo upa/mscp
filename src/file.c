@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <libgen.h>
 
 #include <ssh.h>
 #include <util.h>
@@ -68,7 +69,7 @@ static char *file_find_path(char *path)
 }
 
 /* return 1 when path is directory, 0 is not directory, and -1 on error */
-int file_is_directory(char *path, sftp_session sftp)
+static int file_is_directory(char *path, sftp_session sftp, bool print_error)
 {
         int ret = 0;
 
@@ -79,8 +80,9 @@ int file_is_directory(char *path, sftp_session sftp)
                 char *p = *remote_path == '\0' ? "." : remote_path;
                 attr = sftp_stat(sftp, p);
                 if (!attr) {
-                        pr_err("%s: %s\n", p,
-                               ssh_get_error(sftp_ssh(sftp)));
+                        if (print_error)
+                                pr_err("sftp_stat %s: %s\n",
+                                       path, sftp_get_ssh_error(sftp));
                         ret = -1;
                 } else if (attr->type == SSH_FILEXFER_TYPE_DIRECTORY)
                         ret = 1;
@@ -88,9 +90,10 @@ int file_is_directory(char *path, sftp_session sftp)
         } else {
                 struct stat statbuf;
                 if (stat(path, &statbuf) < 0) {
-                        pr_err("%s: %s\n", path, strerrno());
+                        if (print_error)
+                                pr_err("stat %s: %s\n", path, strerrno());
                         ret = -1;
-                } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
+                } else if (S_ISDIR(statbuf.st_mode))
                         ret = 1;
         }
 
@@ -146,6 +149,7 @@ static struct file *file_alloc(char *path, size_t size, bool remote)
         strncpy(f->path, path, PATH_MAX - 1);
         f->size = size;
         f->remote = remote;
+        f->dst_remote = !remote;
         lock_init(&f->lock);
 
         return f;
@@ -162,161 +166,160 @@ static bool file_should_skip(char *path)
 }
 
 
-static int file_fill_local_recursive(char *path, struct list_head *head)
+/* return -1 when error, 0 when should skip, and 1 when should be copied  */
+static int check_file_tobe_copied(char *path, sftp_session sftp, size_t *size)
 {
-        char child[PATH_MAX];
         struct stat statbuf;
-        struct dirent *de;
-        DIR *dir;
+        sftp_attributes attr;
+        int ret = 0;
+
+        if (!sftp) {
+                /* local */
+                if (stat(path, &statbuf) < 0) {
+                        pr_err("failed to get stat for %s: %s\n", path, strerrno());
+                        return -1;
+                }
+                if (S_ISREG(statbuf.st_mode)) {
+                        *size = statbuf.st_size;
+                        return 1;
+                }
+                return 0;
+        }
+
+        /* remote */
+        attr = sftp_stat(sftp, path);
+        if (!attr) {
+                pr_err("failed to get stat for %s: %s\n",
+                       path, ssh_get_error(sftp_ssh(sftp)));
+                return -1;
+        }
+        if (attr->type == SSH_FILEXFER_TYPE_REGULAR ||
+            attr->type == SSH_FILEXFER_TYPE_SYMLINK) {
+                *size = attr->size;
+                ret = 1;
+        }
+
+        sftp_attributes_free(attr);
+
+        return ret;
+}
+
+static int file_fill_recursive(struct list_head *file_list,
+                               bool dst_is_remote, sftp_session sftp, char *src_path,
+                               char *rel_path, char *dst_path, bool dst_should_dir)
+{
+        char next_src_path[PATH_MAX], next_rel_path[PATH_MAX];
+        struct file *f;
+        size_t size;
         int ret;
 
-        ret = file_is_directory(path, NULL);
+        ret = file_is_directory(src_path, dst_is_remote ? NULL : sftp, true);
         if (ret < 0)
                 return -1;
 
-        if (ret == 1) {
-                if ((dir = opendir(path)) == NULL) {
-                        pr_err("opend to open dir %s: %s\n", path, strerrno());
+        if (ret == 0) {
+                /* src_path is file */
+                ret = check_file_tobe_copied(src_path, dst_is_remote ? NULL : sftp,
+                                             &size);
+                if (ret <= 0)
+                        return ret; /* error or skip */
+
+                if ((f = file_alloc(src_path, size, !dst_is_remote)) == NULL) {
+                        pr_err("%s\n", strerrno());
                         return -1;
                 }
 
+                if (dst_should_dir)
+                        snprintf(f->dst_path, PATH_MAX, "%s/%s%s",
+                                 dst_path, rel_path, basename(src_path));
+                else
+                        snprintf(f->dst_path, PATH_MAX, "%s%s", rel_path, dst_path);
+
+                list_add_tail(&f->list, file_list);
+                pprint2("file %s %s -> %s %s\n",
+                        f->path, dst_is_remote ? "(local)" : "(remote)",
+                        f->dst_path, dst_is_remote ? "(remote)" : "(local)");
+
+                return 0;
+        }
+
+        /* src_path is directory */
+        if (dst_is_remote) {
+                /* src_path is local directory */
+                struct dirent *de;
+                DIR *dir;
+                if ((dir = opendir(src_path)) == NULL) {
+                        pr_err("opendir '%s': %s\n", src_path, strerrno());
+                        return -1;
+                }
                 while ((de = readdir(dir)) != NULL) {
                         if (file_should_skip(de->d_name))
                                 continue;
-                        snprintf(child, sizeof(child), "%s/%s", path, de->d_name);
-                        ret = file_fill_local_recursive(child, head);
+                        snprintf(next_src_path, sizeof(next_src_path),
+                                 "%s/%s", src_path, de->d_name);
+                        snprintf(next_rel_path, sizeof(next_rel_path),
+                                 "%s%s/", rel_path, basename(src_path));
+                        ret = file_fill_recursive(file_list, dst_is_remote, sftp,
+                                                  next_src_path, next_rel_path,
+                                                  dst_path, dst_should_dir);
                         if (ret < 0)
                                 return ret;
                 }
         } else {
-                /* path is file */
-                if (stat(path, &statbuf) < 0) {
-                        pr_err("file %s: %s\n", path, strerrno());
+                /* src_path is remote directory */
+                sftp_attributes attr;
+                sftp_dir dir;
+                if ((dir = sftp_opendir(sftp, src_path)) == NULL) {
+                        pr_err("sftp_opendir: '%s': %s\n", src_path,
+                               sftp_get_ssh_error(sftp));
                         return -1;
                 }
-
-                if ((statbuf.st_mode & S_IFMT) == S_IFREG ||
-                    (statbuf.st_mode & S_IFMT) == S_IFLNK) {
-                        struct file *f = file_alloc(path, statbuf.st_size, false);
-                        if (!f) {
-                                pr_err("%s\n", strerrno());
-                                return -1;
-                        }
-                        list_add_tail(&f->list, head);
-                }
-        }
-
-        return 0;
-}
-
-static int file_fill_remote_recursive(char *path, sftp_session sftp,
-                                      struct list_head *head)
-{
-        char child[PATH_MAX];
-        sftp_attributes attr;
-        sftp_dir dir;
-        int ret;
-
-        ret = file_is_directory(path, sftp);
-        if (ret < 0)
-                return -1;
-
-        if (ret == 1) {
-                dir = sftp_opendir(sftp, path);
-                if (!dir) {
-                        pr_err("failed to open dir %s: %s\n", path,
-                               ssh_get_error(sftp_ssh(sftp)));
-                        return -1;
-                }
-
                 while ((attr = sftp_readdir(sftp, dir)) != NULL) {
                         if (file_should_skip(attr->name))
                                 continue;
-
-                        snprintf(child, sizeof(child), "%s/%s", path, attr->name);
-                        ret = file_fill_remote_recursive(child, sftp, head);
+                        snprintf(next_src_path, sizeof(next_src_path),
+                                 "%s/%s", src_path, attr->name);
+                        snprintf(next_rel_path, sizeof(next_rel_path),
+                                 "%s%s/", rel_path, basename(src_path));
+                        ret = file_fill_recursive(file_list, dst_is_remote, sftp,
+                                                  next_src_path, next_rel_path,
+                                                  dst_path, dst_should_dir);
                         if (ret < 0)
                                 return ret;
-                        sftp_attributes_free(attr);
-                }
-
-                if (!sftp_dir_eof(dir)) {
-                        pr_err("can't list directory %s: %s\n", path,
-                               ssh_get_error(sftp_ssh(sftp)));
-                        return -1;
-                }
-
-                if (sftp_closedir(dir) != SSH_OK) {
-                        pr_err("can't close directory %s: %s\n", path,
-                               ssh_get_error(sftp_ssh(sftp)));
-                        return -1;
-                }
-        } else {
-                /* path is file */
-                attr = sftp_stat(sftp, path);
-                if (!attr) {
-                        pr_err("failed to get stat for %s: %s\n",
-                               path, ssh_get_error(sftp_ssh(sftp)));
-                        return -1;
-                }
-
-                /* skip special and unknown files */
-                if (attr->type == SSH_FILEXFER_TYPE_REGULAR ||
-                    attr->type == SSH_FILEXFER_TYPE_SYMLINK) {
-                        struct file *f = file_alloc(path, attr->size, true);
-                        if (!f) {
-                                pr_err("%s\n", strerrno());
-                                return -1;
-                        }
-                        list_add(&f->list, head);
-                        sftp_attributes_free(attr);
                 }
         }
 
         return 0;
 }
 
-int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt)
+int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
+              char *dst)
 {
-        char *src, *path;
-        int ret, n;
+        bool dst_is_remote, dst_is_dir, dst_should_dir;
+        char *dst_path, *src_path;
+        int n, ret;
+
+        dst_path = file_find_path(dst);
+        dst_path = *dst_path == '\0' ? "." : dst_path;
+        dst_is_remote = file_find_hostname(dst) ? true : false;
+
+        if (file_is_directory(dst_path, dst_is_remote ? sftp : NULL, false) > 0)
+                dst_is_dir = true;
+        else
+                dst_is_dir = false;
 
         for (n = 0; n < cnt; n++) {
-                src = *(src_array + n);
-                path = file_find_path(src);
-                path = *path == '\0' ? "." : path;
-                if (file_has_hostname(src))
-                        ret = file_fill_remote_recursive(path, sftp, file_list);
+                src_path = file_find_path(src_array[n]);
+
+                if (file_is_directory(src_path, dst_is_remote ? NULL : sftp, false) > 0)
+                        dst_should_dir = true;
                 else
-                        ret = file_fill_local_recursive(path, file_list);
+                        dst_should_dir = false;
+                ret = file_fill_recursive(file_list, dst_is_remote, sftp,
+                                          src_path, "",
+                                          dst_path, dst_is_dir | dst_should_dir);
                 if (ret < 0)
-                        return -1;
-        }
-
-        return 0;
-}
-
-int file_fill_dst(char *target, struct list_head *file_list)
-{
-        bool dst_remote = file_find_hostname(target) ? true : false;
-        char *dst_path = file_find_path(target);
-        int pref_len, path_len;
-        struct file *f;
-
-        dst_path = *dst_path == '\0' ? "." : dst_path;
-
-        list_for_each_entry(f, file_list, list) {
-                f->dst_remote = dst_remote;
-                pref_len = strlen(dst_path);
-                path_len = strlen(f->path);
-                if (pref_len + path_len + 2 > PATH_MAX) { /* +2 is '/' and '\0' */
-                        pr_err("too long path: %s/%s\n", dst_path, f->path);
-                        return -1;
-                }
-                memcpy(f->dst_path, dst_path, pref_len);
-                f->dst_path[pref_len] = '/';
-                memcpy(f->dst_path + pref_len + 1, f->path, path_len);
-                f->dst_path[pref_len + 1 + path_len] = '\0';
+                        return ret;
         }
 
         return 0;

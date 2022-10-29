@@ -60,10 +60,9 @@ struct chunk {
 
 char *file_find_hostname(char *path);
 bool file_has_hostname(char *path);
-int file_is_directory(char *path, sftp_session sftp);
 
-int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt);
-int file_fill_dst(char *target, struct list_head *file_list);
+int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
+              char *dst);
 
 int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
                int nr_conn, int min_chunk_sz, int max_chunk_sz);

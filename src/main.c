@@ -67,10 +67,10 @@ void stop_copy_threads(int sig)
 void usage(bool print_help) {
         printf("sscp: super scp, copy files over multiple ssh connections\n"
                "\n"
-               "Usage: sscp [Cvqdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+               "Usage: sscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
                "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
                "            [-l login_name] [-p port] [-i identity_file]\n"
-               "            [-c cipher_spec] []source ... target_directory\n"
+               "            [-c cipher_spec] source ... target\n"
                "\n");
                
         if (!print_help)
@@ -85,6 +85,7 @@ void usage(bool print_help) {
                "                       qemu/block/ssh.c. need investigation...\n"
                "    -v                 increment verbose output level\n"
                "    -q                 disable output\n"
+               "    -D                 dry run\n"
                "\n"
                "    -l LOGIN_NAME      login name\n"
                "    -p PORT            port number\n"
@@ -93,12 +94,6 @@ void usage(bool print_help) {
                "    -C                 enable compression on libssh\n"
                "    -d                 increment ssh debug output level\n"
                "    -h                 print this help\n"
-               "\n");
-
-        printf("  Note:\n"
-               "    Not similar to scp and rsync, target in sscp must be directory\n"
-               "    (at present). This means that sscp cannot change file names.\n"
-               "    sscp copies file(s) into a directory.\n"
                "\n");
 }
 
@@ -152,6 +147,7 @@ int main(int argc, char **argv)
         int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
         int max_chunk_sz = 0;
         int verbose = 1;
+        bool dryrun = false;
         int ret = 0, n;
         char ch;
 
@@ -166,7 +162,7 @@ int main(int argc, char **argv)
         nr_threads = (int)(nr_cpus() / 2);
         nr_threads = nr_threads == 0 ? 1 : nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:s:S:b:B:vql:p:i:c:Cdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:B:vqDl:p:i:c:Cdh")) != -1) {
 		switch (ch) {
                 case 'n':
                         nr_threads = atoi(optarg);
@@ -225,6 +221,9 @@ int main(int argc, char **argv)
                 case 'q':
                         verbose = -1;
                         break;
+                case 'D':
+                        dryrun = true;
+                        break;
 		case 'l':
 			opts.login_name = optarg;
 			break;
@@ -280,22 +279,10 @@ int main(int argc, char **argv)
                 return 1;
         sscp.opts = &opts; /* save ssh-able ssh_opts */
 
-        /* check target is directory */
-        ret = file_is_directory(sscp.target,
-                                file_find_hostname(sscp.target) ? sscp.ctrl : NULL);
-        if (ret < 0)
-                goto out;
-        if (ret == 0) {
-                pr_err("target must be directory\n");
-                goto out;
-        }
 
         /* fill file list */
-        ret = file_fill(sscp.ctrl, &sscp.file_list, &argv[optind], argc - optind - 1);
-        if (ret < 0)
-                goto out;
-
-        ret = file_fill_dst(sscp.target, &sscp.file_list);
+        ret = file_fill(sscp.ctrl, &sscp.file_list, &argv[optind], argc - optind - 1,
+                        sscp.target);
         if (ret < 0)
                 goto out;
 
@@ -312,6 +299,9 @@ int main(int argc, char **argv)
 #ifdef DEBUG
         chunk_dump(&sscp.chunk_list);
 #endif
+
+        if (dryrun)
+                return 0;
 
         /* register SIGINT to stop thrads */
         if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
