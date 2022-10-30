@@ -2,11 +2,20 @@
 
 `mscp`, a variant of `scp`, copies files over multiple ssh (sftp)
 sessions. Multiple threads in mscp transfer (1) multiple files
-simultaneously and (2) a large file in parallel.
+simultaneously and (2) a large file in parallel. It may shorten the
+waiting time for transferring a lot of/large files over networks.
 
-The usage of mscp is similar to scp, e.g., `mscp example.com:srcfile
-/tmp/dstfile`, except remote glob on remote shell expansion and `-r`
-is not needed on mscp.
+You can use `mscp` like `scp`, e.g., `mscp example.com:srcfile
+/tmp/dstfile`. Remote hosts only need to run `sshd` supporting the
+SFTP subsystem, and you need to be able to ssh to the hosts (as
+usual).
+
+Differences from `scp` are:
+
+- remote glob on remote shell expansion is not supported.
+- remote to remote copy is not supported.
+- `-r` option is not needed.
+- and any other differences I have not noticed and implemented...
 
 ## Build
 
