@@ -1,0 +1,18 @@
+FROM centos:8
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG workdir="/"
+
+# from https://stackoverflow.com/questions/70963985/error-failed-to-download-metadata-for-repo-appstream-cannot-prepare-internal
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+
+RUN set -ex && yum -y update && yum -y install \
+	git cmake gcc make libssh-devel rpm-build
+
+RUN cd ${workdir}	\
+	&& git clone --depth=1 https://github.com/upa/mscp	\
+	&& mkdir mscp/build && cd mscp/build	\
+	&& cmake .. -DBUILD_PKG=1 \
+	&& cpack -G RPM CPackConfig.cmake 

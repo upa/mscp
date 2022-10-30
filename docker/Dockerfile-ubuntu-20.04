@@ -1,0 +1,13 @@
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG workdir="/"
+
+RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
+	git cmake build-essential libssh-dev ca-certificates
+
+RUN cd ${workdir}	\
+	&& git clone --depth=1 https://github.com/upa/mscp	\
+	&& mkdir mscp/build && cd mscp/build	\
+	&& cmake .. -DBUILD_PKG=1 \
+	&& cpack -G DEB CPackConfig.cmake 
