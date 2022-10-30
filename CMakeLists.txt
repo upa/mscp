@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(mscp VERSION 0.0.0 LANGUAGES C)
+project(mscp
+	VERSION 0.0.0
+	LANGUAGES C)
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 
@@ -26,7 +28,7 @@ if(BUILD_PKG)
 	# on linux
 	if(UNIX AND NOT APPLE)
 		execute_process(COMMAND
-			bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2"
+			bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2|tr -d '\"'"
 			OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
 		execute_process(COMMAND
 			bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
@@ -37,8 +39,14 @@ if(BUILD_PKG)
 			${PROJECT_NAME}_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VERSION}-${ARCH})
 
 		set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
-		set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
 		set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
+		set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
+
+		set(CPACK_RPM_FILE_NAME			${PACKAGE_FILE_NAME}.rpm)
+		set(CPACK_RPM_PACKAGE_REQUIRES		"libssh")
+		set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
+		set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
+
 	endif() # on linux
 
 	include(CPack)
