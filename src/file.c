@@ -592,7 +592,7 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
 			       size_t sftp_buf_sz, size_t io_buf_sz,
 			       bool reverse, size_t *counter)
 {
-	int remaind, read_bytes, write_bytes;
+	size_t remaind, read_bytes, write_bytes;
 	char buf[io_buf_sz];
 
 	/* if reverse is false, copy fd->sf (local to remote).
@@ -662,7 +662,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
 	}
 
 	ret = chunk_copy_internal(c, fd, sf, sftp_buf_sz, io_buf_sz, false, counter);
-	if (ret< 0)
+	if (ret < 0)
 		goto out;
 
 	if ((mode = chunk_get_mode(f->path, NULL)) < 0) {
