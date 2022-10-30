@@ -24,16 +24,20 @@ brew install libssh
 sudo apt-get install libssh-dev
 ```
 
+- rhel
+
+```console
+sudo yum install libssh-devel
+```
+
 Clone and build this repositoy.
 
 ```console
 git clone https://github.com/upa/mscp.git
 cd mscp
 
-mkdir build
-cd build
-cmake ..
-make
+mkdir build && cd build
+cmake .. && make
 
 # install the mscp binary to CMAKE_INSTALL_PREFIX/bin (usually /usr/local/bin)
 make install
