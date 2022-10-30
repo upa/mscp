@@ -3,11 +3,6 @@
 #include <pthread.h>
 
 static int pprint_level = 1;
-/* level 1: print progress bar only.
- * level 2: print copy start/done messages.
- * level 3: print ssh connection establishment/disconnection.
- * level 4: print chunk information.
- */
 
 static pthread_mutex_t pprint_lock = PTHREAD_MUTEX_INITIALIZER;
 

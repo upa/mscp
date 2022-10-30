@@ -55,7 +55,7 @@ struct mscp_thread {
 void *mscp_copy_thread(void *arg);
 void *mscp_monitor_thread(void *arg);
 
-static pthread_t mtid;
+pthread_t mtid;
 struct mscp_thread *threads;
 int nr_threads;
 
@@ -69,6 +69,14 @@ void stop_copy_threads(int sig)
 	}
 }
 
+int list_count(struct list_head *head)
+{
+	int n = 0;
+	struct list_head *p;
+
+	list_for_each(p, head) n++;
+	return n;
+}
 
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
@@ -318,6 +326,11 @@ int main(int argc, char **argv)
 	}
 
 	/* prepare thread instances */
+	if ((n = list_count(&m.chunk_list)) < nr_threads) {
+		pprint3("we have only %d chunk(s). set nr_conns to %d\n", n, n);
+		nr_threads = n;
+	}
+
 	threads = calloc(nr_threads, sizeof(struct mscp_thread));
 	memset(threads, 0, nr_threads * sizeof(struct mscp_thread));
 	for (n = 0; n < nr_threads; n++) {
