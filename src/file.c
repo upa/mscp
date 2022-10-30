@@ -484,7 +484,7 @@ void chunk_dump(struct list_head *chunk_list)
 
 	list_for_each_entry(c, chunk_list, list) {
 		pr_debug("%s %s 0x%010lx-0x%010lx %lu-byte\n",
-			 c->f->src_path, strloc(f->src_is_remote),
+			 c->f->src_path, strloc(c->f->src_is_remote),
 			 c->off, c->off + c->len, c->len);
 	}
 }
