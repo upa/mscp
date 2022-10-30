@@ -21,7 +21,7 @@
 #define DEFAULT_IO_BUF_SZ       DEFAULT_SFTP_BUF_SZ
 /* XXX: need to investigate max buf size for sftp_read/sftp_write */
 
-struct sscp {
+struct mscp {
 	char                    *host;  /* remote host (and username) */
 	struct ssh_opts         *opts;  /* ssh parameters */
 	sftp_session            ctrl;   /* control sftp session */
@@ -37,8 +37,8 @@ struct sscp {
 	struct timeval start;   /* timestamp of starting copy */
 };
 
-struct sscp_thread {
-	struct sscp     *sscp;
+struct mscp_thread {
+	struct mscp     *mscp;
 	sftp_session    sftp;
 
 	pthread_t       tid;
@@ -46,11 +46,11 @@ struct sscp_thread {
 	bool            finished;
 };
 
-void *sscp_copy_thread(void *arg);
-void *sscp_monitor_thread(void *arg);
+void *mscp_copy_thread(void *arg);
+void *mscp_monitor_thread(void *arg);
 
 static pthread_t mtid;
-struct sscp_thread *threads;
+struct mscp_thread *threads;
 int nr_threads;
 
 void stop_copy_threads(int sig)
@@ -65,9 +65,9 @@ void stop_copy_threads(int sig)
 
 
 void usage(bool print_help) {
-	printf("sscp: super scp, copy files over multiple ssh connections\n"
+	printf("mscp: copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: sscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+	       "Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
 	       "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] source ... target\n"
@@ -142,7 +142,7 @@ err_out:
 
 int main(int argc, char **argv)
 {
-	struct sscp sscp;
+	struct mscp m;
 	struct ssh_opts opts;
 	int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
 	int max_chunk_sz = 0;
@@ -152,12 +152,12 @@ int main(int argc, char **argv)
 	char ch;
 
 	memset(&opts, 0, sizeof(opts));
-	memset(&sscp, 0, sizeof(sscp));
-	INIT_LIST_HEAD(&sscp.file_list);
-	INIT_LIST_HEAD(&sscp.chunk_list);
-	lock_init(&sscp.chunk_lock);
-	sscp.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
-	sscp.io_buf_sz = DEFAULT_IO_BUF_SZ;
+	memset(&m, 0, sizeof(m));
+	INIT_LIST_HEAD(&m.file_list);
+	INIT_LIST_HEAD(&m.chunk_list);
+	lock_init(&m.chunk_lock);
+	m.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
+	m.io_buf_sz = DEFAULT_IO_BUF_SZ;
 
 	nr_threads = (int)(nr_cpus() / 2);
 	nr_threads = nr_threads == 0 ? 1 : nr_threads;
@@ -202,15 +202,15 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'b':
-			sscp.sftp_buf_sz = atoi(optarg);
-			if (sscp.sftp_buf_sz < 1) {
+			m.sftp_buf_sz = atoi(optarg);
+			if (m.sftp_buf_sz < 1) {
 				pr_err("invalid buffer size: %s\n", optarg);
 				return -1;
 			}
 			break;
 		case 'B':
-			sscp.io_buf_sz = atoi(optarg);
-			if (sscp.io_buf_sz < 1) {
+			m.io_buf_sz = atoi(optarg);
+			if (m.io_buf_sz < 1) {
 				pr_err("invalid buffer size: %s\n", optarg);
 				return -1;
 			}
@@ -260,44 +260,44 @@ int main(int argc, char **argv)
 	}
 
 	if (argc - optind < 2) {
-		/* sscp needs at lease 2 (src and target) argument */
+		/* mscp needs at lease 2 (src and target) argument */
 		usage(false);
 		return 1;
 	}
 
-	sscp.target = argv[argc - 1];
+	m.target = argv[argc - 1];
 
 	/* create control session */
-	sscp.host = find_hostname(optind, argc, argv);
-	if (!sscp.host) {
+	m.host = find_hostname(optind, argc, argv);
+	if (!m.host) {
 		pr_err("no remote host given\n");
 		return 1;
 	}
-	pprint3("connecting to %s for checking destinations...\n", sscp.host);
-	sscp.ctrl = ssh_make_sftp_session(sscp.host, &opts);
-	if (!sscp.ctrl)
+	pprint3("connecting to %s for checking destinations...\n", m.host);
+	m.ctrl = ssh_make_sftp_session(m.host, &opts);
+	if (!m.ctrl)
 		return 1;
-	sscp.opts = &opts; /* save ssh-able ssh_opts */
+	m.opts = &opts; /* save ssh-able ssh_opts */
 
 
 	/* fill file list */
-	ret = file_fill(sscp.ctrl, &sscp.file_list, &argv[optind], argc - optind - 1,
-			sscp.target);
+	ret = file_fill(m.ctrl, &m.file_list, &argv[optind], argc - optind - 1,
+			m.target);
 	if (ret < 0)
 		goto out;
 
 #ifdef DEBUG
-	file_dump(&sscp.file_list);
+	file_dump(&m.file_list);
 #endif
 
 	/* fill chunk list */
-	ret = chunk_fill(&sscp.file_list, &sscp.chunk_list,
+	ret = chunk_fill(&m.file_list, &m.chunk_list,
 			 nr_threads, min_chunk_sz, max_chunk_sz);
 	if (ret < 0)
 		goto out;
 
 #ifdef DEBUG
-	chunk_dump(&sscp.chunk_list);
+	chunk_dump(&m.chunk_list);
 #endif
 
 	if (dryrun)
@@ -311,20 +311,20 @@ int main(int argc, char **argv)
 	}
 
 	/* prepare thread instances */
-	threads = calloc(nr_threads, sizeof(struct sscp_thread));
-	memset(threads, 0, nr_threads * sizeof(struct sscp_thread));
+	threads = calloc(nr_threads, sizeof(struct mscp_thread));
+	memset(threads, 0, nr_threads * sizeof(struct mscp_thread));
 	for (n = 0; n < nr_threads; n++) {
-		struct sscp_thread *t = &threads[n];
-		t->sscp = &sscp;
+		struct mscp_thread *t = &threads[n];
+		t->mscp = &m;
 		t->finished = false;
-		pprint3("connecting to %s for a copy thread...\n", sscp.host);
-		t->sftp = ssh_make_sftp_session(sscp.host, sscp.opts);
+		pprint3("connecting to %s for a copy thread...\n", m.host);
+		t->sftp = ssh_make_sftp_session(m.host, m.opts);
 		if (!t->sftp)
 			goto join_out;
 	}
 
 	/* spawn count thread */
-	ret = pthread_create(&mtid, NULL, sscp_monitor_thread, &sscp);
+	ret = pthread_create(&mtid, NULL, mscp_monitor_thread, &m);
 	if (ret < 0) {
 		pr_err("pthread_create error: %d\n", ret);
 		stop_copy_threads(0);
@@ -332,12 +332,12 @@ int main(int argc, char **argv)
 	}
 
 	/* save start time */
-	gettimeofday(&sscp.start, NULL);
+	gettimeofday(&m.start, NULL);
 
 	/* spawn threads */
 	for (n = 0; n < nr_threads; n++) {
-		struct sscp_thread *t = &threads[n];
-		ret = pthread_create(&t->tid, NULL, sscp_copy_thread, t);
+		struct mscp_thread *t = &threads[n];
+		ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t);
 		if (ret < 0) {
 			pr_err("pthread_create error: %d\n", ret);
 			stop_copy_threads(0);
@@ -357,35 +357,35 @@ join_out:
 	}
 
 out:
-	if (sscp.ctrl)
-		ssh_sftp_close(sscp.ctrl);
+	if (m.ctrl)
+		ssh_sftp_close(m.ctrl);
 
 	return ret;
 }
 
-void sscp_copy_thread_cleanup(void *arg)
+void mscp_copy_thread_cleanup(void *arg)
 {
-	struct sscp_thread *t = arg;
+	struct mscp_thread *t = arg;
 	if (t->sftp)
 		ssh_sftp_close(t->sftp);
 	t->finished = true;
 }
 
-void *sscp_copy_thread(void *arg)
+void *mscp_copy_thread(void *arg)
 {
-	struct sscp_thread *t = arg;
-	struct sscp *sscp = t->sscp;
+	struct mscp_thread *t = arg;
+	struct mscp *m = t->mscp;
 	sftp_session sftp = t->sftp;
 	struct chunk *c;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-	pthread_cleanup_push(sscp_copy_thread_cleanup, t);
+	pthread_cleanup_push(mscp_copy_thread_cleanup, t);
 
 	while (1) {
-		lock_acquire(&sscp->chunk_lock);
-		c = chunk_acquire(&sscp->chunk_list);
-		lock_release(&sscp->chunk_lock);
+		lock_acquire(&m->chunk_lock);
+		c = chunk_acquire(&m->chunk_list);
+		lock_release(&m->chunk_lock);
 
 		if (!c)
 			break; /* no more chunks */
@@ -394,7 +394,7 @@ void *sscp_copy_thread(void *arg)
 			break;
 
 		if (chunk_copy(c, sftp,
-			       sscp->sftp_buf_sz, sscp->io_buf_sz, &t->done) < 0)
+			       m->sftp_buf_sz, m->io_buf_sz, &t->done) < 0)
 			break;
 	}
 
@@ -488,9 +488,9 @@ static void print_progress(struct timeval *start, struct timeval *end,
 	print_progress_bar(percent, suffix);
 }
 
-void sscp_monitor_thread_cleanup(void *arg)
+void mscp_monitor_thread_cleanup(void *arg)
 {
-	struct sscp *sscp = arg;
+	struct mscp *m = arg;
 	struct timeval end;
 	struct file *f;
 	size_t total, done;
@@ -501,7 +501,7 @@ void sscp_monitor_thread_cleanup(void *arg)
 	gettimeofday(&end, NULL);
 
 	/* get total byte to be transferred */
-	list_for_each_entry(f, &sscp->file_list, list) {
+	list_for_each_entry(f, &m->file_list, list) {
 		total += f->size;
 	}
 
@@ -510,13 +510,13 @@ void sscp_monitor_thread_cleanup(void *arg)
 		done += threads[n].done;
 	}
 
-	print_progress(&sscp->start, &end, total, 0, done);
+	print_progress(&m->start, &end, total, 0, done);
 	fputs("\n", stdout); /* the final ouput. we need \n */
 }
 
-void *sscp_monitor_thread(void *arg)
+void *mscp_monitor_thread(void *arg)
 {
-	struct sscp *sscp = arg;
+	struct mscp *m = arg;
 	struct timeval a, b;
 	struct file *f;
 	bool all_done;
@@ -525,11 +525,11 @@ void *sscp_monitor_thread(void *arg)
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-	pthread_cleanup_push(sscp_monitor_thread_cleanup, sscp);
+	pthread_cleanup_push(mscp_monitor_thread_cleanup, m);
 
 	/* get total byte to be transferred */
 	total = 0;
-	list_for_each_entry(f, &sscp->file_list, list) {
+	list_for_each_entry(f, &m->file_list, list) {
 		total += f->size;
 	}
 

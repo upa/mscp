@@ -235,9 +235,10 @@ static int file_fill_recursive(struct list_head *file_list,
 			snprintf(f->dst_path, PATH_MAX, "%s%s", rel_path, dst_path);
 
 		list_add_tail(&f->list, file_list);
-		pprint2("file %s %s -> %s %s\n",
+		pprint2("file %s %s -> %s %s %luB\n",
 			f->path, dst_is_remote ? "(local)" : "(remote)",
-			f->dst_path, dst_is_remote ? "(remote)" : "(local)");
+			f->dst_path, dst_is_remote ? "(remote)" : "(local)",
+			f->size);
 
 		return 0;
 	}

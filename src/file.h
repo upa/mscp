@@ -10,7 +10,7 @@
 #include <atomic.h>
 
 struct file {
-	struct list_head        list;   /* sscp->file_list */
+	struct list_head        list;   /* mscp->file_list */
 
 	char    path[PATH_MAX]; /* copy source path */
 	bool    remote;         /* source is remote */
@@ -51,7 +51,7 @@ struct file {
  */
 
 struct chunk {
-	struct list_head        list;   /* sscp->chunk_list */
+	struct list_head        list;   /* mscp->chunk_list */
 	struct file *f;
 	size_t  off;    /* offset of this chunk on the file f */
 	size_t  len;    /* length of this chunk */
