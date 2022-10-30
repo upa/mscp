@@ -28,21 +28,23 @@ Clone and build this repositoy.
 
 ```console
 git clone https://github.com/upa/mscp.git
-
 cd mscp
+
 mkdir build
 cd build
 cmake ..
 make
-```
 
+# install the mscp binary to CMAKE_INSTALL_PREFIX/bin (usually /usr/local/bin)
+make install
+```
 
 ## Run
 
 - Usage
 
 ```shell-session
-./mscp -h
+$ mscp -h
 mscp: copy files over multiple ssh connections
 
 Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
@@ -74,7 +76,7 @@ Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
   - Two Intel Xeon Gold 6130 machines directly connected with Intel E810 100Gbps NICs.
 
 ```shell-session
-$ ./mscp /tmp/test.img 10.0.0.1:/tmp/
+$ mscp /tmp/test.img 10.0.0.1:/tmp/
 [===============================================================] 100% 8GB/8GB 3.02GB/s 
 $
 ```
@@ -82,10 +84,10 @@ $
 - `-v` options increment verbose output level.
 
 ```shell-session
-$ ./mscp test 10.0.0.1:
+$ mscp test 10.0.0.1:
 [===============================================================] 100% 13B/13B 2.41KB/s 
 
-$ ./mscp -v test 10.0.0.1:
+$ mscp -v test 10.0.0.1:
 file test/test.txt (local) -> ./test/test.txt (remote) 9B
 file test/test2/2.txt (local) -> ./test/test2/2.txt (remote) 2B
 file test/1.txt (local) -> ./test/1.txt (remote) 2B
@@ -97,7 +99,7 @@ copy done: test/test2/2.txt
 copy done: test/test.txt
 [===============================================================] 100% 13B/13B 2.51KB/s 
 
-$ ./mscp -vv -n 4 test 10.0.0.1:
+$ mscp -vv -n 4 test 10.0.0.1:
 connecting to 10.0.0.1 for checking destinations...
 file test/test.txt (local) -> ./test/test.txt (remote) 9B
 file test/test2/2.txt (local) -> ./test/test2/2.txt (remote) 2B

@@ -8,3 +8,8 @@ add_executable(mscp src/main.c src/platform.c src/ssh.c src/file.c src/pprint.c)
 target_include_directories(mscp PUBLIC ./src /usr/local/include)
 target_link_directories(mscp PUBLIC /usr/local/lib)
 target_link_libraries(mscp ssh pthread m)
+
+
+install(TARGETS mscp
+	RUNTIME		DESTINATION bin
+)
