@@ -16,12 +16,17 @@ install(TARGETS mscp
 	RUNTIME		DESTINATION bin
 )
 
+
+
+
+
 if(BUILD_PKG)
 
-	set(CPACK_SET_DESTDIR			true)
-	set(CPACK_PROJECT_NAME			${PROJECT_NAME})
-	set(CPACK_PROJECT_VERSION		${PROJECT_VERSION})
-	set(CPACK_PACKAGE_CONTACT		"Ryo Nakamura <upa@haeena.net>")
+	# CPACK Rules
+	set(CPACK_SET_DESTDIR		true)
+	set(CPACK_PROJECT_NAME		${PROJECT_NAME})
+	set(CPACK_PROJECT_VERSION	${PROJECT_VERSION})
+	set(CPACK_PACKAGE_CONTACT	"Ryo Nakamura <upa@haeena.net>")
 	set(CPACK_PACKAGE_DESCRIPTION
 		"mscp, copy files over multiple ssh connections")
 
@@ -50,5 +55,40 @@ if(BUILD_PKG)
 	endif() # on linux
 
 	include(CPack)
-endif() # BUILD_PKG defined
+
+
+	# Custom commands to build mscp in docker containers
+
+	# Ubuntu 20.04
+	add_custom_target(package-ubuntu-20.04-in-docker
+		COMMENT "Build mscp in ubuntu 20.04 docker container"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
+		COMMAND docker build -t mscp-ubuntu:20.04 -f Dockerfile-ubuntu-20.04 .
+		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:20.04
+		cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-20.04-${ARCH}.deb /out/)
+
+	# Ubuntu 22.04
+	add_custom_target(package-ubuntu-22.04-in-docker
+		COMMENT "Build mscp in ubuntu 22.04 docker container"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
+		COMMAND docker build -t mscp-ubuntu:22.04 -f Dockerfile-ubuntu-22.04 .
+		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:22.04
+		cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-22.04-${ARCH}.deb /out/)
+
+	# CentOS 8
+	add_custom_target(package-centos-8-in-docker
+		COMMENT "Build mscp in centos 8 docker container"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
+		COMMAND docker build -t mscp-centos:8 -f Dockerfile-centos-8 .
+		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-centos:8
+		cp /mscp/build/mscp_${PROJECT_VERSION}-centos-8-${ARCH}.rpm /out/)
+
+	# build on all conatiners
+	add_custom_target(package-all-in-docker
+		COMMENT "Build mscp in all docker containers"
+		DEPENDS package-ubuntu-20.04-in-docker
+		DEPENDS package-ubuntu-22.04-in-docker
+		DEPENDS package-centos-8-in-docker)
+
+endif() # BUILD_PKG
 
