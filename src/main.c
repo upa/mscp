@@ -16,6 +16,12 @@
 #include <atomic.h>
 #include <platform.h>
 
+#ifndef _VERSION /* passed through cmake */
+#define VERSION "(unknown)"
+#else
+#define VERSION _VERSION
+#endif
+
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
 #define DEFAULT_SFTP_BUF_SZ     131072          /* derived from qemu/block/ssh.c */
 #define DEFAULT_IO_BUF_SZ       DEFAULT_SFTP_BUF_SZ
@@ -65,9 +71,10 @@ void stop_copy_threads(int sig)
 
 
 void usage(bool print_help) {
-	printf("mscp: copy files over multiple ssh connections\n"
+	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]\n"
+	       "Usage: mscp [CvqDdh] [-n nr_conns]\n"
+	       "            [-s min_chunk_sz] [-S max_chunk_sz]\n"
 	       "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] source ... target\n"
