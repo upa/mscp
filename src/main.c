@@ -425,9 +425,9 @@ static void print_progress_bar(double percent, char *suffix)
 	struct winsize ws;
 	char buf[128];
 
-/*
- * [=======>   ] XX.X% SUFFIX
- */
+	/*
+	 * [=======>   ] XX.X% SUFFIX
+	 */
 
 	buf[0] = '\0';
 

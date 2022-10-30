@@ -12,12 +12,12 @@
 struct file {
 	struct list_head        list;   /* mscp->file_list */
 
-	char    path[PATH_MAX]; /* copy source path */
-	bool    remote;         /* source is remote */
-	size_t  size;           /* size of this file */
+	char    src_path[PATH_MAX];	/* copy source path */
+	bool    src_is_remote;		/* source is remote */
+	size_t  size;			/* size of this file */
 
-	char    dst_path[PATH_MAX];     /* copy destination path */
-	bool    dst_remote;             /* destination is remote */
+	char    dst_path[PATH_MAX];	/* copy destination path */
+	bool    dst_is_remote;		/* destination is remote */
 
 	int     state;  /* destination file state */
 	lock    lock;   /* mutex to protect state */
@@ -26,6 +26,8 @@ struct file {
 #define FILE_STATE_INIT         0
 #define FILE_STATE_OPENED       1
 #define FILE_STATE_DONE         2
+
+#define strloc(is_remote) is_remote ? "(remote)" : "(local)"
 
 /* Allocating chunk increments refcnt of the associating file.
  * Multiple threads copying files follows:

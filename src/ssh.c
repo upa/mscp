@@ -55,7 +55,7 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 	int auth_bit_mask;
 	int ret;
 
-/* none method */
+	/* none method */
 	ret = ssh_userauth_none(ssh, NULL);
 	if (ret == SSH_AUTH_SUCCESS)
 		return 0;
@@ -178,12 +178,12 @@ static int ssh_verify_known_hosts(ssh_session session)
 	state = ssh_session_is_known_server(session);
 	switch (state) {
 	case SSH_KNOWN_HOSTS_OK:
-/* OK */
+		/* OK */
 
 		break;
 	case SSH_KNOWN_HOSTS_CHANGED:
 		fprintf(stderr, "Host key for server changed: it is now:\n");
-//ssh_print_hexa("Public key hash", hash, hlen);
+		//ssh_print_hexa("Public key hash", hash, hlen);
 		fprintf(stderr, "For security reasons, connection will be stopped\n");
 		ssh_clean_pubkey_hash(&hash);
 
@@ -201,12 +201,13 @@ static int ssh_verify_known_hosts(ssh_session session)
 		fprintf(stderr, "If you accept the host key here, the file will be"
 			"automatically created.\n");
 
-/* FALL THROUGH to SSH_SERVER_NOT_KNOWN behavior */
+		/* FALL THROUGH to SSH_SERVER_NOT_KNOWN behavior */
 
 	case SSH_KNOWN_HOSTS_UNKNOWN:
 		hexa = ssh_get_hexa(hash, hlen);
 		fprintf(stderr,"The server is unknown. Do you trust the host key?\n");
 		fprintf(stderr, "Public key hash: %s\n", hexa);
+		fprintf(stderr, "(yes/no): ");
 		ssh_string_free_char(hexa);
 		ssh_clean_pubkey_hash(&hash);
 		p = fgets(buf, sizeof(buf), stdin);
