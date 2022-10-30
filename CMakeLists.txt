@@ -14,16 +14,29 @@ install(TARGETS mscp
 	RUNTIME		DESTINATION bin
 )
 
+if(BUILD_PKG)
 
-set(CPACK_SET_DESTDIR			true)
-set(CPACK_PROJECT_NAME			${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION		${PROJECT_VERSION})
-set(CPACK_PACKAGE_CONTACT		"Ryo Nakamura <upa@haeena.net>")
+	set(CPACK_SET_DESTDIR			true)
+	set(CPACK_PROJECT_NAME			${PROJECT_NAME})
+	set(CPACK_PROJECT_VERSION		${PROJECT_VERSION})
+	set(CPACK_PACKAGE_CONTACT		"Ryo Nakamura <upa@haeena.net>")
+	set(CPACK_PACKAGE_DESCRIPTION
+		"mscp, copy files over multiple ssh connections")
 
-set(CPACK_DEBIAN_FILE_NAME		DEB-DEFAULT)
-set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
-set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
-	"mscp, copy files over multiple ssh connections")
+	# on linux
+	if(UNIX AND NOT APPLE)
+		execute_process(COMMAND lsb_release -c -s
+			OUTPUT_VARIABLE LSB_CODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+		execute_process(COMMAND uname -p
+			OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+		set(PACKAGE_FILE_NAME
+			${PROJECT_NAME}_${PROJECT_VERSION}-${LSB_CODE}-${ARCH})
 
-include(CPack)
+		set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
+		set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
+		set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
+	endif() # on linux
+
+	include(CPack)
+endif() # BUILD_PKG defined
+
