@@ -70,7 +70,7 @@ Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
     -h                 print this help
 ```
 
-- Copy an 8GB file over a 100Gbls link
+- Example: copy an 8GB file on tmpfs over a 100Gbps link
   - Two Intel Xeon Gold 6130 machines directly connected with Intel E810 100Gbps NICs.
 
 ```shell-session
