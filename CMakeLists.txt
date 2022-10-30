@@ -25,12 +25,16 @@ if(BUILD_PKG)
 
 	# on linux
 	if(UNIX AND NOT APPLE)
-		execute_process(COMMAND lsb_release -c -s
-			OUTPUT_VARIABLE LSB_CODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+		execute_process(COMMAND
+			bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2"
+			OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
+		execute_process(COMMAND
+			bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
+			OUTPUT_VARIABLE DIST_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 		execute_process(COMMAND uname -p
 			OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
 		set(PACKAGE_FILE_NAME
-			${PROJECT_NAME}_${PROJECT_VERSION}-${LSB_CODE}-${ARCH})
+			${PROJECT_NAME}_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VERSION}-${ARCH})
 
 		set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
 		set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
