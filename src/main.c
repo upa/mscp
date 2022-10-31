@@ -259,7 +259,7 @@ int main(int argc, char **argv)
 			break;
 		case 'h':
 			usage(true);
-			return 1;
+			return 0;
 		default:
 			usage(false);
 			return 1;
@@ -339,8 +339,10 @@ int main(int argc, char **argv)
 		t->finished = false;
 		pprint3("connecting to %s for a copy thread...\n", m.host);
 		t->sftp = ssh_make_sftp_session(m.host, m.opts);
-		if (!t->sftp)
+		if (!t->sftp) {
+			ret = 1;
 			goto join_out;
+		}
 	}
 
 	/* spawn count thread */
@@ -348,6 +350,7 @@ int main(int argc, char **argv)
 	if (ret < 0) {
 		pr_err("pthread_create error: %d\n", ret);
 		stop_copy_threads(0);
+		ret = 1;
 		goto join_out;
 	}
 
@@ -361,6 +364,7 @@ int main(int argc, char **argv)
 		if (ret < 0) {
 			pr_err("pthread_create error: %d\n", ret);
 			stop_copy_threads(0);
+			ret = 1;
 			goto join_out;
 		}
 	}

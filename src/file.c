@@ -214,7 +214,8 @@ static int check_pathlen(const char *src, const char *dst)
 
 static int file_fill_recursive(struct list_head *file_list,
 			       bool dst_is_remote, sftp_session sftp, char *src_path,
-			       char *rel_path, char *dst_path, bool dst_should_dir)
+			       char *rel_path, char *dst_path,
+			       bool dst_should_dir, bool replace_dir_name)
 {
 	char next_src_path[PATH_MAX], next_rel_path[PATH_MAX];
 	struct file *f;
@@ -267,13 +268,17 @@ static int file_fill_recursive(struct list_head *file_list,
 			if (check_pathlen(src_path, de->d_name) < 0 ||
 			    check_pathlen(rel_path, basename(src_path)) < 0)
 				return -1;
+
 			snprintf(next_src_path, sizeof(next_src_path),
 				 "%s/%s", src_path, de->d_name);
-			snprintf(next_rel_path, sizeof(next_rel_path),
-				 "%s%s/", rel_path, basename(src_path));
+			if (replace_dir_name)
+				memset(next_rel_path, 0, sizeof(next_rel_path));
+			else
+				snprintf(next_rel_path, sizeof(next_rel_path),
+					 "%s%s/", rel_path, basename(src_path));
 			ret = file_fill_recursive(file_list, dst_is_remote, sftp,
 						  next_src_path, next_rel_path,
-						  dst_path, dst_should_dir);
+						  dst_path, dst_should_dir, false);
 			if (ret < 0)
 				return ret;
 		}
@@ -292,13 +297,17 @@ static int file_fill_recursive(struct list_head *file_list,
 			if (check_pathlen(src_path, attr->name) < 0 ||
 			    check_pathlen(rel_path, basename(src_path)) < 0)
 				return -1;
+
 			snprintf(next_src_path, sizeof(next_src_path),
 				 "%s/%s", src_path, attr->name);
-			snprintf(next_rel_path, sizeof(next_rel_path),
-				 "%s%s/", rel_path, basename(src_path));
+			if (replace_dir_name)
+				memset(next_rel_path, 0, sizeof(next_rel_path));
+			else
+				snprintf(next_rel_path, sizeof(next_rel_path),
+					 "%s%s/", rel_path, basename(src_path));
 			ret = file_fill_recursive(file_list, dst_is_remote, sftp,
 						  next_src_path, next_rel_path,
-						  dst_path, dst_should_dir);
+						  dst_path, dst_should_dir, false);
 			if (ret < 0)
 				return ret;
 		}
@@ -310,7 +319,7 @@ static int file_fill_recursive(struct list_head *file_list,
 int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
 	      char *dst)
 {
-	bool dst_is_remote, dst_is_dir, dst_should_dir;
+	bool dst_is_remote, dst_dir_no_exist, dst_should_dir;
 	char *dst_path, *src_path;
 	int n, ret;
 
@@ -319,9 +328,9 @@ int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, 
 	dst_is_remote = file_find_hostname(dst) ? true : false;
 
 	if (file_is_directory(dst_path, dst_is_remote ? sftp : NULL, false) > 0)
-		dst_is_dir = true;
+		dst_dir_no_exist = false;
 	else
-		dst_is_dir = false;
+		dst_dir_no_exist = true;
 
 	for (n = 0; n < cnt; n++) {
 		src_path = file_find_path(src_array[n]);
@@ -330,9 +339,10 @@ int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, 
 			dst_should_dir = true;
 		else
 			dst_should_dir = false;
+
 		ret = file_fill_recursive(file_list, dst_is_remote, sftp,
 					  src_path, "",
-					  dst_path, dst_is_dir | dst_should_dir);
+					  dst_path, dst_should_dir, dst_dir_no_exist);
 		if (ret < 0)
 			return ret;
 	}
