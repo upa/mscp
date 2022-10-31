@@ -149,3 +149,14 @@ def test_min_chunk(mscp, src_prefix, dst_prefix):
 
     src.cleanup()
     dst.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_cannot_override_file_with_dir(mscp, src_prefix, dst_prefix):
+    src = File("src", size = 128).make()
+    dst = File("dst").make()
+
+    run2ng([mscp, src_prefix + src.path, dst_prefix + "dst/src"])
+
+    src.cleanup()
+    dst.cleanup()
+

@@ -50,6 +50,7 @@ struct mscp_thread {
 	pthread_t       tid;
 	size_t          done;           /* copied bytes */
 	bool            finished;
+	int		ret;
 };
 
 void *mscp_copy_thread(void *arg);
@@ -372,8 +373,11 @@ int main(int argc, char **argv)
 join_out:
 	/* waiting for threads join... */
 	for (n = 0; n < nr_threads; n++)
-		if (threads[n].tid)
+		if (threads[n].tid) {
 			pthread_join(threads[n].tid, NULL);
+			if (threads[n].ret < 0)
+				ret = threads[n].ret;
+		}
 
 	if (mtid != 0) {
 		pthread_cancel(mtid);
@@ -414,11 +418,11 @@ void *mscp_copy_thread(void *arg)
 		if (!c)
 			break; /* no more chunks */
 
-		if (chunk_prepare(c, sftp) < 0)
+		if ((t->ret = chunk_prepare(c, sftp)) < 0)
 			break;
 
-		if (chunk_copy(c, sftp,
-			       m->sftp_buf_sz, m->io_buf_sz, &t->done) < 0)
+		if ((t->ret = chunk_copy(c, sftp,
+					 m->sftp_buf_sz, m->io_buf_sz, &t->done)) < 0)
 			break;
 	}
 
