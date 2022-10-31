@@ -496,6 +496,11 @@ static void print_progress(struct timeval *start, struct timeval *end,
 
 #define array_size(a) (sizeof(a) / sizeof(a[0]))
 
+	if (total <= 0) {
+		pprint1("total 0 byte transferred");
+		return; /* copy 0-byte file(s) */
+	}
+
 	total_round = total;
 	for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
 	     byte_tu++)
