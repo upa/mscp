@@ -18,8 +18,16 @@ install(TARGETS mscp
 
 
 
+# Test
+add_test(NAME	pytest
+	COMMAND	python3 -m pytest -v
+		--mscp-path=${PROJECT_BINARY_DIR}/mscp ${PROJECT_SOURCE_DIR}/test
+	WORKING_DIRECTORY	${PROJECT_BINARY_DIR})
+
+enable_testing()
 
 
+# Build Packages
 if(BUILD_PKG)
 
 	# CPACK Rules

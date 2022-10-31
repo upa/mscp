@@ -8,22 +8,6 @@ from subprocess import check_call, CalledProcessError, PIPE
 from util import File, check_same_md5sum
 
 
-"""
-End-to-End Test.
-
-Set $MSCP_BIN_PATH env variable for path to mscp binary.
-If $MSCP_BIN_PATH is not set, use mscp in default $PATH.
-"""
-
-if "MSCP_BIN_PATH" in os.environ:
-    mscp = os.environ["MSCP_BIN_PATH"]
-else:
-    mscp = "mscp"
-
-
-
-
-""" usage test """
 def run2ok(args):
     check_call(list(map(str, args)))
 
@@ -31,11 +15,14 @@ def run2ng(args):
     with pytest.raises(CalledProcessError) as e:
         check_call(list(map(str, args)))
 
-def test_usage():
+
+""" usage test """
+
+def test_usage(mscp):
     run2ng([mscp])
     run2ok([mscp, "-h"])
 
-def test_invalid_chunk_size_config():
+def test_invalid_chunk_size_config(mscp):
     run2ng([mscp, "-s", 8 << 20, "-S", 4 << 20])
 
 param_invalid_hostnames = [
@@ -43,7 +30,7 @@ param_invalid_hostnames = [
     (["a", "b:b", "c:c"])
 ]
 @pytest.mark.parametrize("args", param_invalid_hostnames)
-def test_nonidentical_hostnames(args):
+def test_nonidentical_hostnames(mscp, args):
     run2ng([mscp] + args)
 
 
@@ -54,13 +41,13 @@ def test_nonidentical_hostnames(args):
 remote_prefix = "localhost:{}/".format(os.getcwd()) # use current dir
 
 param_single_copy = [
-    (File("test1", size = 64), File("test2")),
-    (File("test1", size = 4096 * 1), File("test2")),
-    (File("test1", size = 128 * 1024 * 1024), File("test2")),
+    (File("src", size = 64), File("dst")),
+    (File("src", size = 4096 * 1), File("dst")),
+    (File("src", size = 128 * 1024 * 1024), File("dst")),
 ]
 
 @pytest.mark.parametrize("src, dst", param_single_copy)
-def test_single_copy_remote2local(src, dst):
+def test_single_copy_remote2local(mscp, src, dst):
     src.make()
     run2ok([mscp, remote_prefix + src.path, dst.path])
     assert check_same_md5sum(src, dst)
@@ -68,7 +55,7 @@ def test_single_copy_remote2local(src, dst):
     dst.cleanup()
 
 @pytest.mark.parametrize("src, dst", param_single_copy)
-def test_single_copy_local2remote(src, dst):
+def test_single_copy_local2remote(mscp, src, dst):
     src.make()
     run2ok([mscp, src.path, remote_prefix + dst.path])
     assert check_same_md5sum(src, dst)
@@ -101,7 +88,7 @@ dst_dir/src_dir. So, this test checks both cases.
 """
 
 @pytest.mark.parametrize("src_dir, dst_dir, src, dst, twice", param_dir_copy)
-def test_dir_copy_remote2local(src_dir, dst_dir, src, dst, twice):
+def test_dir_copy_remote2local(mscp, src_dir, dst_dir, src, dst, twice):
     for f in src:
         f.make()
 
@@ -119,7 +106,7 @@ def test_dir_copy_remote2local(src_dir, dst_dir, src, dst, twice):
         tf.cleanup()
 
 @pytest.mark.parametrize("src_dir, dst_dir, src, dst, twice", param_dir_copy)
-def test_dir_copy_local2remote(src_dir, dst_dir, src, dst, twice):
+def test_dir_copy_local2remote(mscp, src_dir, dst_dir, src, dst, twice):
     for f in src:
         f.make()
 
@@ -141,7 +128,7 @@ param_remote_prefix = [
     ("", remote_prefix), (remote_prefix, "")
 ]
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
-def test_override_single_file(src_prefix, dst_prefix):
+def test_override_single_file(mscp, src_prefix, dst_prefix):
     src = File("src", size = 128).make()
     dst = File("dst", size = 128).make()
     assert not check_same_md5sum(src, dst)
@@ -153,7 +140,7 @@ def test_override_single_file(src_prefix, dst_prefix):
     dst.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
-def test_min_chunk(src_prefix, dst_prefix):
+def test_min_chunk(mscp, src_prefix, dst_prefix):
     src = File("src", size = 16 * 1024).make()
     dst = File("dst")
 
