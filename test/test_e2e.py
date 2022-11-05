@@ -163,7 +163,9 @@ def test_cannot_override_file_with_dir(mscp, src_prefix, dst_prefix):
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_transfer_zero_bytes(mscp, src_prefix, dst_prefix):
     src = File("src", size = 0).make()
+    dst = File("dst")
     run2ok([mscp, src_prefix + src.path, dst_prefix + "dst"])
+    assert os.path.exists("dst")
     src.cleanup()
-
+    dst.cleanup()
 

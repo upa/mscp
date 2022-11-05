@@ -319,18 +319,18 @@ static int file_fill_recursive(struct list_head *file_list,
 int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
 	      char *dst)
 {
-	bool dst_is_remote, dst_dir_no_exist, dst_should_dir;
+	bool dst_is_remote, dst_is_dir, dst_dir_no_exist, dst_should_dir;
 	char *dst_path, *src_path;
 	int n, ret;
 
 	dst_path = file_find_path(dst);
 	dst_path = *dst_path == '\0' ? "." : dst_path;
 	dst_is_remote = file_find_hostname(dst) ? true : false;
-
 	if (file_is_directory(dst_path, dst_is_remote ? sftp : NULL, false) > 0)
-		dst_dir_no_exist = false;
+		dst_is_dir = true;
 	else
-		dst_dir_no_exist = true;
+		dst_is_dir = false;
+	dst_dir_no_exist = !dst_is_dir;
 
 	for (n = 0; n < cnt; n++) {
 		src_path = file_find_path(src_array[n]);
@@ -341,8 +341,8 @@ int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, 
 			dst_should_dir = false;
 
 		ret = file_fill_recursive(file_list, dst_is_remote, sftp,
-					  src_path, "",
-					  dst_path, dst_should_dir, dst_dir_no_exist);
+					  src_path, "", dst_path,
+					  dst_should_dir | dst_is_dir, dst_dir_no_exist);
 		if (ret < 0)
 			return ret;
 	}
@@ -471,7 +471,12 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
 
 		pr_debug("%s chunk_sz %lu-byte\n", f->src_path, chunk_sz);
 
-		for (size = f->size; size > 0;) {
+		/* for (size = f->size; size > 0;) does not create a
+		 * file (chunk) when file size is 0. This do {} while
+		 * (size > 0) creates just open/close a 0-byte file.
+		 */
+		size = f->size;
+		do {
 			c = chunk_alloc(f);
 			if (!c)
 				return -1;
@@ -481,7 +486,7 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
 			list_add_tail(&c->list, chunk_list);
 			pprint4("chunk %s 0x%010lx-0x%010lx %luB\n",
 				c->f->src_path, c->off, c->off + c->len, c->len);
-		}
+		} while (size > 0);
 	}
 
 	return 0;
