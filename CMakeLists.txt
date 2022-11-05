@@ -6,9 +6,15 @@ project(mscp
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 
+if(APPLE)
+	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
+	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
+endif() # APPLE
+
+find_package(libssh REQUIRED)
+
 add_executable(mscp src/main.c src/platform.c src/ssh.c src/file.c src/pprint.c)
-target_include_directories(mscp PUBLIC ./src /usr/local/include)
-target_link_directories(mscp PUBLIC /usr/local/lib)
+target_include_directories(mscp PUBLIC ./src)
 target_link_libraries(mscp ssh pthread m)
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
