@@ -1,5 +1,7 @@
 # mscp
 
+[![build](https://github.com/upa/mscp/actions/workflows/build.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build.yml)
+
 `mscp`, a variant of `scp`, copies files over multiple ssh (sftp)
 sessions. Multiple threads in mscp transfer (1) multiple files
 simultaneously and (2) a large file in parallel. It may shorten the
