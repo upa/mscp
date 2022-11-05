@@ -5,7 +5,9 @@ localhost without password.
 - Run pytest through ctest.
 
 ```console
+python3 -m pip install pytest numpy
+
 cd build
 cmake ..
-make test # or make test ARGS='-V'
+ctest --verbose # or `make test ARGS='-V'`
 ```
