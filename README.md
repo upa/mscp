@@ -60,10 +60,11 @@ make install
 - Usage
 
 ```shell-session
-$ mscp -h
-mscp: copy files over multiple ssh connections
+$ mscp
+mscp v0.0.0: copy files over multiple ssh connections
 
-Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
+Usage: mscp [vqDCHdh] [-n nr_conns]
+            [-s min_chunk_sz] [-S max_chunk_sz]
             [-b sftp_buf_sz] [-B io_buf_sz]
             [-l login_name] [-p port] [-i identity_file]
             [-c cipher_spec] source ... target
@@ -84,6 +85,7 @@ Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
     -i IDENTITY        identity file for publickey authentication
     -c CIPHER          cipher spec, see `ssh -Q cipher`
     -C                 enable compression on libssh
+    -H                 disable hostkey check
     -d                 increment ssh debug output level
     -h                 print this help
 ```
@@ -94,7 +96,6 @@ Usage: mscp [CvqDdh] [-n nr_conns] [-s min_chunk_sz] [-S max_chunk_sz]
 ```shell-session
 $ mscp /tmp/test.img 10.0.0.1:/tmp/
 [===============================================================] 100% 8GB/8GB 3.02GB/s 
-$
 ```
 
 - `-v` options increment verbose output level.

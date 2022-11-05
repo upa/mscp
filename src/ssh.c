@@ -106,7 +106,7 @@ static ssh_session ssh_make_ssh_session(char *sshdst, struct ssh_opts *opts)
 		goto disconnect_out;
 	}
 
-	if (ssh_verify_known_hosts(ssh) != 0) {
+	if (!opts->no_hostkey_check && ssh_verify_known_hosts(ssh) != 0) {
 		goto disconnect_out;
 	}
 

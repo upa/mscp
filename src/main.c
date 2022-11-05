@@ -82,7 +82,7 @@ int list_count(struct list_head *head)
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [CvqDdh] [-n nr_conns]\n"
+	       "Usage: mscp [vqDCHdh] [-n nr_conns]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz]\n"
 	       "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
@@ -108,6 +108,7 @@ void usage(bool print_help) {
 	       "    -i IDENTITY        identity file for publickey authentication\n"
 	       "    -c CIPHER          cipher spec, see `ssh -Q cipher`\n"
 	       "    -C                 enable compression on libssh\n"
+	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
 	       "    -h                 print this help\n"
 	       "\n");
@@ -178,7 +179,7 @@ int main(int argc, char **argv)
 	nr_threads = (int)(nr_cpus() / 2);
 	nr_threads = nr_threads == 0 ? 1 : nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:s:S:b:B:vqDl:p:i:c:Cdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:B:vqDl:p:i:c:CHdh")) != -1) {
 		switch (ch) {
 		case 'n':
 			nr_threads = atoi(optarg);
@@ -254,6 +255,9 @@ int main(int argc, char **argv)
 			break;
 		case 'C':
 			opts.compress++;
+			break;
+		case 'H':
+			opts.no_hostkey_check = true;
 			break;
 		case 'd':
 			opts.debuglevel++;

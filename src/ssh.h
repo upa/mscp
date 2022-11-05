@@ -1,19 +1,21 @@
 #ifndef _SSH_H_
 #define _SSH_H_
 
+#include <stdbool.h>
 #include <libssh/libssh.h>
 #include <libssh/sftp.h>
 
 
 struct ssh_opts {
-	char    *login_name;    /* -l */
-	char    *port;          /* -p */
-	char    *identity;      /* -i */
-	char    *cipher;        /* -c */
-	int     compress;       /* -C */
-	int     debuglevel;     /* -v */
+	char    *login_name;		/* -l */
+	char    *port;			/* -p */
+	char    *identity;		/* -i */
+	char    *cipher;		/* -c */
+	int     compress;		/* -C */
+	int     debuglevel;		/* -v */
+	bool	no_hostkey_check;	/* -H */
 
-	char    *password;      /* filled at the first connecting phase */
+	char    *password;		/* filled at the first connecting phase */
 };
 
 /* ssh_make_sftp_session() creates sftp_session. sshdst accpets
