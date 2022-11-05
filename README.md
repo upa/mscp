@@ -1,6 +1,7 @@
 # mscp
 
-[![build](https://github.com/upa/mscp/actions/workflows/build.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build.yml)
+[![build on ubuntu](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml) [![build on macOS](https://github.com/upa/mscp/actions/workflows/build-macos.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-macos.yml)
+
 
 `mscp`, a variant of `scp`, copies files over multiple ssh (sftp)
 sessions. Multiple threads in mscp transfer (1) multiple files
