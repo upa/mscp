@@ -70,24 +70,24 @@ if(BUILD_PKG)
 	# Ubuntu 20.04
 	add_custom_target(package-ubuntu-20.04-in-docker
 		COMMENT "Build mscp in ubuntu 20.04 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
-		COMMAND docker build -t mscp-ubuntu:20.04 -f Dockerfile-ubuntu-20.04 .
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMAND docker build -t mscp-ubuntu:20.04 -f docker/Dockerfile-ubuntu-20.04 .
 		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:20.04
 		cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-20.04-${ARCH}.deb /out/)
 
 	# Ubuntu 22.04
 	add_custom_target(package-ubuntu-22.04-in-docker
 		COMMENT "Build mscp in ubuntu 22.04 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
-		COMMAND docker build -t mscp-ubuntu:22.04 -f Dockerfile-ubuntu-22.04 .
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMAND docker build -t mscp-ubuntu:22.04 -f docker/Dockerfile-ubuntu-22.04 .
 		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:22.04
 		cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-22.04-${ARCH}.deb /out/)
 
 	# CentOS 8
 	add_custom_target(package-centos-8-in-docker
 		COMMENT "Build mscp in centos 8 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/docker
-		COMMAND docker build -t mscp-centos:8 -f Dockerfile-centos-8 .
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMAND docker build -t mscp-centos:8 -f docker/Dockerfile-centos-8 .
 		COMMAND docker run -it --rm -v ${CMAKE_BINARY_DIR}:/out mscp-centos:8
 		cp /mscp/build/mscp_${PROJECT_VERSION}-centos-8-${ARCH}.rpm /out/)
 
