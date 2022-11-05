@@ -19,11 +19,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: install build dependency
-      run: |
-        brew update
-        brew install libssh
-        brew install cmake
+
+      # libssh and cmake are already installed on the macos-latest runner, 2022/11/5
+      #    - name: install build dependency
+      #run: |
+      #  brew update
+      #  brew install libssh
+      #  brew install cmake
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
