@@ -1,0 +1,22 @@
+name: test on ubuntu
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build test container
+      run: docker build --rm -t mscp-test -f docker/Dockerfile-test .
+    - name: Run test
+      run: docker run --init --rm mscp-test bash -c "/usr/sbin/sshd; cd /mscp/build; ctest --verbose"
+
