@@ -1,4 +1,6 @@
 #!/bin/bash -e
+#
+# Install build dpenedencies.
 
 source /etc/os-release
 set -x

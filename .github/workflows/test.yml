@@ -1,4 +1,4 @@
-name: test on ubuntu
+name: test
 
 on:
   push:
@@ -12,11 +12,14 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-    - name: Build test container
-      run: docker build --rm -t mscp-test -f docker/Dockerfile-test .
-    - name: Run test
-      run: docker run --init --rm mscp-test bash -c "/usr/sbin/sshd; cd /mscp/build; ctest --verbose"
+    - name: Build ubuntu 22.04 container
+      run: docker build --rm -t mscp-ubuntu:22.04 -f docker/ubuntu-22.04.Dockerfile .
+    - name: Run test on ubuntu 22.04
+      run: docker run --init --rm mscp-ubuntu:22.04 /mscp/scripts/test-in-container.sh
 
+    - name: Build centos 8 container
+      run: docker build --rm -t mscp-centos:8 -f docker/centos-8.Dockerfile .
+    - name: Run test on centos 8
+      run: docker run --init --rm mscp-centos:8 /mscp/scripts/test-in-container.sh
