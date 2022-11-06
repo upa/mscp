@@ -20,6 +20,13 @@ Differences from `scp` are:
 - `-r` option is not needed.
 - and any other differences I have not noticed and implemented...
 
+
+## Install
+
+- Linux: Download a package for your environment from
+[Releases page](https://github.com/upa/mscp/releases).
+
+
 ## Build
 
 mscp depends on [libssh](https://www.libssh.org/).
