@@ -6,9 +6,9 @@ cd ..
 
 docker build -t mscp-ubuntu:20.04 -f docker/ubuntu-20.04.Dockerfile .
 
-docker build -t mscp-ubuntu:22.04 -f docker/Dockerfile-ubuntu-22.04 .
+docker build -t mscp-ubuntu:22.04 -f docker/ubuntu-22.04.Dockerfile .
 
-docker build -t mscp-centos:8 -f docker/Dockerfile-centos-8 .
+docker build -t mscp-centos:8 -f docker/centos-8.Dockerfile .
 ```
 
 Test `mscp` in the containers.
