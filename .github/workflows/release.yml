@@ -1,0 +1,38 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+    BUILD_TYPE: Release
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set variables
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION=$VER" >> $GITHUB_ENV
+
+      # TODO: docker build does not require libssh. fix CMakeLists
+      - name: install build dependency
+        run: sudo ./scripts/install-build-deps.sh
+
+      - name: Configure Cmake
+        run: cmake -B ${{github.workspace}}/build -DBUILD_PKG=1 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+      - name: Build Packages
+        run: make -C ${{github.workspace}}/build package-all-in-docker
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-20.04-x86_64.deb
+            ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-22.04-x86_64.deb
+            ${{github.workspace}}/build/mscp_${{env.VERSION}}-centos-8-x86_64.rpm
