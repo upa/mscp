@@ -25,7 +25,7 @@ cd ..
 
 docker build --rm -t mscp-test -f docker/Dockerfile-test .
 
-docker run --init -it --rm mscp-test bash -c "/usr/sbin/sshd; cd /mscp/build; ctest --verbose"
+docker run --init --rm mscp-test bash -c "/usr/sbin/sshd; cd /mscp/build; ctest --verbose"
 ```
 
 I don't know whether these these are good way.

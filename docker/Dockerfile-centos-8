@@ -20,5 +20,5 @@ RUN cd ${mscpdir}       \
 RUN cd ${mscpdir}       \
         && cmake -B build -DBUILD_PKG=1 \
         && cd ${mscpdir}/build          \
-	&&cpack -G RPM CPackConfig.cmake
+	&& cpack -G RPM CPackConfig.cmake
 
