@@ -8,7 +8,7 @@ sessions. Multiple threads in mscp transfer (1) multiple files
 simultaneously and (2) a large file in parallel. It may shorten the
 waiting time for transferring a lot of/large files over networks.
 
-You can use `mscp` like `scp`, e.g., `mscp example.com:srcfile
+You can use `mscp` like `scp`, for example, `mscp example.com:srcfile
 /tmp/dstfile`. Remote hosts only need to run `sshd` supporting the
 SFTP subsystem, and you need to be able to ssh to the hosts (as
 usual).
@@ -23,11 +23,17 @@ Differences from `scp` are:
 
 ## Install
 
+- homebrew
+
+```console
+brew install upa/tap/mscp
+```
+
 - Linux: Download a package for your environment from
 [Releases page](https://github.com/upa/mscp/releases).
 
 
-## Build
+## Build from source
 
 mscp depends on [libssh](https://www.libssh.org/).
 
