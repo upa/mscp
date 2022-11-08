@@ -623,7 +623,7 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
 			       size_t sftp_buf_sz, size_t io_buf_sz,
 			       bool reverse, size_t *counter)
 {
-	size_t remaind, read_bytes, write_bytes;
+	ssize_t read_bytes, write_bytes, remaind;
 	char buf[io_buf_sz];
 
 	/* if reverse is false, copy fd->sf (local to remote).
@@ -639,8 +639,12 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
 						sftp_buf_sz);
 
 		if (read_bytes < 0) {
-			pr_err("failed to read %s: %s\n", c->f->dst_path,
-			       !reverse ? strerrno() : sftp_get_ssh_error(sf->sftp));
+			if (!reverse)
+				pr_err("failed to read %s: %s\n",
+				       c->f->src_path, strerrno());
+			else
+				pr_err("failed to read %s: SFTP error code %d\n",
+				       c->f->src_path, sftp_get_error(sf->sftp));
 			return -1;
 		}
 
@@ -650,8 +654,12 @@ static int chunk_copy_internal(struct chunk *c, int fd, sftp_file sf,
 			write_bytes = write(fd, buf, read_bytes);
 
 		if (write_bytes < 0) {
-			pr_err("failed to write %s: %s\n", c->f->dst_path,
-			       !reverse ? strerrno() : sftp_get_ssh_error(sf->sftp));
+			if (!reverse)
+				pr_err("failed to write to %s: SFTP error code %d\n",
+				       c->f->dst_path, sftp_get_error(sf->sftp));
+			else
+				pr_err("failed to write to %s: %s\n",
+				       c->f->dst_path, strerrno());
 			return -1;
 		}
 

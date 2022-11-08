@@ -494,7 +494,7 @@ static void print_progress(struct timeval *start, struct timeval *end,
 	char *byte_units[] = { "B", "KB", "MB", "GB", "TB", "PB" };
 	char suffix[128];
 	int bps_u, byte_tu, byte_du;
-	size_t total_round;
+	size_t total_round, done_round;
 	int percent;
 	double bps;
 
@@ -515,11 +515,14 @@ static void print_progress(struct timeval *start, struct timeval *end,
 		bps /= 1000;
 
 	percent = floor(((double)(done) / (double)total) * 100);
-	for (byte_du = 0; done > 1000 && byte_du < array_size(byte_units) - 1; byte_du++)
-		done /= 1024;
+
+	done_round = done;
+	for (byte_du = 0; done_round > 1000 && byte_du < array_size(byte_units) - 1;
+	     byte_du++)
+		done_round /= 1024;
 
 	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s ",
-		 done, byte_units[byte_du], total_round, byte_units[byte_tu],
+		 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
 		 bps, bps_units[bps_u]);
 
 	print_progress_bar(percent, suffix);
@@ -582,7 +585,7 @@ void *mscp_monitor_thread(void *arg)
 		usleep(500000);
 
 		for (n = 0; n < nr_threads; n++) {
-			done += threads[n].done;;
+			done += threads[n].done;
 			if (!threads[n].finished)
 				all_done = false;
 		}

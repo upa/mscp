@@ -246,9 +246,9 @@ void ssh_sftp_close(sftp_session sftp)
 }
 
 
-int sftp_write2(sftp_file sf, const void *buf, size_t len, size_t sftp_buf_sz)
+ssize_t sftp_write2(sftp_file sf, const void *buf, size_t len, size_t sftp_buf_sz)
 {
-	int ret, nbytes;
+	ssize_t ret, nbytes;
 
 	for (nbytes = 0; nbytes < len;) {
 		ret = sftp_write(sf, buf + nbytes,
@@ -260,9 +260,9 @@ int sftp_write2(sftp_file sf, const void *buf, size_t len, size_t sftp_buf_sz)
 	return nbytes;
 }
 
-int sftp_read2(sftp_file sf, void *buf, size_t len, size_t sftp_buf_sz)
+ssize_t sftp_read2(sftp_file sf, void *buf, size_t len, size_t sftp_buf_sz)
 {
-	int ret, nbytes;
+	ssize_t ret, nbytes;
 
 	for (nbytes = 0; nbytes < len;) {
 		ret = sftp_read(sf, buf + nbytes,
