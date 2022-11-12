@@ -14,11 +14,11 @@ docker build -t mscp-centos:8 -f docker/centos-8.Dockerfile .
 Test `mscp` in the containers.
 
 ```console
-docker run --init --rm mscp-ubuntu:20.04 /build/mscp/scripts/test-in-container.sh
+docker run --init --rm mscp-ubuntu:20.04 /mscp/scripts/test-in-container.sh
 
-docker run --init --rm mscp-ubuntu:22.04 /build/mscp/scripts/test-in-container.sh
+docker run --init --rm mscp-ubuntu:22.04 /mscp/scripts/test-in-container.sh
 
-docker run --init --rm mscp-centos:8 /build/mscp/scripts/test-in-container.sh
+docker run --init --rm mscp-centos:8 /mscp/scripts/test-in-container.sh
 ```
 
 Retrieve deb/rpm packages.
