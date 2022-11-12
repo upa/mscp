@@ -66,7 +66,8 @@ void stop_copy_threads(int sig)
 
 	pr("stopping...\n");
 	for (n = 0; n < nr_threads; n++) {
-		pthread_cancel(threads[n].tid);
+		if (!threads[n].finished)
+			pthread_cancel(threads[n].tid);
 	}
 }
 
@@ -323,13 +324,6 @@ int main(int argc, char **argv)
 	if (dryrun)
 		return 0;
 
-	/* register SIGINT to stop thrads */
-	if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
-		pr_err("cannot set signal: %s\n", strerrno());
-		ret = 1;
-		goto out;
-	}
-
 	/* prepare thread instances */
 	if ((n = list_count(&m.chunk_list)) < nr_threads) {
 		pprint3("we have only %d chunk(s). set nr_conns to %d\n", n, n);
@@ -357,6 +351,13 @@ int main(int argc, char **argv)
 		stop_copy_threads(0);
 		ret = 1;
 		goto join_out;
+	}
+
+	/* register SIGINT to stop threads */
+	if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
+		pr_err("cannot set signal: %s\n", strerrno());
+		ret = 1;
+		goto out;
 	}
 
 	/* save start time */
@@ -521,7 +522,7 @@ static void print_progress(struct timeval *start, struct timeval *end,
 	     byte_du++)
 		done_round /= 1024;
 
-	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %.2f%s ",
+	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %6.1f%s ",
 		 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
 		 bps, bps_units[bps_u]);
 
@@ -582,7 +583,7 @@ void *mscp_monitor_thread(void *arg)
 		}
 		gettimeofday(&b, NULL);
 
-		usleep(500000);
+		usleep(1000000);
 
 		for (n = 0; n < nr_threads; n++) {
 			done += threads[n].done;
