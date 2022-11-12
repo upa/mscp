@@ -494,8 +494,8 @@ static void print_progress_bar(double percent, char *suffix)
 static void print_progress(struct timeval *start, struct timeval *end,
 			   size_t total, size_t last, size_t done)
 {
-	char *bps_units[] = { "B/s", "KB/s", "MB/s", "GB/s" };
-	char *byte_units[] = { "B", "KB", "MB", "GB", "TB", "PB" };
+	char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
+	char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
 	char suffix[128];
 	int bps_u, byte_tu, byte_du;
 	size_t total_round, done_round;
