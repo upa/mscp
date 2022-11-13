@@ -10,7 +10,7 @@ waiting time for transferring a lot of/large files over networks.
 
 You can use `mscp` like `scp`, for example, `mscp
 user@example.com:srcfile /tmp/dstfile`. Remote hosts only need to run
-normal `sshd` supporting the SFTP subsystem, and you need to be able
+standard `sshd` supporting the SFTP subsystem, and you need to be able
 to ssh to the hosts (as usual). `mscp` does not require anything else.
 
 
