@@ -26,6 +26,7 @@
 #define DEFAULT_SFTP_BUF_SZ     131072          /* derived from qemu/block/ssh.c */
 #define DEFAULT_IO_BUF_SZ       DEFAULT_SFTP_BUF_SZ
 /* XXX: need to investigate max buf size for sftp_read/sftp_write */
+#define DEFAULT_NR_AHEAD	16
 
 struct mscp {
 	char                    *host;  /* remote host (and username) */
@@ -33,12 +34,13 @@ struct mscp {
 	sftp_session            ctrl;   /* control sftp session */
 
 	struct list_head        file_list;
-	struct list_head        chunk_list;     /* stack of chunks */
-	lock                    chunk_lock;  /* lock for chunk list */
+	struct list_head        chunk_list;	/* stack of chunks */
+	lock                    chunk_lock;	/* lock for chunk list */
 
 	char    *target;
 
 	int     sftp_buf_sz, io_buf_sz;
+	int	nr_ahead;	/* # of ahead read command for remote to local copy */
 
 	struct timeval start;   /* timestamp of starting copy */
 };
@@ -85,7 +87,7 @@ void usage(bool print_help) {
 	       "\n"
 	       "Usage: mscp [vqDCHdh] [-n nr_conns]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz]\n"
-	       "            [-b sftp_buf_sz] [-B io_buf_sz]\n"
+	       "            [-b sftp_buf_sz] [-B io_buf_sz] [-a nr_ahead]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] source ... target\n"
 	       "\n");
@@ -102,6 +104,7 @@ void usage(bool print_help) {
 	       "                       Note that the default value is derived from\n"
 	       "                       qemu/block/ssh.c. need investigation...\n"
 	       "                       -b and -B affect only local to remote copy\n"
+	       "    -a NR_AHEAD        number of inflight SFTP read commands (default 16)\n"
 	       "\n"
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
@@ -179,11 +182,12 @@ int main(int argc, char **argv)
 	lock_init(&m.chunk_lock);
 	m.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
 	m.io_buf_sz = DEFAULT_IO_BUF_SZ;
+	m.nr_ahead = DEFAULT_NR_AHEAD;
 
 	nr_threads = (int)(nr_cpus() / 2);
 	nr_threads = nr_threads == 0 ? 1 : nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:s:S:b:B:vqDl:p:i:c:CHdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:s:S:b:B:a:vqDl:p:i:c:CHdh")) != -1) {
 		switch (ch) {
 		case 'n':
 			nr_threads = atoi(optarg);
@@ -233,6 +237,13 @@ int main(int argc, char **argv)
 			m.io_buf_sz = atoi(optarg);
 			if (m.io_buf_sz < 1) {
 				pr_err("invalid buffer size: %s\n", optarg);
+				return -1;
+			}
+			break;
+		case 'a':
+			m.nr_ahead = atoi(optarg);
+			if (m.nr_ahead < 1) {
+				pr_err("invalid number of ahead: %s\n", optarg);
 				return -1;
 			}
 			break;
@@ -429,12 +440,16 @@ void *mscp_copy_thread(void *arg)
 		if ((t->ret = chunk_prepare(c, sftp)) < 0)
 			break;
 
-		if ((t->ret = chunk_copy(c, sftp,
-					 m->sftp_buf_sz, m->io_buf_sz, &t->done)) < 0)
+		if ((t->ret = chunk_copy(c, sftp, m->sftp_buf_sz, m->io_buf_sz,
+					 m->nr_ahead, &t->done)) < 0)
 			break;
 	}
 
 	pthread_cleanup_pop(1);
+
+	if (t->ret < 0)
+		pr_err("copy failed: chunk %s 0x%010lx-0x%010lx\n",
+		       c->f->src_path, c->off, c->off + c->len);
 
 	return NULL;
 }

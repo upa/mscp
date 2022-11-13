@@ -654,9 +654,8 @@ static int chunk_copy_internal_local_to_remote(struct chunk *c, int fd, sftp_fil
 }
 
 static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_file sf,
-					       size_t *counter)
+					       int nr_ahead, size_t *counter)
 {
-#define AHEAD		8
 #define XFER_BUF_SIZE	16384
 
 	ssize_t read_bytes, write_bytes, remaind, thrown;
@@ -665,7 +664,7 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 	struct {
 		int id;
 		size_t len;
-	} reqs[AHEAD];
+	} reqs[nr_ahead];
 
 	/* TODO: sftp_buf_sz has no effect on remote to local copy. we
 	 * always use 16384 byte buffer pointed by
@@ -680,7 +679,7 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 
 	remaind = thrown = c->len;
 
-	for (idx = 0; idx < AHEAD && thrown > 0; idx++) {
+	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
 		reqs[idx].len = min(thrown, sizeof(buf));
 		reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
 		if (reqs[idx].id < 0) {
@@ -718,7 +717,7 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 		}
 
 		*counter += write_bytes;
-		idx = (idx + 1) % AHEAD;
+		idx = (idx + 1) % nr_ahead;
 	}
 
 	return 0;
@@ -771,8 +770,7 @@ out:
 }
 
 static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
-				      size_t sftp_buf_sz, size_t io_buf_sz,
-				      size_t *counter)
+				      int nr_ahead, size_t *counter)
 {
 	struct file *f = c->f;
 	sftp_file sf = NULL;
@@ -795,7 +793,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
 		goto out;
 	}
 
-	ret = chunk_copy_internal_remote_to_local(c, fd, sf, counter);
+	ret = chunk_copy_internal_remote_to_local(c, fd, sf, nr_ahead, counter);
 	if (ret< 0)
 		goto out;
 
@@ -811,7 +809,7 @@ out:
 
 
 int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io_buf_sz,
-	       size_t *counter)
+	       int nr_ahead, size_t *counter)
 {
 	struct file *f = c->f;
 	int ret = 0;
@@ -828,8 +826,7 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
 		ret = chunk_copy_local_to_remote(c, sftp,
 						 sftp_buf_sz, io_buf_sz, counter);
 	else
-		ret = chunk_copy_remote_to_local(c, sftp,
-						 sftp_buf_sz, io_buf_sz, counter);
+		ret = chunk_copy_remote_to_local(c, sftp, nr_ahead, counter);
 
 	if (ret < 0)
 		return ret;

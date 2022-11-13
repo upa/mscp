@@ -71,8 +71,8 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
 
 struct chunk *chunk_acquire(struct list_head *chunk_list);
 int chunk_prepare(struct chunk *c, sftp_session sftp);
-int chunk_copy(struct chunk *c, sftp_session sftp,
-	       size_t sftp_buf_sz, size_t io_buf_sz, size_t *counter);
+int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io_buf_sz,
+	       int nr_ahead, size_t *counter);
 
 #ifdef DEBUG
 void file_dump(struct list_head *file_list);
