@@ -416,6 +416,7 @@ void mscp_copy_thread_cleanup(void *arg)
 	if (t->sftp)
 		ssh_sftp_close(t->sftp);
 	t->finished = true;
+	__sync_synchronize();
 }
 
 void *mscp_copy_thread(void *arg)
