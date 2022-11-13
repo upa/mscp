@@ -105,12 +105,23 @@ if(BUILD_PKG)
 		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-centos:8
 		cp /mscp/build/mscp_${PROJECT_VERSION}-centos-8-${ARCH}.rpm /out/)
 
+	# Rocky 8.6
+	add_custom_target(package-rocky-8.6-in-docker
+		COMMENT "Build mscp in rocky 8.6 docker container"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMAND docker build -t mscp-rocky:8.6 -f docker/rocky-8.6.Dockerfile .
+		COMMAND docker run --init --rm mscp-rocky:8.6
+			/mscp/scripts/test-in-container.sh
+		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-rocky:8.6
+		cp /mscp/build/mscp_${PROJECT_VERSION}-rocky-8.6-${ARCH}.rpm /out/)
+
 	# build on all conatiners
 	add_custom_target(package-all-in-docker
 		COMMENT "Build mscp in all docker containers"
 		DEPENDS package-ubuntu-20.04-in-docker
 		DEPENDS package-ubuntu-22.04-in-docker
-		DEPENDS package-centos-8-in-docker)
+		DEPENDS package-centos-8-in-docker
+		DEPENDS package-rocky-8.6-in-docker)
 
 endif() # BUILD_PKG
 

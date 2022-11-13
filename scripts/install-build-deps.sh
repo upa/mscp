@@ -9,8 +9,8 @@ case $ID in
 	ubuntu*)
 		apt-get install -y gcc make cmake libssh-dev
 		;;
-	centos* | rhel*)
-		dnf install -y gcc make cmake libssh-devel rpm-build
+	centos* | rhel* | rocky*)
+		yum install -y gcc make cmake libssh-devel rpm-build
 		;;
 	*)
 		echo "unsupported dependency install: $ID"

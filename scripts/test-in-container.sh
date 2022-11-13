@@ -17,7 +17,7 @@ case $ID in
 		pkg=mscp_${project_version}-${ID}-${VERSION_ID}-${arch}.deb
 		dpkg -i ../build/$pkg
                 ;;
-        centos* | rhel*)
+        centos* | rhel* | rocky*)
 		pkg=mscp_${project_version}-${ID}-${VERSION_ID}-${arch}.rpm
 		rpm -iv ../build/$pkg
                 ;;

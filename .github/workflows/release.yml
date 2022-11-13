@@ -36,3 +36,4 @@ jobs:
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-20.04-x86_64.deb
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-22.04-x86_64.deb
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-centos-8-x86_64.rpm
+            ${{github.workspace}}/build/mscp_${{env.VERSION}}-rocky-8.6-x86_64.rpm
