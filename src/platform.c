@@ -24,6 +24,14 @@ int nr_cpus()
 
 	return n;
 }
+
+int set_thread_affinity(pthread_t tid, int core)
+{
+	errno = ENOTSUP;
+	pr_err("setting thread afinity is not implemented on apple\n");
+	return -1;
+}
+
 #endif
 
 #ifdef linux
@@ -33,6 +41,20 @@ int nr_cpus()
 	if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_set) == 0)
 		return CPU_COUNT(&cpu_set);
 	return -1;
+}
+
+int set_thread_affinity(pthread_t tid, int core)
+{
+	cpu_set_t target_cpu_set;
+	int ret = 0;
+
+	CPU_ZERO(&target_cpu_set);
+	CPU_SET(core, &target_cpu_set);
+	ret = pthread_setaffinity_np(tid, sizeof(target_cpu_set), &target_cpu_set);
+	if (ret < 0)
+		pr_err("failed to set thread/cpu affinity for core %d: %s",
+		       core, strerrno());
+	return ret;
 }
 #endif
 

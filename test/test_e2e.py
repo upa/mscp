@@ -151,6 +151,18 @@ def test_min_chunk(mscp, src_prefix, dst_prefix):
     dst.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_thread_affinity(mscp, src_prefix, dst_prefix):
+    src = File("src", size = 64 * 1024).make()
+    dst = File("dst")
+
+    run2ok([mscp, "-H", "-n", 4, "-m", "0x01", "-s", 8192, "-S", 65536,
+            src_prefix + src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+
+    src.cleanup()
+    dst.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_cannot_override_file_with_dir(mscp, src_prefix, dst_prefix):
     src = File("src", size = 128).make()
     dst = File("dst").make()
