@@ -174,8 +174,8 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 	long v, needle;
 
 	/*
-	 * This function returns array of usabe cores in `cores` and
-	 * returns the number of usabel cores (array length) through
+	 * This function returns array of usable cores in `cores` and
+	 * returns the number of usable cores (array length) through
 	 * nr_cores.
 	 */
 
@@ -212,6 +212,11 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 				core_list[nr_usable - 1] = nr_all - 1;
 			}
 		}
+	}
+
+	if (nr_usable < 1) {
+		pr_err("invalid core mask: %s\n", coremask);
+		return -1;
 	}
 
 	*cores = core_list;
