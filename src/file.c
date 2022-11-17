@@ -619,6 +619,9 @@ static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, siz
 	return sf;
 }
 
+/*
+ * TODO: handle case when read returns 0 (EOF).
+ */
 static int chunk_copy_internal_local_to_remote(struct chunk *c, int fd, sftp_file sf,
 					       size_t sftp_buf_sz, size_t io_buf_sz,
 					       size_t *counter)
@@ -661,11 +664,11 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 						     size_t *counter)
 {
 	size_t read_bytes, remaind, thrown;
+	char buf[XFER_BUF_SIZE];
 	int idx, ret;
 	struct {
 		int id;
 		size_t len;
-		char buf[XFER_BUF_SIZE];
 	} reqs[nr_ahead];
 
 	if (c->len == 0)
@@ -673,14 +676,13 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 
 	remaind = thrown = c->len;
 	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
-		reqs[idx].len = min(thrown, XFER_BUF_SIZE);
-		/* TODO: should use iovec? */
-		read_bytes = read(fd, reqs[idx].buf, reqs[idx].len);
+		reqs[idx].len = min(thrown, sizeof(buf));
+		read_bytes = read(fd, buf, reqs[idx].len);
 		if (read_bytes < 0) {
 			pr_err("read from %s failed: %s\n", c->f->src_path, strerrno());
 			return -1;
 		}
-		ret = sftp_async_write(sf, reqs[idx].buf, reqs[idx].len, &reqs[idx].id);
+		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
 		if (ret < 0) {
 			pr_err("sftp_async_write for %s failed: %d\n",
 			       c->f->dst_path, sftp_get_error(sf->sftp));
@@ -703,21 +705,21 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 		if (remaind == 0)
 			break;
 
-		reqs[idx].len = min(remaind, XFER_BUF_SIZE);
-		read_bytes = read(fd, reqs[idx].buf, reqs[idx].len);
+		reqs[idx].len = min(remaind, sizeof(buf));
+		read_bytes = read(fd, buf, reqs[idx].len);
 		if (read_bytes < 0) {
 			pr_err("read from %s failed: %s\n", c->f->src_path, strerrno());
 			return -1;
 		}
 
-		ret = sftp_async_write(sf, reqs[idx].buf, reqs[idx].len, &reqs[idx].id);
+		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
 		if (ret < 0) {
 			pr_err("sftp_async_write for %s failed: %d\n",
 			       c->f->dst_path, sftp_get_error(sf->sftp));
 			return -1;
 		}
 
-		idx = (idx + 1) & nr_ahead;
+		idx = (idx + 1) % nr_ahead;
 	}
 
 	return 0;
