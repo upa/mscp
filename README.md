@@ -170,3 +170,28 @@ Usage: mscp [vqDCHdh] [-n nr_conns]
 
 Note: mscp is still under development, and the author is not
 responsible for any accidents due to mscp.
+
+## Build with Async Write
+
+```console
+# install required package
+sudo apt install libkrb5-dev
+
+# clone this repositoy
+git clone https://github.com/upa/mscp -b async-write
+cd mscp
+
+# build pathched libssh
+git clone https://git.libssh.org/projects/libssh.git/ --depth=10 -b libssh-0.10.4
+cd libssh && git apply ../patch/libssh-0.10.4.patch
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../../libssh-installed
+make && make install
+
+# build mscp with patched libssh
+# mv to mscp dir
+mv ../..
+mkdir build && cd build
+cmake .. -DLIBSSH_PATH=../libssh-installed
+make
+```
