@@ -7,17 +7,26 @@ project(mscp
 	LANGUAGES C)
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 if(APPLE)
 	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
 	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
 endif() # APPLE
 
-find_package(libssh REQUIRED)
 
 add_executable(mscp src/main.c src/platform.c src/ssh.c src/file.c src/pprint.c)
 target_include_directories(mscp PUBLIC ./src)
-target_link_libraries(mscp ssh pthread m)
+if (LIBSSH_PATH)
+	find_package(GSSAPI)
+	target_include_directories(mscp PUBLIC ${LIBSSH_PATH}/include)
+	target_link_directories(mscp PRIVATE ${LIBSSH_PATH}/lib)
+	target_link_libraries(mscp pthread m libssh.a ssl crypto z ${GSSAPI_LIBRARIES})
+else()
+	find_package(libssh REQUIRED)
+	target_link_libraries(mscp pthread m ssh)
+endif()
+
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
 install(TARGETS mscp

@@ -1,0 +1,157 @@
+diff --git a/DefineOptions.cmake b/DefineOptions.cmake
+index 068db988..7f42c2f3 100644
+--- a/DefineOptions.cmake
++++ b/DefineOptions.cmake
+@@ -25,6 +25,7 @@ option(WITH_GEX "Enable DH Group exchange mechanisms" ON)
+ option(WITH_INSECURE_NONE "Enable insecure none cipher and MAC algorithms (not suitable for production!)" OFF)
+ option(FUZZ_TESTING "Build with fuzzer for the server and client (automatically enables none cipher!)" OFF)
+ option(PICKY_DEVELOPER "Build with picky developer flags" OFF)
++option(WITH_STATIC_LIB "Build static library" ON)
+ 
+ if (WITH_ZLIB)
+     set(WITH_LIBZ ON)
+@@ -60,3 +61,7 @@ endif (NOT GLOBAL_CLIENT_CONFIG)
+ if (FUZZ_TESTING)
+   set(WITH_INSECURE_NONE ON)
+ endif (FUZZ_TESTING)
++
++if (WITH_STATIC_LIB)
++  set(BUILD_STATIC_LIB ON)
++endif()
+diff --git a/include/libssh/sftp.h b/include/libssh/sftp.h
+index c855df8a..1fd1710a 100644
+--- a/include/libssh/sftp.h
++++ b/include/libssh/sftp.h
+@@ -565,6 +565,9 @@ LIBSSH_API int sftp_async_read(sftp_file file, void *data, uint32_t len, uint32_
+  */
+ LIBSSH_API ssize_t sftp_write(sftp_file file, const void *buf, size_t count);
+ 
++LIBSSH_API int sftp_async_write(sftp_file file, const void *buf, size_t count, uint32_t* id);
++LIBSSH_API int sftp_async_write_end(sftp_file file, uint32_t id, int blocking);
++
+ /**
+  * @brief Seek to a specific location in a file.
+  *
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index c090fef7..e2f86309 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -435,6 +435,11 @@ if (BUILD_STATIC_LIB)
+   if (WIN32)
+     target_compile_definitions(ssh-static PUBLIC "LIBSSH_STATIC")
+   endif (WIN32)
++
++  install(TARGETS ssh-static
++	  EXPORT libssh-config
++	  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++	  COMPONENT libraries)
+ endif (BUILD_STATIC_LIB)
+ 
+ message(STATUS "Threads_FOUND=${Threads_FOUND}")
+diff --git a/src/sftp.c b/src/sftp.c
+index e01012a8..7b5dc249 100644
+--- a/src/sftp.c
++++ b/src/sftp.c
+@@ -2228,6 +2228,102 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
+   return -1; /* not reached */
+ }
+ 
++/*
++ * sftp_async_write and sftp_async_write_end are copied from
++ * https://github.com/limes-datentechnik-gmbh/libssh
++ */
++int sftp_async_write(sftp_file file, const void *buf, size_t count, uint32_t* id) {
++  sftp_session sftp = file->sftp;
++  ssh_buffer buffer;
++  int len;
++  int packetlen;
++  int rc;
++
++  buffer = ssh_buffer_new();
++  if (buffer == NULL) {
++    ssh_set_error_oom(sftp->session);
++    return -1;
++  }
++
++  *id = sftp_get_new_id(file->sftp);
++
++  rc = ssh_buffer_pack(buffer,
++                       "dSqdP",
++                       *id,
++                       file->handle,
++                       file->offset,
++                       count, /* len of datastring */
++                       (size_t)count, buf);
++  if (rc != SSH_OK){
++    ssh_set_error_oom(sftp->session);
++    ssh_buffer_free(buffer);
++    return SSH_ERROR;
++  }
++  packetlen=ssh_buffer_get_len(buffer)+5;
++  len = sftp_packet_write(file->sftp, SSH_FXP_WRITE, buffer);
++  ssh_buffer_free(buffer);
++  if (len < 0) {
++    return SSH_ERROR;
++  } else  if (len != packetlen) {
++    ssh_set_error(sftp->session, SSH_FATAL,
++      "Could only send %d of %d bytes to remote host!", len, packetlen);
++    SSH_LOG(SSH_LOG_PACKET,
++        "Could not write as much data as expected");
++    return SSH_ERROR;
++  }
++
++  file->offset += count;
++
++  return SSH_OK;
++}
++
++int sftp_async_write_end(sftp_file file, uint32_t id, int blocking) {
++  sftp_session sftp = file->sftp;
++  sftp_message msg = NULL;
++  sftp_status_message status;
++
++  msg = sftp_dequeue(sftp, id);
++  while (msg == NULL) {
++    if (!blocking && ssh_channel_poll(sftp->channel, 0) == 0) {
++      /* we cannot block */
++      return SSH_AGAIN;
++    }
++    if (sftp_read_and_dispatch(sftp) < 0) {
++      /* something nasty has happened */
++      return SSH_ERROR;
++    }
++    msg = sftp_dequeue(sftp, id);
++  }
++
++  switch (msg->packet_type) {
++    case SSH_FXP_STATUS:
++      status = parse_status_msg(msg);
++      sftp_message_free(msg);
++      if (status == NULL) {
++        return SSH_ERROR;
++      }
++      sftp_set_error(sftp, status->status);
++      switch (status->status) {
++        case SSH_FX_OK:
++          status_msg_free(status);
++          return SSH_OK;
++        default:
++          break;
++      }
++      ssh_set_error(sftp->session, SSH_REQUEST_DENIED,
++          "SFTP server: %s", status->errormsg);
++      status_msg_free(status);
++      return SSH_ERROR;
++    default:
++      ssh_set_error(sftp->session, SSH_FATAL,
++          "Received message %d during write!", msg->packet_type);
++      sftp_message_free(msg);
++      return SSH_ERROR;
++  }
++
++  return SSH_ERROR; /* not reached */
++}
++
+ /* Seek to a specific location in a file. */
+ int sftp_seek(sftp_file file, uint32_t new_offset) {
+   if (file == NULL) {
