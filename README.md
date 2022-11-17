@@ -181,16 +181,15 @@ sudo apt install libkrb5-dev
 git clone https://github.com/upa/mscp -b async-write
 cd mscp
 
-# build pathched libssh
+# build patched libssh
 git clone https://git.libssh.org/projects/libssh.git/ --depth=10 -b libssh-0.10.4
 cd libssh && git apply ../patch/libssh-0.10.4.patch
 mkdir build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=../../libssh-installed
 make && make install
 
-# build mscp with patched libssh
-# mv to mscp dir
-mv ../..
+# build mscp with the patched libssh
+mv ../.. # mv to mscp dir
 mkdir build && cd build
 cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1
 make
