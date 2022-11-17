@@ -192,6 +192,6 @@ make && make install
 # mv to mscp dir
 mv ../..
 mkdir build && cd build
-cmake .. -DLIBSSH_PATH=../libssh-installed
+cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1
 make
 ```

@@ -2,8 +2,8 @@
 #define _SSH_H_
 
 #include <stdbool.h>
-#include <libssh/libssh.h>
-#include <libssh/sftp.h>
+#include "libssh/libssh.h"
+#include "libssh/sftp.h"
 
 
 struct ssh_opts {

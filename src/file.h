@@ -3,8 +3,8 @@
 
 #include <limits.h>
 #include <pthread.h>
-#include <libssh/libssh.h>
-#include <libssh/sftp.h>
+#include "libssh/libssh.h"
+#include "libssh/sftp.h"
 
 #include <list.h>
 #include <atomic.h>
