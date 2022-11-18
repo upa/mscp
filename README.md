@@ -198,6 +198,13 @@ make && make install
 # build mscp with the patched libssh
 mv ../.. # mv to mscp dir
 mkdir build && cd build
+
+# on ubuntu
 cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1
+
+# on macOS (intel)
+cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1 \
+	-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
+
 make
 ```
