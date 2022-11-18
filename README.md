@@ -4,9 +4,10 @@
 
 
 `mscp`, a variant of `scp`, copies files over multiple ssh (SFTP)
-sessions. Multiple threads in mscp transfer (1) multiple files
-simultaneously and (2) a large file in parallel. It may shorten the
-waiting time for transferring a lot of/large files over networks.
+connections. Multiple threads and connections in mscp transfer (1)
+multiple files simultaneously and (2) a large file in parallel. It
+would shorten the waiting time for transferring a lot of/large files
+over networks.
 
 You can use `mscp` like `scp`, for example, `mscp
 user@example.com:srcfile /tmp/dstfile`. Remote hosts only need to run
@@ -14,7 +15,7 @@ standard `sshd` supporting the SFTP subsystem, and you need to be able
 to ssh to the hosts (as usual). `mscp` does not require anything else.
 
 
-Differences from `scp` are:
+Differences from `scp`:
 
 - remote glob on remote shell expansion is not supported.
 - remote to remote copy is not supported.
@@ -172,6 +173,12 @@ Note: mscp is still under development, and the author is not
 responsible for any accidents due to mscp.
 
 ## Build with Async Write
+
+Asynchronous SFTP write improves local-to-remote copy throughput. The
+following procedure is how to build mscp with libssh with a
+`sftp_async_write` patch based on
+https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
+async](https://archive.libssh.org/libssh/2020-06/0000004.html))
 
 ```console
 # install required package
