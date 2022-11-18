@@ -37,7 +37,8 @@ struct file {
  * if the file state of the chunk is INIT:
  *     acquire the file lock
  * *         if file state is INIT:
- *             create destination file and directory if necessary
+ *             create directory if necessary
+ *             open file with O_TRUNC and close.
  *             set file state OPENED.
  *             // only the first thread in the lock open the destination file
  *     release the file lock

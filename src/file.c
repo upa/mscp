@@ -367,6 +367,7 @@ static int file_dst_prepare(struct file *f, sftp_session sftp)
 
 	pr_debug("prepare for %s\n", path);
 
+	/* mkdir -p */
 	for (p = strchr(path + 1, '/'); p; p = strchr(p + 1, '/')) {
 		*p = '\0';
 
@@ -396,6 +397,30 @@ static int file_dst_prepare(struct file *f, sftp_session sftp)
 		}
 	next:
 		*p = '/';
+	}
+
+	/* open file with O_TRUNC to set file size 0 */
+	mode = O_WRONLY|O_CREAT|O_TRUNC;
+	if (sftp) {
+		sftp_file sf;
+		if ((sf = sftp_open(sftp, f->dst_path, mode, S_IRUSR|S_IWUSR)) == NULL) {
+			pr_err("sftp_open: %s\n", sftp_get_ssh_error(sftp));
+			return -1;
+		}
+		if (sftp_close(sf) < 0) {
+			pr_err("sftp_close: %s\n", sftp_get_ssh_error(sftp));
+			return -1;
+		}
+	} else {
+		int fd;
+		if ((fd = open(f->dst_path, mode, S_IRUSR|S_IWUSR)) < 0) {
+			pr_err("open: %s\n", strerrno());
+			return -1;
+		}
+		if (close(fd) < 0) {
+			pr_err("close: %s\n", strerrno());
+			return -1;
+		}
 	}
 
 	return 0;
@@ -824,7 +849,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
 		goto out;
 	}
 
-	flags = O_WRONLY|O_CREAT;
+	flags = O_WRONLY;
 	mode = S_IRUSR|S_IWUSR;
 	if (!(sf = chunk_open_remote(f->dst_path, flags, mode, c->off, sftp))) {
 		ret = -1;
@@ -866,7 +891,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
 	int fd = 0;
 	int ret = 0;
 
-	flags = O_WRONLY|O_CREAT;
+	flags = O_WRONLY;
 	mode = S_IRUSR|S_IWUSR;
 	if ((fd = chunk_open_local(f->dst_path, flags, mode, c->off)) < 0) {
 		ret = -1;
