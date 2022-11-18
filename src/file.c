@@ -327,7 +327,6 @@ int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, 
 	dst_path = *dst_path == '\0' ? "." : dst_path;
 	dst_is_remote = file_find_hostname(dst) ? true : false;
 	dst_must_dir = cnt > 1 ? true : false;
-	pr_warn("dst_must_dir list_count %d %d\n", list_count(file_list), dst_must_dir);
 
 	if (file_is_directory(dst_path, dst_is_remote ? sftp : NULL, false) > 0)
 		dst_is_dir = true;
