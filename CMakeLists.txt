@@ -15,23 +15,42 @@ if(APPLE)
 endif() # APPLE
 
 
+# mscp executable
 add_executable(mscp src/main.c src/platform.c src/ssh.c src/file.c src/pprint.c)
-target_include_directories(mscp PUBLIC ./src)
+
+set(MSCP_LINK_LIBS m pthread)
+set(MSCP_LINK_DIRS "")
+set(MSCP_COMPILE_OPTS "")
+set(MSCP_INCLUDE_DIRS ${mscp_SOURCE_DIR}/src)
+
 if (LIBSSH_PATH)
+	# libssh.a must be placed before other shared libraries for gcc
+	list(APPEND MSCP_COMPILE_OPTS -iquote ${LIBSSH_PATH}/include)
+	list(APPEND MSCP_INCLUDE_DIRS ${LIBSSH_PATH}/include)
+	list(APPEND MSCP_LINK_DIRS ${LIBSSH_PATH}/lib)
+	list(APPEND MSCP_LINK_LIBS libssh.a)
+
 	find_package(GSSAPI)
-	target_include_directories(mscp PUBLIC ${LIBSSH_PATH}/include)
-	target_compile_options(mscp PUBLIC -iquote ${LIBSSH_PATH}/include)
-	target_link_directories(mscp PRIVATE ${LIBSSH_PATH}/lib)
-	target_link_libraries(mscp pthread m libssh.a ssl crypto z ${GSSAPI_LIBRARIES})
+	list(APPEND MSCP_LINK_LIBS ${GSSAPI_LIBRARIES})
+
+	find_package(OpenSSL)
+	list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
+
+	find_package(ZLIB)
+	list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 else()
 	find_package(libssh REQUIRED)
-	target_link_libraries(mscp pthread m ssh)
+	list(APPEND MSCP_LINK_LIBS ssh)
 endif()
 
 if (WITH_ASYNC_WRITE)
 	target_compile_definitions(mscp PUBLIC ASYNC_WRITE=1)
 endif()
 
+target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
+target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
+target_link_libraries(mscp PRIVATE ${MSCP_LINK_LIBS})
+target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
 install(TARGETS mscp
