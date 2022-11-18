@@ -669,8 +669,8 @@ static int _chunk_copy_local_to_remote_async(struct chunk *c, int fd,
 	char buf[XFER_BUF_SIZE];
 	int idx, ret;
 	struct {
-		int id;
-		ssize_t len;
+		uint32_t id;
+		ssize_t  len;
 	} reqs[nr_ahead];
 
 	if (c->len == 0)
