@@ -74,21 +74,14 @@ void stop_copy_threads(int sig)
 	}
 }
 
-int list_count(struct list_head *head)
-{
-	int n = 0;
-	struct list_head *p;
-
-	list_for_each(p, head) n++;
-	return n;
-}
-
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
 	       "Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]\n"
-	       "            [-s min_chunk_sz] [-S max_chunk_sz]\n"
-	       "            [-b sftp_buf_sz] [-B io_buf_sz] [-a nr_ahead]\n"
+	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
+#ifndef ASYNC_WRITE
+	       "            [-b sftp_buf_sz] [-B io_buf_sz] \n"
+#endif
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] source ... target\n"
 	       "\n");
@@ -101,12 +94,14 @@ void usage(bool print_help) {
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
 	       "\n"
+	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 16)\n"
+#ifndef ASYNC_WRITE
 	       "    -b SFTP_BUF_SIZE   buf size for sftp_read/write (default 131072B)\n"
 	       "    -B IO_BUF_SIZE     buf size for read/write (default 131072B)\n"
 	       "                       Note that the default value is derived from\n"
 	       "                       qemu/block/ssh.c. need investigation...\n"
 	       "                       -b and -B affect only local to remote copy\n"
-	       "    -a NR_AHEAD        number of inflight SFTP read commands (default 16)\n"
+#endif
 	       "\n"
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
@@ -114,7 +109,7 @@ void usage(bool print_help) {
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -p PORT            port number\n"
-	       "    -i IDENTITY        identity file for publickey authentication\n"
+	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec, see `ssh -Q cipher`\n"
 	       "    -C                 enable compression on libssh\n"
 	       "    -H                 disable hostkey check\n"

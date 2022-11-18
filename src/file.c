@@ -319,13 +319,16 @@ static int file_fill_recursive(struct list_head *file_list,
 int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, int cnt,
 	      char *dst)
 {
-	bool dst_is_remote, dst_is_dir, dst_dir_no_exist, dst_should_dir;
+	bool dst_is_remote, dst_is_dir, dst_dir_no_exist, dst_should_dir, dst_must_dir;
 	char *dst_path, *src_path;
 	int n, ret;
 
 	dst_path = file_find_path(dst);
 	dst_path = *dst_path == '\0' ? "." : dst_path;
 	dst_is_remote = file_find_hostname(dst) ? true : false;
+	dst_must_dir = cnt > 1 ? true : false;
+	pr_warn("dst_must_dir list_count %d %d\n", list_count(file_list), dst_must_dir);
+
 	if (file_is_directory(dst_path, dst_is_remote ? sftp : NULL, false) > 0)
 		dst_is_dir = true;
 	else
@@ -342,7 +345,8 @@ int file_fill(sftp_session sftp, struct list_head *file_list, char **src_array, 
 
 		ret = file_fill_recursive(file_list, dst_is_remote, sftp,
 					  src_path, "", dst_path,
-					  dst_should_dir | dst_is_dir, dst_dir_no_exist);
+					  dst_should_dir | dst_must_dir | dst_is_dir,
+					  dst_dir_no_exist);
 		if (ret < 0)
 			return ret;
 	}
@@ -622,9 +626,9 @@ static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, siz
 /*
  * TODO: handle case when read returns 0 (EOF).
  */
-static int chunk_copy_internal_local_to_remote(struct chunk *c, int fd, sftp_file sf,
-					       size_t sftp_buf_sz, size_t io_buf_sz,
-					       size_t *counter)
+static int _chunk_copy_local_to_remote(struct chunk *c, int fd, sftp_file sf,
+				       size_t sftp_buf_sz, size_t io_buf_sz,
+				       size_t *counter)
 {
 	ssize_t read_bytes, write_bytes, remaind;
 	char buf[io_buf_sz];
@@ -633,14 +637,13 @@ static int chunk_copy_internal_local_to_remote(struct chunk *c, int fd, sftp_fil
 
 		read_bytes = read(fd, buf, min(remaind, io_buf_sz));
 		if (read_bytes < 0) {
-			pr_err("failed to read %s: %s\n", c->f->src_path, strerrno());
+			pr_err("read: %s\n", strerrno());
 			return -1;
 		}
 
 		write_bytes = sftp_write2(sf, buf, read_bytes, sftp_buf_sz);
 		if (write_bytes < 0) {
-			pr_err("failed to write to %s: SFTP error code %d\n",
-			       c->f->dst_path, sftp_get_error(sf->sftp));
+			pr_err("sftp_write: %d\n", sftp_get_error(sf->sftp));
 			return -1;
 		}
 
@@ -659,9 +662,8 @@ static int chunk_copy_internal_local_to_remote(struct chunk *c, int fd, sftp_fil
 #define XFER_BUF_SIZE	16384
 
 #ifdef ASYNC_WRITE
-static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
-						     sftp_file sf, int nr_ahead,
-						     size_t *counter)
+static int _chunk_copy_local_to_remote_async(struct chunk *c, int fd,
+					     sftp_file sf, int nr_ahead, size_t *counter)
 {
 	ssize_t read_bytes, remaind, thrown;
 	char buf[XFER_BUF_SIZE];
@@ -679,13 +681,12 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 		reqs[idx].len = min(thrown, sizeof(buf));
 		read_bytes = read(fd, buf, reqs[idx].len);
 		if (read_bytes < 0) {
-			pr_err("read from %s failed: %s\n", c->f->src_path, strerrno());
+			pr_err("read: %s\n", strerrno());
 			return -1;
 		}
 		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
 		if (ret < 0) {
-			pr_err("sftp_async_write for %s failed: %d\n",
-			       c->f->dst_path, sftp_get_error(sf->sftp));
+			pr_err("sftp_async_write: %d\n", sftp_get_error(sf->sftp));
 			return -1;
 		}
 		thrown -= reqs[idx].len;
@@ -694,8 +695,7 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
 		ret = sftp_async_write_end(sf, reqs[idx].id, 1);
 		if (ret != SSH_OK) {
-			pr_err("sftp_async_write_end failed for %s: %d\n",
-			       c->f->dst_path, sftp_get_error(sf->sftp));
+			pr_err("sftp_async_write_end: %d\n", sftp_get_error(sf->sftp));
 			return -1;
 		}
 
@@ -711,14 +711,13 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 		reqs[idx].len = min(thrown, sizeof(buf));
 		read_bytes = read(fd, buf, reqs[idx].len);
 		if (read_bytes < 0) {
-			pr_err("read from %s failed: %s\n", c->f->src_path, strerrno());
+			pr_err("read: %s\n", strerrno());
 			return -1;
 		}
 
 		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
 		if (ret < 0) {
-			pr_err("sftp_async_write for %s failed: %d\n",
-			       c->f->dst_path, sftp_get_error(sf->sftp));
+			pr_err("sftp_async_write: %d\n", sftp_get_error(sf->sftp));
 			return -1;
 		}
 		thrown -= reqs[idx].len;
@@ -735,8 +734,8 @@ static int chunk_copy_internal_local_to_remote_async(struct chunk *c, int fd,
 }
 #endif
 
-static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_file sf,
-					       int nr_ahead, size_t *counter)
+static int _chunk_copy_remote_to_local(struct chunk *c, int fd, sftp_file sf,
+				       int nr_ahead, size_t *counter)
 {
 	ssize_t read_bytes, write_bytes, remaind, thrown;
 	char buf[XFER_BUF_SIZE];
@@ -763,7 +762,7 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 		reqs[idx].len = min(thrown, sizeof(buf));
 		reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
 		if (reqs[idx].id < 0) {
-			pr_err("sftp_async_read_begin failed: %d\n",
+			pr_err("sftp_async_read_begin: %d\n",
 			       sftp_get_error(sf->sftp));
 			return -1;
 		}
@@ -773,7 +772,7 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
 		read_bytes = sftp_async_read(sf, buf, reqs[idx].len, reqs[idx].id);
 		if (read_bytes == SSH_ERROR) {
-			pr_err("sftp_async_read failed: %d\n", sftp_get_error(sf->sftp));
+			pr_err("sftp_async_read: %d\n", sftp_get_error(sf->sftp));
 			return -1;
 		}
 
@@ -785,12 +784,12 @@ static int chunk_copy_internal_remote_to_local(struct chunk *c, int fd, sftp_fil
 
 		write_bytes = write(fd, buf, read_bytes);
 		if (write_bytes < 0) {
-			pr_err("write to %s failed: %s\n", c->f->dst_path, strerrno());
+			pr_err("write: %s\n", strerrno());
 			return -1;
 		}
 
 		if (write_bytes < read_bytes) {
-			pr_err("failed to write full bytes to %s\n", c->f->dst_path);
+			pr_err("failed to write full bytes\n");
 			return -1;
 		}
 
@@ -834,10 +833,10 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
 	}
 
 #ifndef ASYNC_WRITE
-	ret = chunk_copy_internal_local_to_remote(c, fd, sf, sftp_buf_sz, io_buf_sz,
+	ret = _chunk_copy_local_to_remote(c, fd, sf, sftp_buf_sz, io_buf_sz,
 						  counter);
 #else
-	ret = chunk_copy_internal_local_to_remote_async(c, fd, sf, nr_ahead, counter);
+	ret = _chunk_copy_local_to_remote_async(c, fd, sf, nr_ahead, counter);
 #endif
 	if (ret < 0)
 		goto out;
@@ -882,7 +881,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
 		goto out;
 	}
 
-	ret = chunk_copy_internal_remote_to_local(c, fd, sf, nr_ahead, counter);
+	ret = _chunk_copy_remote_to_local(c, fd, sf, nr_ahead, counter);
 	if (ret< 0)
 		goto out;
 

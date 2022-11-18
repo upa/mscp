@@ -32,13 +32,17 @@ def recursive(src, rel_path, dst, dst_should_dir, replace_dir_name):
         recursive(next_src, next_rel_path, dst, dst_should_dir, False)
 
 
-def fill_dst(src, dst):
-    dst_should_dir = isdir(src) | isdir(dst)
-    replace_dir_name = not isdir(dst)
-    recursive(src, "", dst, dst_should_dir, replace_dir_name)
+def fill_dst(srclist, dst):
+    dst_must_dir = len(srclist) > 1
+    for src in srclist:
+        dst_should_dir = isdir(src) | isdir(dst)
+        replace_dir_name = not isdir(dst)
+        recursive(src, "", dst, dst_should_dir | dst_must_dir, replace_dir_name)
 
 
 def main():
-    fill_dst(sys.argv[1], sys.argv[2])
+    if (len(sys.argv) < 2):
+        print("usage: {} source ... target".format(sys.argv[0]))
+    fill_dst(sys.argv[1:len(sys.argv) - 1], sys.argv[len(sys.argv) - 1])
 
 main()

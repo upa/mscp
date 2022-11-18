@@ -514,4 +514,19 @@ static inline void hlist_add_after(struct hlist_node *n,
 	     pos = n)
 
 
+/**
+ * list_count - return length of list
+ * @head        the head for your list.
+ */
+static inline int list_count(struct list_head *head)
+{
+	int n = 0;
+	struct list_head *p;
+
+	list_for_each(p, head) n++;
+	return n;
+}
+
+
 #endif
+
