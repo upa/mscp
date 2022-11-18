@@ -370,10 +370,10 @@ int main(int argc, char **argv)
 	if (coremask) {
 		if (expand_coremask(coremask, &cores, &nr_cores) < 0)
 			return -1;
-		pprint(1, "cpu cores:");
+		pprint(2, "cpu cores:");
 		for (n = 0; n < nr_cores; n++)
-			pprint(1, " %d", cores[n]);
-		pprint(1, "\n");
+			pprint(2, " %d", cores[n]);
+		pprint(2, "\n");
 	}
 
 	/* create control session */
@@ -492,8 +492,12 @@ out:
 void mscp_copy_thread_cleanup(void *arg)
 {
 	struct mscp_thread *t = arg;
-	if (t->sftp)
+	if (t->sftp) {
+		/* XXX: sftp_free --> ssh_poll sometimes blocked with
+		 * no responses. So wet nonblocking. */
+		ssh_set_blocking(sftp_ssh(t->sftp), 1);
 		ssh_sftp_close(t->sftp);
+	}
 	t->finished = true;
 	__sync_synchronize();
 }
