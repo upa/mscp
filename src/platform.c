@@ -27,9 +27,8 @@ int nr_cpus()
 
 int set_thread_affinity(pthread_t tid, int core)
 {
-	errno = ENOTSUP;
-	pr_err("setting thread afinity is not implemented on apple\n");
-	return -1;
+	pr_warn("setting thread afinity is not implemented on apple\n");
+	return 0;
 }
 
 #endif
