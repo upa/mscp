@@ -53,9 +53,7 @@ target_link_libraries(mscp PRIVATE ${MSCP_LINK_LIBS})
 target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
-install(TARGETS mscp
-	RUNTIME		DESTINATION bin
-)
+install(TARGETS mscp RUNTIME DESTINATION bin)
 
 
 
@@ -106,12 +104,15 @@ include(CPack)
 
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
-# However, ubuntu 20.04 has cmake 3.16.3.
+# However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
 list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky)
 list(APPEND DIST_VERS	20.04	22.04	8	8.6)
 list(APPEND DIST_PKGS	deb	deb	rpm	rpm)
 
-foreach(x RANGE 3)
+list(LENGTH DIST_NAMES _DIST_LISTLEN)
+math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
+
+foreach(x RANGE ${DIST_LISTLEN})
 	list(GET DIST_NAMES	${x} DIST_NAME)
 	list(GET DIST_VERS	${x} DIST_VER)
 	list(GET DIST_PKGS	${x} DIST_PKG)
