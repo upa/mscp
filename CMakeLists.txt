@@ -107,26 +107,15 @@ include(CPack)
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3.
-list(APPEND DIST_NAMES	ubuntu)
-list(APPEND DIST_VERS	20.04)
-list(APPEND DIST_PKGS	deb)
-
-list(APPEND DIST_NAMES	ubuntu)
-list(APPEND DIST_VERS	22.04)
-list(APPEND DIST_PKGS	deb)
-
-list(APPEND DIST_NAMES	centos)
-list(APPEND DIST_VERS	8)
-list(APPEND DIST_PKGS	rpm)
-
-list(APPEND DIST_NAMES	rocky)
-list(APPEND DIST_VERS	8.6)
-list(APPEND DIST_PKGS	rpm)
+list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky)
+list(APPEND DIST_VERS	20.04	22.04	8	8.6)
+list(APPEND DIST_PKGS	deb	deb	rpm	rpm)
 
 foreach(x RANGE 3)
 	list(GET DIST_NAMES	${x} DIST_NAME)
 	list(GET DIST_VERS	${x} DIST_VER)
 	list(GET DIST_PKGS	${x} DIST_PKG)
+
 	set(DOCKER_IMAGE mscp-${DIST_NAME}:${DIST_VER})
 	set(DOCKER_INDEX ${DIST_NAME}-${DIST_VER})
 	set(PKG_FILE_NAME
@@ -150,4 +139,12 @@ foreach(x RANGE 3)
 		COMMAND
 		docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DOCKER_IMAGE}
 		cp /mscp/build/${PKG_FILE_NAME} /out/)
+
+	list(APPEND DOCKER_BUILDS	docker-build-${DOCKER_INDEX})
+	list(APPEND DOCKER_TESTS	docker-test-${DOCKER_INDEX})
+	list(APPEND DOCKER_PKGS		docker-pkg-${DOCKER_INDEX})
 endforeach()
+
+add_custom_target(docker-build-all	DEPENDS ${DOCKER_BUILDS})
+add_custom_target(docker-test-all	DEPENDS ${DOCKER_TESTS})
+add_custom_target(docker-pkg-all	DEPENDS ${DOCKER_PKGS})

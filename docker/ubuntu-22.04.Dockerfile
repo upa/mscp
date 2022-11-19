@@ -31,4 +31,5 @@ RUN cd ${mscpdir}			\
 	&& cmake -B build		\
 	&& cd ${mscpdir}/build		\
 	&& make				\
-	&& cpack -G DEB CPackConfig.cmake 
+	&& cpack -G DEB CPackConfig.cmake \
+	&& dpkg -i *.deb

@@ -26,5 +26,6 @@ RUN cd ${mscpdir}			\
         && cmake -B build		\
         && cd ${mscpdir}/build          \
 	&& make				\
-	&& cpack -G RPM CPackConfig.cmake
+	&& cpack -G RPM CPackConfig.cmake \
+	&& rpm -iv *.rpm
 
