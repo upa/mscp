@@ -68,93 +68,86 @@ add_test(NAME	pytest
 enable_testing()
 
 
-# Build Packages
-if(BUILD_PKG)
 
-	# CPACK Rules
-	set(CPACK_SET_DESTDIR		true)
-	set(CPACK_PROJECT_NAME		${PROJECT_NAME})
-	set(CPACK_PROJECT_VERSION	${PROJECT_VERSION})
-	set(CPACK_PACKAGE_CONTACT	"Ryo Nakamura <upa@haeena.net>")
-	set(CPACK_PACKAGE_DESCRIPTION
-		"mscp, copy files over multiple ssh connections")
+# CPACK Rules
+set(CPACK_SET_DESTDIR		true)
+set(CPACK_PROJECT_NAME		${PROJECT_NAME})
+set(CPACK_PROJECT_VERSION	${PROJECT_VERSION})
+set(CPACK_PACKAGE_CONTACT	"Ryo Nakamura <upa@haeena.net>")
+set(CPACK_PACKAGE_DESCRIPTION
+	"mscp, copy files over multiple ssh connections")
 
-	# on linux
-	if(UNIX AND NOT APPLE)
-		execute_process(COMMAND
-			bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2|tr -d '\"'"
-			OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND
-			bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
-			OUTPUT_VARIABLE DIST_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND uname -p
-			OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-		set(PACKAGE_FILE_NAME
-			${PROJECT_NAME}_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VERSION}-${ARCH})
+execute_process(COMMAND uname -m
+	OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-		set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
-		set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
-		set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
+if(UNIX AND NOT APPLE) # on linux
+	execute_process(COMMAND
+		bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2|tr -d '\"'"
+		OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
+	execute_process(COMMAND
+		bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
+		OUTPUT_VARIABLE DIST_VER OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(PACKAGE_FILE_NAME
+		${PROJECT_NAME}_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VER}-${ARCH})
 
-		set(CPACK_RPM_FILE_NAME			${PACKAGE_FILE_NAME}.rpm)
-		set(CPACK_RPM_PACKAGE_REQUIRES		"libssh")
-		set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
-		set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
+	set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
+	set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
 
-	endif() # on linux
+	set(CPACK_RPM_FILE_NAME			${PACKAGE_FILE_NAME}.rpm)
+	set(CPACK_RPM_PACKAGE_REQUIRES		"libssh")
+	set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
+	set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
+endif() # on linux
 
-	include(CPack)
+include(CPack)
 
 
-	# Custom commands to build mscp in docker containers
 
-	# Ubuntu 20.04
-	add_custom_target(package-ubuntu-20.04-in-docker
-		COMMENT "Build mscp in ubuntu 20.04 docker container"
+# Custom targets to build and test mscp in docker containers.
+# foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
+# However, ubuntu 20.04 has cmake 3.16.3.
+list(APPEND DIST_NAMES	ubuntu)
+list(APPEND DIST_VERS	20.04)
+list(APPEND DIST_PKGS	deb)
+
+list(APPEND DIST_NAMES	ubuntu)
+list(APPEND DIST_VERS	22.04)
+list(APPEND DIST_PKGS	deb)
+
+list(APPEND DIST_NAMES	centos)
+list(APPEND DIST_VERS	8)
+list(APPEND DIST_PKGS	rpm)
+
+list(APPEND DIST_NAMES	rocky)
+list(APPEND DIST_VERS	8.6)
+list(APPEND DIST_PKGS	rpm)
+
+foreach(x RANGE 3)
+	list(GET DIST_NAMES	${x} DIST_NAME)
+	list(GET DIST_VERS	${x} DIST_VER)
+	list(GET DIST_PKGS	${x} DIST_PKG)
+	set(DOCKER_IMAGE mscp-${DIST_NAME}:${DIST_VER})
+	set(DOCKER_INDEX ${DIST_NAME}-${DIST_VER})
+	set(PKG_FILE_NAME
+		mscp_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VER}-${ARCH}.${DIST_PKG})
+
+	add_custom_target(docker-build-${DOCKER_INDEX}
+		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		COMMAND docker build -t mscp-ubuntu:20.04 -f docker/ubuntu-20.04.Dockerfile .
-		COMMAND docker run --init --rm mscp-ubuntu:20.04
-			/mscp/scripts/test-in-container.sh
-		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:20.04
-			cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-20.04-${ARCH}.deb /out/)
+		COMMAND
+		docker build -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
 
-	# Ubuntu 22.04
-	add_custom_target(package-ubuntu-22.04-in-docker
-		COMMENT "Build mscp in ubuntu 22.04 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		COMMAND docker build -t mscp-ubuntu:22.04 -f docker/ubuntu-22.04.Dockerfile .
-		COMMAND docker run --init --rm mscp-ubuntu:22.04
-			/mscp/scripts/test-in-container.sh
-		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-ubuntu:22.04
-		cp /mscp/build/mscp_${PROJECT_VERSION}-ubuntu-22.04-${ARCH}.deb /out/)
+	add_custom_target(docker-test-${DOCKER_INDEX}
+		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+		COMMAND
+		docker run --init --rm ${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
-	# CentOS 8
-	add_custom_target(package-centos-8-in-docker
-		COMMENT "Build mscp in centos 8 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		COMMAND docker build -t mscp-centos:8 -f docker/centos-8.Dockerfile .
-		COMMAND docker run --init --rm mscp-centos:8
-			/mscp/scripts/test-in-container.sh
-		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-centos:8
-		cp /mscp/build/mscp_${PROJECT_VERSION}-centos-8-${ARCH}.rpm /out/)
-
-	# Rocky 8.6
-	add_custom_target(package-rocky-8.6-in-docker
-		COMMENT "Build mscp in rocky 8.6 docker container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		COMMAND docker build -t mscp-rocky:8.6 -f docker/rocky-8.6.Dockerfile .
-		COMMAND docker run --init --rm mscp-rocky:8.6
-			/mscp/scripts/test-in-container.sh
-		COMMAND docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-rocky:8.6
-		cp /mscp/build/mscp_${PROJECT_VERSION}-rocky-8.6-${ARCH}.rpm /out/)
-
-	# build on all conatiners
-	add_custom_target(package-all-in-docker
-		COMMENT "Build mscp in all docker containers"
-		DEPENDS package-ubuntu-20.04-in-docker
-		DEPENDS package-ubuntu-22.04-in-docker
-		DEPENDS package-centos-8-in-docker
-		DEPENDS package-rocky-8.6-in-docker)
-
-endif() # BUILD_PKG
-
+	add_custom_target(docker-pkg-${DOCKER_INDEX}
+		COMMENT "Retrieve mscp package from ${DOCKER_IMAGE} container"
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+		COMMAND
+		docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DOCKER_IMAGE}
+		cp /mscp/build/${PKG_FILE_NAME} /out/)
+endforeach()

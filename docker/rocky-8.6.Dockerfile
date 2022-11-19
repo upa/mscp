@@ -5,7 +5,7 @@ ARG mscpdir="/mscp"
 COPY . ${mscpdir}
 
 # install numpy and pytest, sshd for test, and rpm-build
-RUN set -ex && yum -y update && yum -y install \
+RUN set -ex && yum -y install \
 	python3 python3-pip openssh openssh-server openssh-clients rpm-build
 
 RUN python3 -m pip install numpy pytest
@@ -23,7 +23,7 @@ RUN ${mscpdir}/scripts/install-build-deps.sh
 # build
 RUN cd ${mscpdir}			\
         && rm -rf build			\
-        && cmake -B build -DBUILD_PKG=1 \
+        && cmake -B build		\
         && cd ${mscpdir}/build          \
 	&& make				\
 	&& cpack -G RPM CPackConfig.cmake

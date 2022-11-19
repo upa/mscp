@@ -28,7 +28,7 @@ RUN ${mscpdir}/scripts/install-build-deps.sh
 # build
 RUN cd ${mscpdir}			\
         && rm -rf build			\
-        && cmake -B build -DBUILD_PKG=1 \
+        && cmake -B build 		\
         && cd ${mscpdir}/build          \
 	&& make				\
 	&& cpack -G RPM CPackConfig.cmake
