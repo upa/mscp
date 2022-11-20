@@ -51,16 +51,15 @@ Currently macOS and Linux (Ubuntu, CentOS, Rocky) are supported.
 git clone https://github.com/upa/mscp.git
 cd mscp
 
-# 2. install build dependency
-bash ./scripts/install-build-deps.sh
-
-# 3. prepare patched libssh
+# 2. prepare patched libssh
 git submodule init
 git submodule update
-cd libssh && git apply ../patch/libssh-0.10.4.patch
+patch -d libssh -p1 < patch/libssh-0.10.4.patch
+
+# 3. install build dependency
+bash ./scripts/install-build-deps.sh
 
 # 4. configure mscp
-cd ..
 mkdir build && mv build
 cmake ..
 
