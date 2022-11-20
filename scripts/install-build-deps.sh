@@ -1,18 +1,30 @@
-#!/bin/bash -e
+#!/bin/bash -eu
 #
 # Install build dpenedencies.
 
-source /etc/os-release
+platform=$(uname -s)
+
+if [ -e /etc/os-release ]; then
+	source /etc/os-release
+	platform=${platform}-${ID}
+fi
+
 set -x
 
-case $ID in
-	ubuntu*)
-		apt-get install -y gcc make cmake libssh-dev
+case $platform in
+	Darwin)
+		brew install openssl
 		;;
-	centos* | rhel* | rocky*)
-		yum install -y gcc make cmake libssh-devel rpm-build
+	Linux-ubuntu*)
+		sudo apt-get install -y \
+			gcc make cmake zlib1g-dev libssl-dev libkrb5-dev
+		;;
+	Linux-centos* | Linux-rhel* | Linux-rocky*)
+		sudo yum install -y \
+			gcc make cmake zlib-devel openssl-devel rpm-build
 		;;
 	*)
-		echo "unsupported dependency install: $ID"
+		echo "unsupported platform: $platform"
 		exit 1
+		;;
 esac

@@ -80,15 +80,19 @@ if(UNIX AND NOT APPLE) # on linux
 	execute_process(COMMAND
 		bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
 		OUTPUT_VARIABLE DIST_VER OUTPUT_STRIP_TRAILING_WHITESPACE)
+	execute_process(COMMAND
+		bash "-c" "${mscp_SOURCE_DIR}/scripts/print-install-deps.sh ${DIST_NAME}-${DIST_VER}"
+		OUTPUT_VARIABLE DIST_DEP OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 	set(PACKAGE_FILE_NAME
 		${PROJECT_NAME}_${PROJECT_VERSION}-${DIST_NAME}-${DIST_VER}-${ARCH})
 
 	set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
-	set(CPACK_DEBIAN_PACKAGE_DEPENDS	"libssh-4")
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS	${DIST_DEP})
 	set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
 
 	set(CPACK_RPM_FILE_NAME			${PACKAGE_FILE_NAME}.rpm)
-	set(CPACK_RPM_PACKAGE_REQUIRES		"libssh")
+	set(CPACK_RPM_PACKAGE_REQUIRES		${DIST_DEP})
 	set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
 	set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
 endif() # on linux
@@ -119,7 +123,7 @@ foreach(x RANGE ${DIST_LISTLEN})
 
 	add_custom_target(docker-build-${DOCKER_INDEX}
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
 		docker build -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
 

@@ -44,35 +44,27 @@ patch introduces asynchronous SFTP Write, which is derived from
 https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
 async](https://archive.libssh.org/libssh/2020-06/0000004.html)).
 
-- macOS
+Currently macOS and Linux (Ubuntu, CentOS, Rocky) are supported.
 
 ```console
-brew install openssl
-```
-
-- ubuntu
-
-```console
-sudo apt-get install zlib1g-dev libssl-dev libkrb5-dev
-```
-
-Clone and build this repositoy.
-
-```console
+# 1. clone this repository
 git clone https://github.com/upa/mscp.git
 cd mscp
 
-# prepare patched libssh
+# 2. install build dependency
+bash ./scripts/install-build-deps.sh
+
+# 3. prepare patched libssh
 git submodule init
 git submodule update
 cd libssh && git apply ../patch/libssh-0.10.4.patch
 
-# configure mscp
+# 4. configure mscp
 cd ..
 mkdir build && mv build
 cmake ..
 
-# in macOS, you may need OPENSSL_ROOT_DIR for cmake like:
+## in macOS, you may need OPENSSL_ROOT_DIR for cmake like:
 cmake .. -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
 
 # build
