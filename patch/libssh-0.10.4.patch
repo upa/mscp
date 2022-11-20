@@ -1,7 +1,16 @@
 diff --git a/DefineOptions.cmake b/DefineOptions.cmake
-index 068db988..7f42c2f3 100644
+index 068db988..6db0fc0f 100644
 --- a/DefineOptions.cmake
 +++ b/DefineOptions.cmake
+@@ -17,7 +17,7 @@ option(UNIT_TESTING "Build with unit tests" OFF)
+ option(CLIENT_TESTING "Build with client tests; requires openssh" OFF)
+ option(SERVER_TESTING "Build with server tests; requires openssh and dropbear" OFF)
+ option(WITH_BENCHMARKS "Build benchmarks tools" OFF)
+-option(WITH_EXAMPLES "Build examples" ON)
++option(WITH_EXAMPLES "Build examples" OFF)
+ option(WITH_NACL "Build with libnacl (curve25519)" ON)
+ option(WITH_SYMBOL_VERSIONING "Build with symbol versioning" ON)
+ option(WITH_ABI_BREAK "Allow ABI break" OFF)
 @@ -25,6 +25,7 @@ option(WITH_GEX "Enable DH Group exchange mechanisms" ON)
  option(WITH_INSECURE_NONE "Enable insecure none cipher and MAC algorithms (not suitable for production!)" OFF)
  option(FUZZ_TESTING "Build with fuzzer for the server and client (automatically enables none cipher!)" OFF)
