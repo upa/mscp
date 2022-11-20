@@ -9,6 +9,10 @@ project(mscp
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
+
+# add libssh static library
+add_subdirectory(libssh EXCLUDE_FROM_ALL)
+
 if(APPLE)
 	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
 	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
@@ -23,29 +27,20 @@ set(MSCP_LINK_DIRS "")
 set(MSCP_COMPILE_OPTS "")
 set(MSCP_INCLUDE_DIRS ${mscp_SOURCE_DIR}/src)
 
-if (LIBSSH_PATH)
-	# libssh.a must be placed before other shared libraries for gcc
-	list(APPEND MSCP_COMPILE_OPTS -iquote ${LIBSSH_PATH}/include)
-	list(APPEND MSCP_INCLUDE_DIRS ${LIBSSH_PATH}/include)
-	list(APPEND MSCP_LINK_DIRS ${LIBSSH_PATH}/lib)
-	list(APPEND MSCP_LINK_LIBS libssh.a)
+list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
+list(APPEND MSCP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
+list(APPEND MSCP_LINK_LIBS ssh-static)
 
-	find_package(GSSAPI)
-	list(APPEND MSCP_LINK_LIBS ${GSSAPI_LIBRARIES})
+find_package(GSSAPI)
+list(APPEND MSCP_LINK_LIBS ${GSSAPI_LIBRARIES})
 
-	find_package(OpenSSL)
-	list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
+find_package(OpenSSL)
+list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
 
-	find_package(ZLIB)
-	list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
-else()
-	find_package(libssh REQUIRED)
-	list(APPEND MSCP_LINK_LIBS ssh)
-endif()
+find_package(ZLIB)
+list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
-if (WITH_ASYNC_WRITE)
-	target_compile_definitions(mscp PUBLIC ASYNC_WRITE=1)
-endif()
+target_compile_definitions(mscp PUBLIC ASYNC_WRITE=1)
 
 target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
