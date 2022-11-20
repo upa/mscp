@@ -16,11 +16,11 @@ case $platform in
 		brew install openssl
 		;;
 	Linux-ubuntu*)
-		sudo apt-get install -y \
+		apt-get install -y \
 			gcc make cmake zlib1g-dev libssl-dev libkrb5-dev
 		;;
 	Linux-centos* | Linux-rhel* | Linux-rocky*)
-		sudo yum install -y \
+		yum install -y \
 			gcc make cmake zlib-devel openssl-devel rpm-build
 		;;
 	*)
