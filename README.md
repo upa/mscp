@@ -39,24 +39,21 @@ page](https://github.com/upa/mscp/releases).
 
 ## Build from source
 
-mscp depends on [libssh](https://www.libssh.org/).
+mscp depends on a patched [libssh](https://www.libssh.org/).  The
+patch introduces asynchronous SFTP Write, which is derived from
+https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
+async](https://archive.libssh.org/libssh/2020-06/0000004.html)).
 
 - macOS
 
 ```console
-brew install libssh
+brew install openssl
 ```
 
 - ubuntu
 
 ```console
-sudo apt-get install libssh-dev
-```
-
-- rhel
-
-```console
-sudo yum install libssh-devel
+sudo apt-get install zlib1g-dev libssl-dev libkrb5-dev
 ```
 
 Clone and build this repositoy.
@@ -65,8 +62,21 @@ Clone and build this repositoy.
 git clone https://github.com/upa/mscp.git
 cd mscp
 
-mkdir build && cd build
-cmake .. && make
+# prepare patched libssh
+git submodule init
+git submodule update
+cd libssh && git apply ../patch/libssh-0.10.4.patch
+
+# configure mscp
+cd ..
+mkdir build && mv build
+cmake ..
+
+# in macOS, you may need OPENSSL_ROOT_DIR for cmake like:
+cmake .. -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
+
+# build
+make
 
 # install the mscp binary to CMAKE_INSTALL_PREFIX/bin (usually /usr/local/bin)
 make install
@@ -171,40 +181,3 @@ Usage: mscp [vqDCHdh] [-n nr_conns]
 
 Note: mscp is still under development, and the author is not
 responsible for any accidents due to mscp.
-
-## Build with Async Write
-
-Asynchronous SFTP write improves local-to-remote copy throughput. The
-following procedure is how to build mscp with libssh with a
-`sftp_async_write` patch based on
-https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
-async](https://archive.libssh.org/libssh/2020-06/0000004.html))
-
-```console
-# install required package
-sudo apt install libkrb5-dev
-
-# clone this repositoy
-git clone https://github.com/upa/mscp -b async-write
-cd mscp
-
-# build patched libssh
-git clone https://git.libssh.org/projects/libssh.git/ --depth=10 -b libssh-0.10.4
-cd libssh && git apply ../patch/libssh-0.10.4.patch
-mkdir build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=../../libssh-installed
-make && make install
-
-# build mscp with the patched libssh
-mv ../.. # mv to mscp dir
-mkdir build && cd build
-
-# on ubuntu
-cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1
-
-# on macOS (intel)
-cmake .. -DLIBSSH_PATH=$(pwd)/../libssh-installed -DWITH_ASYNC_WRITE=1 \
-	-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
-
-make
-```
