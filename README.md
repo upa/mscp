@@ -78,7 +78,7 @@ make install
 
 ```console
 $ mscp
-mscp v0.0.1: copy files over multiple ssh connections
+mscp v0.0.2: copy files over multiple ssh connections
 
 Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
@@ -134,7 +134,7 @@ copy done: test/1.txt
 
 ```console
 $ mscp -h
-mscp v0.0.1: copy files over multiple ssh connections
+mscp v0.0.2: copy files over multiple ssh connections
 
 Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
