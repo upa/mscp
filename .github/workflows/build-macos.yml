@@ -23,7 +23,7 @@ jobs:
         submodules: true
 
     - name: install build dependency
-            run: ./scripts/install-build-deps.sh
+      run: ./scripts/install-build-deps.sh
 
     - name: save homebrew prefix
       id: brew-prefix
