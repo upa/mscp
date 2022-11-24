@@ -13,7 +13,7 @@ set -x
 
 case $platform in
 	Darwin)
-		brew install openssl
+		brew install openssl@1.1
 		;;
 	Linux-ubuntu*)
 		apt-get install -y \

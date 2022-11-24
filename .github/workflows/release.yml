@@ -13,21 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: patch to libssh
+        run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
+
+      # TODO: just building docker does not require libssh. fix CMakeLists
+      - name: install build dependency
+        run: sudo ./scripts/install-build-deps.sh
 
       - name: Set variables
         run: |
           VER=$(cat VERSION)
           echo "VERSION=$VER" >> $GITHUB_ENV
 
-      # TODO: docker build does not require libssh. fix CMakeLists
-      - name: install build dependency
-        run: sudo ./scripts/install-build-deps.sh
-
       - name: Configure Cmake
-        run: cmake -B ${{github.workspace}}/build -DBUILD_PKG=1 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-      - name: Build Packages
-        run: make -C ${{github.workspace}}/build package-all-in-docker
+      - name: Build Containers
+        run: make -C ${{github.workspace}}/build docker-build-all
+
+      - name: Test
+        run: make -C ${{github.workspace}}/build docker-test-all
+
+      - name: Test
+        run: make -C ${{github.workspace}}/build docker-pkg-all
 
       - name: Release
         uses: softprops/action-gh-release@v1

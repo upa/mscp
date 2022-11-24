@@ -14,12 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Build ubuntu 22.04 container
-      run: docker build --rm -t mscp-ubuntu:22.04 -f docker/ubuntu-22.04.Dockerfile .
-    - name: Run test on ubuntu 22.04
-      run: docker run --init --rm mscp-ubuntu:22.04 /mscp/scripts/test-in-container.sh
+      with:
+        submodules: true
 
-    - name: Build centos 8 container
-      run: docker build --rm -t mscp-centos:8 -f docker/centos-8.Dockerfile .
-    - name: Run test on centos 8
-      run: docker run --init --rm mscp-centos:8 /mscp/scripts/test-in-container.sh
+    - name: patch to libssh
+      run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
+
+    # TODO: just building docker does not require libssh. fix CMakeLists
+    - name: install build dependency
+      run: sudo ./scripts/install-build-deps.sh
+
+    - name: configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build Containers
+      run: make -C ${{github.workspace}}/build docker-build-all
+
+    - name: Run Test
+      run: make -C ${{github.workspace}}/build docker-test-all
