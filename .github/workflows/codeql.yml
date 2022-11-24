@@ -38,10 +38,15 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
 
-    - name: Install build dependency
+    - name: install build dependency
       run: sudo ./scripts/install-build-deps.sh
+
+    - name: patch to libssh
+      run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
