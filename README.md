@@ -37,7 +37,7 @@ Download a package for your environment from [Releases
 page](https://github.com/upa/mscp/releases).
 
 
-## Build from source
+## Build
 
 mscp depends on a patched [libssh](https://www.libssh.org/).  The
 patch introduces asynchronous SFTP Write, which is derived from
@@ -52,8 +52,7 @@ git clone https://github.com/upa/mscp.git
 cd mscp
 
 # 2. prepare patched libssh
-git submodule init
-git submodule update
+git submodule update --init
 patch -d libssh -p1 < patch/libssh-0.10.4.patch
 
 # 3. install build dependency
@@ -63,8 +62,8 @@ bash ./scripts/install-build-deps.sh
 mkdir build && mv build
 cmake ..
 
-## in macOS, you may need OPENSSL_ROOT_DIR for cmake like:
-cmake .. -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
+## in macOS, you may need OPENSSL_ROOT_DIR for cmake:
+cmake .. -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl@1.1
 
 # build
 make
@@ -79,11 +78,10 @@ make install
 
 ```console
 $ mscp
-mscp v0.0.0: copy files over multiple ssh connections
+mscp v0.0.1: copy files over multiple ssh connections
 
-Usage: mscp [vqDCHdh] [-n nr_conns]
-            [-s min_chunk_sz] [-S max_chunk_sz]
-            [-b sftp_buf_sz] [-B io_buf_sz] [-a nr_ahead]
+Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
+            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
             [-l login_name] [-p port] [-i identity_file]
             [-c cipher_spec] source ... target
 ```
@@ -136,24 +134,19 @@ copy done: test/1.txt
 
 ```console
 $ mscp -h
-mscp v0.0.0: copy files over multiple ssh connections
+mscp v0.0.1: copy files over multiple ssh connections
 
-Usage: mscp [vqDCHdh] [-n nr_conns]
-            [-s min_chunk_sz] [-S max_chunk_sz]
-            [-b sftp_buf_sz] [-B io_buf_sz] [-a nr_ahead]
+Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
+            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
             [-l login_name] [-p port] [-i identity_file]
             [-c cipher_spec] source ... target
 
     -n NR_CONNECTIONS  number of connections (default: half of # of cpu cores)
+    -m COREMASK        hex value to specify cores where threads pinned
     -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)
     -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)
 
-    -b SFTP_BUF_SIZE   buf size for sftp_read/write (default 131072B)
-    -B IO_BUF_SIZE     buf size for read/write (default 131072B)
-                       Note that the default value is derived from
-                       qemu/block/ssh.c. need investigation...
-                       -b and -B affect only local to remote copy
-    -a NR_AHEAD        number of inflight SFTP read commands (default 16)
+    -a NR_AHEAD        number of inflight SFTP commands (default: 16)
 
     -v                 increment verbose output level
     -q                 disable output
@@ -161,13 +154,15 @@ Usage: mscp [vqDCHdh] [-n nr_conns]
 
     -l LOGIN_NAME      login name
     -p PORT            port number
-    -i IDENTITY        identity file for publickey authentication
+    -i IDENTITY        identity file for public key authentication
     -c CIPHER          cipher spec, see `ssh -Q cipher`
     -C                 enable compression on libssh
     -H                 disable hostkey check
     -d                 increment ssh debug output level
     -h                 print this help
 ```
+
+
 
 
 Note: mscp is still under development, and the author is not
