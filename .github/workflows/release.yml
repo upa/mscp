@@ -19,7 +19,7 @@ jobs:
       - name: patch to libssh
         run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
 
-      # TODO: just building docker does not require libssh. fix CMakeLists
+      # TODO: just building docker does not require packages. fix CMakeLists
       - name: install build dependency
         run: sudo ./scripts/install-build-deps.sh
 
@@ -37,7 +37,7 @@ jobs:
       - name: Test
         run: make -C ${{github.workspace}}/build docker-test-all
 
-      - name: Test
+      - name: Retrieve packages from containers
         run: make -C ${{github.workspace}}/build docker-pkg-all
 
       - name: Release
