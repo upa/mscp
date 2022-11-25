@@ -11,16 +11,17 @@ over networks.
 
 You can use `mscp` like `scp`, for example, `mscp
 user@example.com:srcfile /tmp/dstfile`. Remote hosts only need to run
-standard `sshd` supporting the SFTP subsystem, and you need to be able
-to ssh to the hosts (as usual). `mscp` does not require anything else.
+standard `sshd` supporting the SFTP subsystem (e.g. openssh-server),
+and you need to be able to ssh to the hosts as usual. `mscp` does not
+require anything else.
 
 
-Differences from `scp`:
+Differences from `scp` on usage:
 
 - remote glob on remote shell expansion is not supported.
 - remote to remote copy is not supported.
 - `-r` option is not needed.
-- and any other differences I have not implemented and noticed...
+- and any other differences I have not implemented and noticed.
 
 
 ## Install
@@ -78,7 +79,7 @@ make install
 
 ```console
 $ mscp
-mscp v0.0.2: copy files over multiple ssh connections
+mscp v0.0.4: copy files over multiple ssh connections
 
 Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
@@ -88,6 +89,7 @@ Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
 
 - Example: copy an 8GB file on tmpfs over a 100Gbps link
   - Two Intel Xeon Gold 6130 machines directly connected with Intel E810 100Gbps NICs.
+  - Default `openssh-server` runs on the remote host.
 
 ```console
 $ mscp /tmp/test.img 10.0.0.1:/tmp/
@@ -134,7 +136,7 @@ copy done: test/1.txt
 
 ```console
 $ mscp -h
-mscp v0.0.2: copy files over multiple ssh connections
+mscp v0.0.4: copy files over multiple ssh connections
 
 Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]
