@@ -48,3 +48,30 @@ jobs:
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-22.04-x86_64.deb
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-centos-8-x86_64.rpm
             ${{github.workspace}}/build/mscp_${{env.VERSION}}-rocky-8.6-x86_64.rpm
+
+  source-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: patch to libssh
+        run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
+
+      - name: Set variables
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION=$VER" >> $GITHUB_ENV
+
+      - name: archive
+        run: |
+          cd ..
+          cp -r mscp mscp-${{env.VERSION}}
+          tar cvf mscp-${{env.VERSION}}.tar.gz --exclude-vcs mscp-${{env.VERSION}}
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{github.workspace}}/../mscp-${{env.VERSION}}.tar.gz
