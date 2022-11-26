@@ -80,11 +80,10 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 			return 0;
 	}
 
-	pr_err("authentication failure: %s\n", ssh_get_error(ssh));
 	return -1;
 }
 
-static ssh_session ssh_make_ssh_session(char *sshdst, struct ssh_opts *opts)
+static ssh_session ssh_init_session(char *sshdst, struct ssh_opts *opts)
 {
 	ssh_session ssh = ssh_new();
 
@@ -119,10 +118,10 @@ free_out:
 	return NULL;
 }
 
-sftp_session ssh_make_sftp_session(char *sshdst, struct ssh_opts *opts)
+sftp_session ssh_init_sftp_session(char *sshdst, struct ssh_opts *opts)
 {
 	sftp_session sftp;
-	ssh_session ssh = ssh_make_ssh_session(sshdst, opts);
+	ssh_session ssh = ssh_init_session(sshdst, opts);
 
 	if (!ssh) {
 		return NULL;

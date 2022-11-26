@@ -378,7 +378,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	pprint3("connecting to %s for checking destinations...\n", m.host);
-	m.ctrl = ssh_make_sftp_session(m.host, &opts);
+	m.ctrl = ssh_init_sftp_session(m.host, &opts);
 	if (!m.ctrl)
 		return 1;
 	m.opts = &opts; /* save ssh-able ssh_opts */
@@ -425,7 +425,7 @@ int main(int argc, char **argv)
 			t->cpu = cores[n % nr_cores];
 
 		pprint3("connecting to %s for a copy thread...\n", m.host);
-		t->sftp = ssh_make_sftp_session(m.host, m.opts);
+		t->sftp = ssh_init_sftp_session(m.host, m.opts);
 		if (!t->sftp) {
 			ret = 1;
 			goto join_out;
@@ -654,7 +654,7 @@ void mscp_monitor_thread_cleanup(void *arg)
 	}
 
 	print_progress(&m->start, &end, total, 0, done);
-	fputs("\n", stdout); /* the final ouput. we need \n */
+	pprint(1, "\n");  /* the final ouput. we need \n */
 }
 
 void *mscp_monitor_thread(void *arg)
