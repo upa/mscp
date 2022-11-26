@@ -87,13 +87,17 @@ Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]
             [-c cipher_spec] source ... target
 ```
 
-- Example: copy an 8GB file on tmpfs over a 100Gbps link
+- Example: copy a 15GB file on memory over a 100Gbps link
   - Two Intel Xeon Gold 6130 machines directly connected with Intel E810 100Gbps NICs.
   - Default `openssh-server` runs on the remote host.
 
 ```console
-$ mscp /tmp/test.img 10.0.0.1:/tmp/
-[=====================================================] 100% 8GB/8GB 3.02GB/s 
+$ mscp /var/ram/test.img 10.0.0.1:/var/ram/
+[=====================================================] 100% 15GB/15GB    1.9GB/s 
+
+# with some optimizations. top speed reaches 2.9GB/s.
+$ mscp -n 8 -m 0xff -a 32 -c aes128-gcm@openssh.com /var/ram/test.img 10.0.0.1:/var/ram/
+[=====================================================] 100% 15GB/15GB    2.2GB/s 
 ```
 
 - `-v` option increments verbose output level.
