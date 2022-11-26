@@ -569,7 +569,7 @@ out:
 	return ret;
 }
 
-static mode_t chunk_get_mode(const char *path, sftp_session sftp)
+static mode_t file_get_mode(const char *path, sftp_session sftp)
 {
 	mode_t mode;
 
@@ -592,7 +592,7 @@ static mode_t chunk_get_mode(const char *path, sftp_session sftp)
 	return mode;
 }
 
-static int chunk_set_mode(const char *path, mode_t mode, sftp_session sftp)
+static int file_set_mode(const char *path, mode_t mode, sftp_session sftp)
 {
 	if (sftp) {
 		if (sftp_chmod(sftp, path, mode) < 0) {
@@ -858,21 +858,12 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
 
 #ifndef ASYNC_WRITE
 	ret = _chunk_copy_local_to_remote(c, fd, sf, sftp_buf_sz, io_buf_sz,
-						  counter);
+					  counter);
 #else
 	ret = _chunk_copy_local_to_remote_async(c, fd, sf, nr_ahead, counter);
 #endif
 	if (ret < 0)
 		goto out;
-
-	if ((mode = chunk_get_mode(f->src_path, NULL)) < 0) {
-		ret = -1;
-		goto out;
-	}
-	if (chunk_set_mode(f->dst_path, mode, sftp) < 0) {
-		ret = -1;
-	}
-
 out:
 	if (fd > 0)
 		close(fd);
@@ -918,7 +909,25 @@ out:
 	return ret;
 }
 
+static int file_cleanup(struct file *f, sftp_session sftp)
+{
+	sftp_session s, d;
+	mode_t mode;
 
+	if (f->dst_is_remote) {
+		s = NULL;
+		d = sftp;
+	} else {
+		s = sftp;
+		d = NULL;
+	}
+
+	if ((mode = file_get_mode(f->src_path, s)) < 0)
+		return -1;
+	if (file_set_mode(f->dst_path, mode, d) < 0)
+		return -1;
+	return 0;
+}
 
 int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io_buf_sz,
 	       int nr_ahead, size_t *counter)
@@ -951,8 +960,13 @@ int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io
 		c->f->src_path, c->off, c->off + c->len, c->len);
 
 	if (refcnt_dec(&f->refcnt) == 0) {
+		sftp_session s, d;
+		mode_t mode;
+
 		f->state = FILE_STATE_DONE;
 		pprint2("copy done: %s\n", f->src_path);
+
+		ret = file_cleanup(f, sftp);
 	}
 
 
