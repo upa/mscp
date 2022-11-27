@@ -534,7 +534,7 @@ void *mscp_copy_thread(void *arg)
 	return NULL;
 }
 
-static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
+static double calculate_timedelta(struct timeval *b, struct timeval *a)
 {
 	double sec, usec;
 
@@ -547,7 +547,28 @@ static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
 	usec = a->tv_usec - b->tv_usec;
 	sec += usec / 1000000;
 
-	return (double)diff / sec;
+	return sec;
+}
+
+static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
+{
+	return (double)diff / calculate_timedelta(b, a);
+}
+
+static char *calculate_eta(size_t tot, size_t done, struct timeval *s, struct timeval *n)
+{
+	static char buf[16];
+	double elapsed = calculate_timedelta(s, n);
+	double eta;
+
+	if (done == 0)
+		snprintf(buf, sizeof(buf), "--:-- ETA");
+	else {
+		eta = (tot - done) / ((done / elapsed));
+		snprintf(buf, sizeof(buf), "%02d:%02d ETA",
+			 (int)floor(eta / 60), (int)round(eta) % 60);
+	}
+	return buf;
 }
 
 static void print_progress_bar(double percent, char *suffix)
@@ -557,17 +578,17 @@ static void print_progress_bar(double percent, char *suffix)
 	char buf[128];
 
 	/*
-	 * [=======>   ] XX.X% SUFFIX
+	 * [=======>   ] XX% SUFFIX
 	 */
 
 	buf[0] = '\0';
 
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
 		return; /* XXX */
-	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 8;
+	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
 
+	memset(buf, 0, sizeof(buf));
 	if (bar_width > 8) {
-		memset(buf, 0, sizeof(buf));
 		thresh = floor(bar_width * (percent / 100)) - 1;
 
 		for (n = 1; n < bar_width - 1; n++) {
@@ -586,7 +607,7 @@ static void print_progress_bar(double percent, char *suffix)
 	pprint1("%s%s", buf, suffix);
 }
 
-static void print_progress(struct timeval *start, struct timeval *end,
+static void print_progress(struct timeval *start, struct timeval *b, struct timeval *a,
 			   size_t total, size_t last, size_t done)
 {
 	char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
@@ -609,7 +630,7 @@ static void print_progress(struct timeval *start, struct timeval *end,
 	     byte_tu++)
 		total_round /= 1024;
 
-	bps = calculate_bps(done - last, start, end);
+	bps = calculate_bps(done - last, b, a);
 	for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
 		bps /= 1000;
 
@@ -620,9 +641,9 @@ static void print_progress(struct timeval *start, struct timeval *end,
 	     byte_du++)
 		done_round /= 1024;
 
-	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %6.1f%s ",
+	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %6.1f%s  %s",
 		 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
-		 bps, bps_units[bps_u]);
+		 bps, bps_units[bps_u], calculate_eta(total, done, start, a));
 
 	print_progress_bar(percent, suffix);
 }
@@ -649,7 +670,7 @@ void mscp_monitor_thread_cleanup(void *arg)
 		done += threads[n].done;
 	}
 
-	print_progress(&m->start, &end, total, 0, done);
+	print_progress(&m->start, &m->start, &end, total, 0, done);
 	pprint(1, "\n");  /* the final ouput. we need \n */
 }
 
@@ -690,7 +711,7 @@ void *mscp_monitor_thread(void *arg)
 		}
 		gettimeofday(&a, NULL);
 
-		print_progress(&b, &a, total, last, done);
+		print_progress(&m->start, &b, &a, total, last, done);
 
 		if (all_done || total == done)
 			break;
