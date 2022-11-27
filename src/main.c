@@ -487,12 +487,8 @@ out:
 void mscp_copy_thread_cleanup(void *arg)
 {
 	struct mscp_thread *t = arg;
-	if (t->sftp) {
-		/* XXX: sftp_free --> ssh_poll sometimes blocked with
-		 * no responses. So wet nonblocking. */
-		ssh_set_blocking(sftp_ssh(t->sftp), 1);
+	if (t->sftp)
 		ssh_sftp_close(t->sftp);
-	}
 	t->finished = true;
 	__sync_synchronize();
 }

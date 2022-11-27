@@ -239,7 +239,10 @@ static int ssh_verify_known_hosts(ssh_session session)
 void ssh_sftp_close(sftp_session sftp)
 {
 	ssh_session ssh = sftp_ssh(sftp);
-	sftp_free(sftp);
+	/* XXX: sftp_free is stuck in ssh_poll_ctx_dopoll() when build type is Release.
+	 * skip sftp_free inappropriately...
+	 */
+	//sftp_free(sftp);
 	ssh_disconnect(ssh);
 	ssh_free(ssh);
 }
