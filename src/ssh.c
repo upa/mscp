@@ -95,9 +95,23 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 	return -1;
 }
 
+static int _ssh_getpass(const char *prompt, char *buf, size_t len, int echo,
+			  int verify, void *userdata)
+{
+	return ssh_getpass(prompt, buf, len, echo, verify);
+}
+
+static struct ssh_callbacks_struct cb = {
+	.auth_function = _ssh_getpass,
+	.userdata = NULL,
+};
+
 static ssh_session ssh_init_session(char *sshdst, struct ssh_opts *opts)
 {
 	ssh_session ssh = ssh_new();
+
+	ssh_callbacks_init(&cb);
+	ssh_set_callbacks(ssh, &cb);
 
 	if (ssh_set_opts(ssh, opts) != 0)
 		goto free_out;
