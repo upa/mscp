@@ -639,7 +639,7 @@ static void print_progress(struct timeval *b, struct timeval *a,
 	     byte_du++)
 		done_round /= 1024;
 
-	snprintf(suffix, sizeof(suffix), "%lu%s/%lu%s %6.1f%s  %s",
+	snprintf(suffix, sizeof(suffix), "%4lu%s/%lu%s %6.1f%s  %s",
 		 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
 		 bps, bps_units[bps_u], calculate_eta(total - done, done - last, b, a));
 
@@ -662,7 +662,8 @@ void mscp_stat_handler(int signum)
 		s.done += m.threads[n].done;
 
 	gettimeofday(&s.after, NULL);
-	alarm(1);
+	if (signum == SIGALRM)
+		alarm(1);
 
 	print_progress(&s.before, &s.after, s.total, s.last, s.done);
 	s.before = s.after;
@@ -694,5 +695,4 @@ void mscp_stat_final()
 {
 	alarm(0);
 	mscp_stat_handler(0);
-	alarm(0);
 }
