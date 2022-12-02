@@ -11,6 +11,7 @@ struct ssh_opts {
 	char    *port;			/* -p */
 	char    *identity;		/* -i */
 	char    *cipher;		/* -c */
+	char	*hmac;			/* -M */
 	int     compress;		/* -C */
 	int     debuglevel;		/* -v */
 	bool	no_hostkey_check;	/* -H */

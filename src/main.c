@@ -82,7 +82,7 @@ void usage(bool print_help) {
 	       "            [-b sftp_buf_sz] [-B io_buf_sz] \n"
 #endif
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
-	       "            [-c cipher_spec] source ... target\n"
+	       "            [-c cipher_spec] [-M hmac_spec] source ... target\n"
 	       "\n");
 
 	if (!print_help)
@@ -109,7 +109,8 @@ void usage(bool print_help) {
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -p PORT            port number\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
-	       "    -c CIPHER          cipher spec, see `ssh -Q cipher`\n"
+	       "    -c CIPHER          cipher spec\n"
+	       "    -M HMAC            hmac spec\n"
 	       "    -C                 enable compression on libssh\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
@@ -242,7 +243,7 @@ int main(int argc, char **argv)
 	m.nr_threads = (int)(nr_cpus() / 2);
 	m.nr_threads = m.nr_threads == 0 ? 1 : m.nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:b:B:a:vqDl:p:i:c:CHdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:s:S:b:B:a:vqDl:p:i:c:M:CHdh")) != -1) {
 		switch (ch) {
 		case 'n':
 			m.nr_threads = atoi(optarg);
@@ -325,6 +326,9 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			opts.cipher = optarg;
+			break;
+		case 'M':
+			opts.hmac = optarg;
 			break;
 		case 'C':
 			opts.compress++;

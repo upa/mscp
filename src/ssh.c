@@ -32,11 +32,23 @@ static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
 
 	if (opts->cipher) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_C_S, opts->cipher) < 0) {
-			pr_err("failed to set cipher client to server\n");
+			pr_err("failed to set cipher for client to server\n");
 			return -1;
 		}
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_S_C, opts->cipher) < 0) {
-			pr_err("failed to set cipher client to server\n");
+			pr_err("failed to set cipher for server to client\n");
+			return -1;
+		}
+	}
+
+	if (opts->hmac) {
+		pr_warn("%s\n", opts->hmac);
+		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_C_S, opts->hmac) < 0) {
+			pr_err("failed to set hmac for client to server\n");
+			return -1;
+		}
+		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_S_C, opts->hmac) < 0) {
+			pr_err("failed to set hmac for server to client\n");
 			return -1;
 		}
 	}
