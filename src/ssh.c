@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+
+#include "libssh/callbacks.h"
 
 #include <ssh.h>
 #include <util.h>
@@ -75,19 +78,28 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 	auth_bit_mask = ssh_userauth_list(ssh, NULL);
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_NONE &&
-	    ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS) {
+	    ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
 		return 0;
-	}
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY &&
-	    ssh_userauth_publickey_auto(ssh, NULL, NULL) == SSH_AUTH_SUCCESS) {
+	    ssh_userauth_publickey_auto(ssh, NULL, opts->passphrase) == SSH_AUTH_SUCCESS)
 		return 0;
-	}
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
 		if (!opts->password) {
-			opts->password = getpass("Password: ");
+			opts->password = malloc(PASSWORD_BUF_SZ);
+			if (!opts->password) {
+				pr_err("malloc: %s\n", strerrno());
+				return -1;
+			}
+			memset(opts->password, 0, PASSWORD_BUF_SZ);
+
+			if (ssh_getpass("Password: ", opts->password, PASSWORD_BUF_SZ,
+					0, 0) < 0) {
+				return -1;
+			}
 		}
+
 		if (ssh_userauth_password(ssh, NULL, opts->password) == SSH_AUTH_SUCCESS)
 			return 0;
 	}
@@ -95,14 +107,39 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 	return -1;
 }
 
-static int _ssh_getpass(const char *prompt, char *buf, size_t len, int echo,
-			  int verify, void *userdata)
+static int ssh_cache_passphrase(const char *prompt, char *buf, size_t len, int echo,
+				int verify, void *userdata)
 {
-	return ssh_getpass(prompt, buf, len, echo, verify);
+	struct ssh_opts *opts = userdata;
+
+	/* This function is called on the first time for importing
+	 * priv key file with passphrase. It is not called on the
+	 * second time or after because cached passphrase is passed
+	 * to ssh_userauth_publickey_auto(). */
+
+	if (opts->passphrase) {
+		/* passphrase is cached, but this function is called.
+		 * maybe it was an invalid passphrase? */
+		free(opts->passphrase);
+		opts->passphrase = NULL;
+	}
+
+	if (ssh_getpass(prompt, buf, len, echo, verify) < 0)
+		return -1;
+
+	/* cache the passphrase */
+	opts->passphrase = malloc(len);
+	if (!opts->passphrase) {
+		pr_err("malloc: %s\n", strerrno());
+		return -1;
+	}
+	memcpy(opts->passphrase, buf, len);
+
+	return 0;
 }
 
 static struct ssh_callbacks_struct cb = {
-	.auth_function = _ssh_getpass,
+	.auth_function = ssh_cache_passphrase,
 	.userdata = NULL,
 };
 
@@ -111,6 +148,7 @@ static ssh_session ssh_init_session(char *sshdst, struct ssh_opts *opts)
 	ssh_session ssh = ssh_new();
 
 	ssh_callbacks_init(&cb);
+	cb.userdata = opts;
 	ssh_set_callbacks(ssh, &cb);
 
 	if (ssh_set_opts(ssh, opts) != 0)

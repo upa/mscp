@@ -16,7 +16,9 @@ struct ssh_opts {
 	int     debuglevel;		/* -v */
 	bool	no_hostkey_check;	/* -H */
 
-	char    *password;		/* filled at the first connecting phase */
+#define PASSWORD_BUF_SZ	128
+	char    *password;	/* password for password auth */
+	char	*passphrase;	/* passphrase for private key  */
 };
 
 /* ssh_init_sftp_session() creates sftp_session. sshdst accpets
