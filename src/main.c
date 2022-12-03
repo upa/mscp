@@ -23,10 +23,16 @@
 #endif
 
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
-#define DEFAULT_SFTP_BUF_SZ     131072          /* derived from qemu/block/ssh.c */
-#define DEFAULT_IO_BUF_SZ       DEFAULT_SFTP_BUF_SZ
-/* XXX: need to investigate max buf size for sftp_read/sftp_write */
 #define DEFAULT_NR_AHEAD	16
+#define DEFAULT_BUF_SZ		16384
+/* XXX: we use 16384 byte buffer pointed by
+ * https://api.libssh.org/stable/libssh_tutor_sftp.html. The larget
+ * read length from sftp_async_read is 65536 byte. Read sizes larger
+ * than 65536 cause a situation where data remainds but
+ * sftp_async_read returns 0.
+ */
+
+
 
 struct mscp_thread {
 	sftp_session    sftp;
@@ -50,7 +56,7 @@ struct mscp {
 	char    *target;
 
 	int	nr_threads;	/* number of threads */
-	int     sftp_buf_sz, io_buf_sz;
+	int	buf_sz;		/* i/o buf size */
 	int	nr_ahead;	/* # of ahead read command for remote to local copy */
 
 	struct mscp_thread *threads;
@@ -77,10 +83,7 @@ void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
 	       "Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]\n"
-	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
-#ifndef ASYNC_WRITE
-	       "            [-b sftp_buf_sz] [-B io_buf_sz] \n"
-#endif
+	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] source ... target\n"
 	       "\n");
@@ -94,13 +97,7 @@ void usage(bool print_help) {
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
 	       "\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 16)\n"
-#ifndef ASYNC_WRITE
-	       "    -b SFTP_BUF_SIZE   buf size for sftp_read/write (default 131072B)\n"
-	       "    -B IO_BUF_SIZE     buf size for read/write (default 131072B)\n"
-	       "                       Note that the default value is derived from\n"
-	       "                       qemu/block/ssh.c. need investigation...\n"
-	       "                       -b and -B affect only local to remote copy\n"
-#endif
+	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
 	       "\n"
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
@@ -236,14 +233,12 @@ int main(int argc, char **argv)
 	INIT_LIST_HEAD(&m.file_list);
 	INIT_LIST_HEAD(&m.chunk_list);
 	lock_init(&m.chunk_lock);
-	m.sftp_buf_sz = DEFAULT_SFTP_BUF_SZ;
-	m.io_buf_sz = DEFAULT_IO_BUF_SZ;
 	m.nr_ahead = DEFAULT_NR_AHEAD;
-
+	m.buf_sz = DEFAULT_BUF_SZ;
 	m.nr_threads = (int)(nr_cpus() / 2);
 	m.nr_threads = m.nr_threads == 0 ? 1 : m.nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:b:B:a:vqDl:p:i:c:M:CHdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDl:p:i:c:M:CHdh")) != -1) {
 		switch (ch) {
 		case 'n':
 			m.nr_threads = atoi(optarg);
@@ -285,24 +280,17 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			break;
-		case 'b':
-			m.sftp_buf_sz = atoi(optarg);
-			if (m.sftp_buf_sz < 1) {
-				pr_err("invalid buffer size: %s\n", optarg);
-				return -1;
-			}
-			break;
-		case 'B':
-			m.io_buf_sz = atoi(optarg);
-			if (m.io_buf_sz < 1) {
-				pr_err("invalid buffer size: %s\n", optarg);
-				return -1;
-			}
-			break;
 		case 'a':
 			m.nr_ahead = atoi(optarg);
 			if (m.nr_ahead < 1) {
 				pr_err("invalid number of ahead: %s\n", optarg);
+				return -1;
+			}
+			break;
+		case 'b':
+			m.buf_sz = atoi(optarg);
+			if (m.buf_sz < 1) {
+				pr_err("invalid buffer size: %s\n", optarg);
 				return -1;
 			}
 			break;
@@ -406,6 +394,10 @@ int main(int argc, char **argv)
 	chunk_dump(&m.chunk_list);
 #endif
 
+	/* close the first sftp/ssh session */
+	ssh_sftp_close(m.ctrl);
+	m.ctrl = NULL;
+
 	if (dryrun)
 		return 0;
 
@@ -429,15 +421,14 @@ int main(int argc, char **argv)
 		t->sftp = ssh_init_sftp_session(m.host, m.opts);
 		if (!t->sftp) {
 			ret = 1;
-			goto join_out;
+			goto out;
 		}
 	}
 
 	/* init mscp stat for printing progress bar */
 	if (mscp_stat_init() < 0) {
-		stop_copy_threads(0);
 		ret = 1;
-		goto join_out;
+		goto out;
 	}
 
 	/* register SIGINT to stop threads */
@@ -514,8 +505,7 @@ void *mscp_copy_thread(void *arg)
 		if ((t->ret = chunk_prepare(c, sftp)) < 0)
 			break;
 
-		if ((t->ret = chunk_copy(c, sftp, m.sftp_buf_sz, m.io_buf_sz,
-					 m.nr_ahead, &t->done)) < 0)
+		if ((t->ret = chunk_copy(c, sftp, m.nr_ahead, m.buf_sz, &t->done)) < 0)
 			break;
 	}
 
@@ -531,7 +521,7 @@ void *mscp_copy_thread(void *arg)
 
 /* progress bar-related functions */
 
-static double calculate_timedelta(struct timeval *b, struct timeval *a)
+double calculate_timedelta(struct timeval *b, struct timeval *a)
 {
 	double sec, usec;
 
@@ -547,13 +537,12 @@ static double calculate_timedelta(struct timeval *b, struct timeval *a)
 	return sec;
 }
 
-static double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
+double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
 {
 	return (double)diff / calculate_timedelta(b, a);
 }
 
-static char *calculate_eta(size_t remain, size_t diff,
-			   struct timeval *b, struct timeval *a)
+char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a)
 {
 	static char buf[16];
 	double elapsed = calculate_timedelta(b, a);
@@ -569,7 +558,7 @@ static char *calculate_eta(size_t remain, size_t diff,
 	return buf;
 }
 
-static void print_progress_bar(double percent, char *suffix)
+void print_progress_bar(double percent, char *suffix)
 {
 	int n, thresh, bar_width;
 	struct winsize ws;
@@ -605,8 +594,8 @@ static void print_progress_bar(double percent, char *suffix)
 	pprint1("%s%s", buf, suffix);
 }
 
-static void print_progress(struct timeval *b, struct timeval *a,
-			   size_t total, size_t last, size_t done)
+void print_progress(struct timeval *b, struct timeval *a,
+		    size_t total, size_t last, size_t done)
 {
 	char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
 	char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };

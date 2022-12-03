@@ -268,7 +268,7 @@ static int ssh_verify_known_hosts(ssh_session session)
 
 	case SSH_KNOWN_HOSTS_UNKNOWN:
 		hexa = ssh_get_hexa(hash, hlen);
-		fprintf(stderr,"The server is unknown. Do you trust the host key?\n");
+		fprintf(stderr, "The server is unknown. Do you trust the host key?\n");
 		fprintf(stderr, "Public key hash: %s\n", hexa);
 		fprintf(stderr, "(yes/no): ");
 		ssh_string_free_char(hexa);
@@ -309,33 +309,4 @@ void ssh_sftp_close(sftp_session sftp)
 	//sftp_free(sftp);
 	ssh_disconnect(ssh);
 	ssh_free(ssh);
-}
-
-
-ssize_t sftp_write2(sftp_file sf, const void *buf, size_t len, size_t sftp_buf_sz)
-{
-	ssize_t ret, nbytes;
-
-	for (nbytes = 0; nbytes < len;) {
-		ret = sftp_write(sf, buf + nbytes,
-				 min(len - nbytes, sftp_buf_sz));
-		if (ret < 0)
-			return ret;
-		nbytes += ret;
-	}
-	return nbytes;
-}
-
-ssize_t sftp_read2(sftp_file sf, void *buf, size_t len, size_t sftp_buf_sz)
-{
-	ssize_t ret, nbytes;
-
-	for (nbytes = 0; nbytes < len;) {
-		ret = sftp_read(sf, buf + nbytes,
-				min(len - nbytes, sftp_buf_sz));
-		if (ret < 0)
-			return ret;
-		nbytes += ret;
-	}
-	return nbytes;
 }

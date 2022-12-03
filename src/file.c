@@ -492,7 +492,7 @@ int chunk_fill(struct list_head *file_list, struct list_head *chunk_list,
 			chunk_sz = max_chunk_sz;
 		else {
 			chunk_sz = (f->size - (f->size % nr_conn)) / nr_conn;
-			chunk_sz &= ~page_mask; /* align in page_sz */
+			chunk_sz &= ~page_mask; /* align with page_sz */
 			if (chunk_sz <= min_chunk_sz)
 				chunk_sz = min_chunk_sz;
 		}
@@ -647,50 +647,11 @@ static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, siz
 	return sf;
 }
 
-/*
- * TODO: handle case when read returns 0 (EOF).
- */
-static int _chunk_copy_local_to_remote(struct chunk *c, int fd, sftp_file sf,
-				       size_t sftp_buf_sz, size_t io_buf_sz,
-				       size_t *counter)
-{
-	ssize_t read_bytes, write_bytes, remaind;
-	char buf[io_buf_sz];
-
-	for (remaind = c->len; remaind > 0;) {
-
-		read_bytes = read(fd, buf, min(remaind, io_buf_sz));
-		if (read_bytes < 0) {
-			pr_err("read: %s\n", strerrno());
-			return -1;
-		}
-
-		write_bytes = sftp_write2(sf, buf, read_bytes, sftp_buf_sz);
-		if (write_bytes < 0) {
-			pr_err("sftp_write: %d\n", sftp_get_error(sf->sftp));
-			return -1;
-		}
-
-		if (write_bytes < read_bytes) {
-			pr_err("failed to write full bytes to %s\n", c->f->dst_path);
-			return -1;
-		}
-
-		*counter += write_bytes;
-		remaind -= write_bytes;
-	}
-
-	return 0;
-}
-
-#define XFER_BUF_SIZE	16384
-
-#ifdef ASYNC_WRITE
-static int _chunk_copy_local_to_remote_async(struct chunk *c, int fd,
-					     sftp_file sf, int nr_ahead, size_t *counter)
+static int chunk_copy_local_to_remote_async(struct chunk *c, int fd, sftp_file sf,
+					    int nr_ahead, int buf_sz, size_t *counter)
 {
 	ssize_t read_bytes, remaind, thrown;
-	char buf[XFER_BUF_SIZE];
+	char buf[buf_sz];
 	int idx, ret;
 	struct {
 		uint32_t id;
@@ -756,26 +717,18 @@ static int _chunk_copy_local_to_remote_async(struct chunk *c, int fd,
 
 	return 0;
 }
-#endif
 
-static int _chunk_copy_remote_to_local(struct chunk *c, int fd, sftp_file sf,
-				       int nr_ahead, size_t *counter)
+
+static int chunk_copy_remote_to_local_async(struct chunk *c, int fd, sftp_file sf,
+					    int nr_ahead, int buf_sz, size_t *counter)
 {
 	ssize_t read_bytes, write_bytes, remaind, thrown;
-	char buf[XFER_BUF_SIZE];
+	char buf[buf_sz];
 	int idx;
 	struct {
 		int id;
 		ssize_t len;
 	} reqs[nr_ahead];
-
-	/* TODO: sftp_buf_sz has no effect on remote to local copy. we
-	 * always use 16384 byte buffer pointed by
-	 * https://api.libssh.org/stable/libssh_tutor_sftp.html. The
-	 * larget read length from sftp_async_read is 65536 byte.
-	 * Read sizes larget than 65536 cause a situation where data
-	 * remainds but sftp_async_read returns 0.
-	 */
 
 	if (c->len == 0)
 		return 0;
@@ -832,8 +785,7 @@ static int _chunk_copy_remote_to_local(struct chunk *c, int fd, sftp_file sf,
 }
 
 static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
-				      size_t sftp_buf_sz, size_t io_buf_sz,
-				      int nr_ahead, size_t *counter)
+				      int nr_ahead, int buf_sz, size_t *counter)
 {
 	struct file *f = c->f;
 	sftp_file sf = NULL;
@@ -856,12 +808,7 @@ static int chunk_copy_local_to_remote(struct chunk *c, sftp_session sftp,
 		goto out;
 	}
 
-#ifndef ASYNC_WRITE
-	ret = _chunk_copy_local_to_remote(c, fd, sf, sftp_buf_sz, io_buf_sz,
-					  counter);
-#else
-	ret = _chunk_copy_local_to_remote_async(c, fd, sf, nr_ahead, counter);
-#endif
+	ret = chunk_copy_local_to_remote_async(c, fd, sf, nr_ahead, buf_sz, counter);
 	if (ret < 0)
 		goto out;
 out:
@@ -873,7 +820,7 @@ out:
 }
 
 static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
-				      int nr_ahead, size_t *counter)
+				      int nr_ahead, int buf_sz, size_t *counter)
 {
 	struct file *f = c->f;
 	sftp_file sf = NULL;
@@ -896,7 +843,7 @@ static int chunk_copy_remote_to_local(struct chunk *c, sftp_session sftp,
 		goto out;
 	}
 
-	ret = _chunk_copy_remote_to_local(c, fd, sf, nr_ahead, counter);
+	ret = chunk_copy_remote_to_local_async(c, fd, sf, nr_ahead, buf_sz, counter);
 	if (ret< 0)
 		goto out;
 
@@ -929,46 +876,31 @@ static int file_cleanup(struct file *f, sftp_session sftp)
 	return 0;
 }
 
-int chunk_copy(struct chunk *c, sftp_session sftp, size_t sftp_buf_sz, size_t io_buf_sz,
-	       int nr_ahead, size_t *counter)
+int chunk_copy(struct chunk *c, sftp_session sftp, int nr_ahead, int buf_sz,
+	       size_t *counter)
 {
 	struct file *f = c->f;
 	int ret = 0;
 
-	pr_debug("copy %s %s -> %s %s off=0x%010lx\n",
-		 f->src_path, strloc(f->src_is_remote),
-		 f->dst_path, strloc(f->dst_is_remote), c->off);
-
 	pprint4("copy start: chunk %s 0x%010lx-0x%010lx %luB\n",
 		c->f->src_path, c->off, c->off + c->len, c->len);
 
-
 	if (f->dst_is_remote)
-		ret = chunk_copy_local_to_remote(c, sftp, sftp_buf_sz, io_buf_sz,
-						 nr_ahead, counter);
+		ret = chunk_copy_local_to_remote(c, sftp, nr_ahead, buf_sz, counter);
 	else
-		ret = chunk_copy_remote_to_local(c, sftp, nr_ahead, counter);
+		ret = chunk_copy_remote_to_local(c, sftp, nr_ahead, buf_sz, counter);
 
 	if (ret < 0)
 		return ret;
-
-	pr_debug("done %s %s -> %s %s off=0x%010lx\n",
-		 f->src_path, strloc(f->src_is_remote),
-		 f->dst_path, strloc(f->dst_is_remote), c->off);
 
 	pprint4("copy done: chunk %s 0x%010lx-0x%010lx %luB\n",
 		c->f->src_path, c->off, c->off + c->len, c->len);
 
 	if (refcnt_dec(&f->refcnt) == 0) {
-		sftp_session s, d;
-		mode_t mode;
-
 		f->state = FILE_STATE_DONE;
 		pprint2("copy done: %s\n", f->src_path);
-
 		ret = file_cleanup(f, sftp);
 	}
-
 
 	return ret;
 }

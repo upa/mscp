@@ -40,8 +40,6 @@ list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
 find_package(ZLIB)
 list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
-target_compile_definitions(mscp PUBLIC ASYNC_WRITE=1)
-
 target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp PRIVATE ${MSCP_LINK_LIBS})
