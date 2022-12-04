@@ -62,6 +62,12 @@ static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
 		return -1;
 	}
 
+	if (opts->nodelay &&
+	    ssh_options_set(ssh, SSH_OPTIONS_NODELAY, &opts->nodelay) < 0) {
+		pr_err("failed to set nodelay\n");
+		return -1;
+	}
+
 	return 0;
 }
 

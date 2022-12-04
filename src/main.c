@@ -82,7 +82,7 @@ void stop_copy_threads(int sig)
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [vqDCHdh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] source ... target\n"
@@ -111,6 +111,7 @@ void usage(bool print_help) {
 	       "    -C                 enable compression on libssh\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
+	       "    -N                 disable tcp nodelay (default on)\n"
 	       "    -h                 print this help\n"
 	       "\n");
 }
@@ -229,6 +230,7 @@ int main(int argc, char **argv)
 	char ch;
 
 	memset(&opts, 0, sizeof(opts));
+	opts.nodelay = 1;
 	memset(&m, 0, sizeof(m));
 	INIT_LIST_HEAD(&m.file_list);
 	INIT_LIST_HEAD(&m.chunk_list);
@@ -238,7 +240,7 @@ int main(int argc, char **argv)
 	m.nr_threads = (int)(nr_cpus() / 2);
 	m.nr_threads = m.nr_threads == 0 ? 1 : m.nr_threads;
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDl:p:i:c:M:CHdh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDl:p:i:c:M:CHdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			m.nr_threads = atoi(optarg);
@@ -326,6 +328,9 @@ int main(int argc, char **argv)
 			break;
 		case 'd':
 			opts.debuglevel++;
+			break;
+		case 'N':
+			opts.nodelay = 0;
 			break;
 		case 'h':
 			usage(true);

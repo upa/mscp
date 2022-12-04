@@ -13,6 +13,7 @@ struct ssh_opts {
 	char    *cipher;		/* -c */
 	char	*hmac;			/* -M */
 	int     compress;		/* -C */
+	int	nodelay;		/* -N */
 	int     debuglevel;		/* -v */
 	bool	no_hostkey_check;	/* -H */
 
