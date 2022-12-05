@@ -47,7 +47,6 @@ struct mscp_thread {
 struct mscp {
 	char                    *host;  /* remote host (and username) */
 	struct ssh_opts         *opts;  /* ssh parameters */
-	sftp_session            ctrl;   /* control sftp session */
 
 	struct list_head        file_list;
 	struct list_head        chunk_list;	/* stack of chunks */
@@ -74,7 +73,7 @@ void stop_copy_threads(int sig)
 
 	pr("stopping...\n");
 	for (n = 0; n < m.nr_threads; n++) {
-		if (!m.threads[n].finished)
+		if (m.threads[n].tid && !m.threads[n].finished)
 			pthread_cancel(m.threads[n].tid);
 	}
 }
@@ -220,6 +219,7 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 int main(int argc, char **argv)
 {
 	struct ssh_opts opts;
+	sftp_session ctrl;
 	int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
 	int max_chunk_sz = 0;
 	char *coremask = NULL;;
@@ -373,15 +373,14 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	pprint3("connecting to %s for checking destinations...\n", m.host);
-	m.ctrl = ssh_init_sftp_session(m.host, &opts);
-	if (!m.ctrl)
+	ctrl = ssh_init_sftp_session(m.host, &opts);
+	if (!ctrl)
 		return 1;
 	m.opts = &opts; /* save ssh-able ssh_opts */
 
 
 	/* fill file list */
-	ret = file_fill(m.ctrl, &m.file_list, &argv[optind], argc - optind - 1,
-			m.target);
+	ret = file_fill(ctrl, &m.file_list, &argv[optind], argc - optind - 1, m.target);
 	if (ret < 0)
 		goto out;
 
@@ -399,12 +398,10 @@ int main(int argc, char **argv)
 	chunk_dump(&m.chunk_list);
 #endif
 
-	/* close the first sftp/ssh session */
-	ssh_sftp_close(m.ctrl);
-	m.ctrl = NULL;
-
-	if (dryrun)
+	if (dryrun) {
+		ssh_sftp_close(ctrl);
 		return 0;
+	}
 
 	/* prepare thread instances */
 	if ((n = list_count(&m.chunk_list)) < m.nr_threads) {
@@ -422,8 +419,13 @@ int main(int argc, char **argv)
 		else
 			t->cpu = cores[n % nr_cores];
 
-		pprint3("connecting to %s for a copy thread...\n", m.host);
-		t->sftp = ssh_init_sftp_session(m.host, m.opts);
+		if (n == 0) {
+			t->sftp = ctrl; /* reuse ctrl sftp session */
+			ctrl = NULL;
+		} else {
+			pprint3("connecting to %s for a copy thread...\n", m.host);
+			t->sftp = ssh_init_sftp_session(m.host, m.opts);
+		}
 		if (!t->sftp) {
 			ret = 1;
 			goto out;
@@ -432,13 +434,6 @@ int main(int argc, char **argv)
 
 	/* init mscp stat for printing progress bar */
 	if (mscp_stat_init() < 0) {
-		ret = 1;
-		goto out;
-	}
-
-	/* register SIGINT to stop threads */
-	if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
-		pr_err("cannot set signal: %s\n", strerrno());
 		ret = 1;
 		goto out;
 	}
@@ -455,6 +450,13 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/* register SIGINT to stop threads */
+	if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
+		pr_err("cannot set signal: %s\n", strerrno());
+		ret = 1;
+		goto out;
+	}
+
 join_out:
 	/* waiting for threads join... */
 	for (n = 0; n < m.nr_threads; n++) {
@@ -469,8 +471,16 @@ join_out:
 	mscp_stat_final();
 
 out:
-	if (m.ctrl)
-		ssh_sftp_close(m.ctrl);
+	if (ctrl)
+		ssh_sftp_close(ctrl);
+
+	if (m.threads) {
+		for (n = 0; n < m.nr_threads; n++) {
+			struct mscp_thread *t = &m.threads[n];
+			if (t->sftp)
+				ssh_sftp_close(t->sftp);
+		}
+	}
 
 	return ret;
 }
@@ -478,8 +488,6 @@ out:
 void mscp_copy_thread_cleanup(void *arg)
 {
 	struct mscp_thread *t = arg;
-	if (t->sftp)
-		ssh_sftp_close(t->sftp);
 	t->finished = true;
 	__sync_synchronize();
 }
