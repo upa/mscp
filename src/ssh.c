@@ -130,7 +130,7 @@ static int ssh_cache_passphrase(const char *prompt, char *buf, size_t len, int e
 		opts->passphrase = NULL;
 	}
 
-	if (ssh_getpass(prompt, buf, len, echo, verify) < 0)
+	if (ssh_getpass("Passphrase: ", buf, len, echo, verify) < 0)
 		return -1;
 
 	/* cache the passphrase */
