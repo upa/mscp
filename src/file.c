@@ -647,11 +647,16 @@ static sftp_file chunk_open_remote(const char *path, int flags, mode_t mode, siz
 	return sf;
 }
 
+static ssize_t read_to_buf(void *ptr, size_t len, void *userdata)
+{
+	int fd = *((int *)userdata);
+	return read(fd, ptr, len);
+}
+
 static int chunk_copy_local_to_remote_async(struct chunk *c, int fd, sftp_file sf,
 					    int nr_ahead, int buf_sz, size_t *counter)
 {
 	ssize_t read_bytes, remaind, thrown;
-	char buf[buf_sz];
 	int idx, ret;
 	struct {
 		uint32_t id;
@@ -663,15 +668,12 @@ static int chunk_copy_local_to_remote_async(struct chunk *c, int fd, sftp_file s
 
 	remaind = thrown = c->len;
 	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
-		reqs[idx].len = min(thrown, sizeof(buf));
-		read_bytes = read(fd, buf, reqs[idx].len);
-		if (read_bytes < 0) {
-			pr_err("read: %s\n", strerrno());
-			return -1;
-		}
-		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
-		if (ret < 0) {
-			pr_err("sftp_async_write: %d\n", sftp_get_error(sf->sftp));
+		reqs[idx].len = min(thrown, buf_sz);
+		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
+						 &reqs[idx].id);
+		if (reqs[idx].len < 0) {
+			pr_err("sftp_async_write: %d or %s\n",
+			       sftp_get_error(sf->sftp), strerrno());
 			return -1;
 		}
 		thrown -= reqs[idx].len;
@@ -693,25 +695,20 @@ static int chunk_copy_local_to_remote_async(struct chunk *c, int fd, sftp_file s
 		if (thrown <= 0)
 			continue;
 
-		reqs[idx].len = min(thrown, sizeof(buf));
-		read_bytes = read(fd, buf, reqs[idx].len);
-		if (read_bytes < 0) {
-			pr_err("read: %s\n", strerrno());
-			return -1;
-		}
-
-		ret = sftp_async_write(sf, buf, reqs[idx].len, &reqs[idx].id);
-		if (ret < 0) {
-			pr_err("sftp_async_write: %d\n", sftp_get_error(sf->sftp));
+		reqs[idx].len = min(thrown, buf_sz);
+		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
+						 &reqs[idx].id);
+		if (reqs[idx].len < 0) {
+			pr_err("sftp_async_write: %d or %s\n",
+			       sftp_get_error(sf->sftp), strerrno());
 			return -1;
 		}
 		thrown -= reqs[idx].len;
 	}
 
 	if (remaind < 0) {
-		pr_err("invalid remaind bytes %ld. last async_write_end bytes %lu. "
-		       "last read bytes %ld\n",
-		       remaind, reqs[idx].len, read_bytes);
+		pr_err("invalid remaind bytes %ld. last async_write_end bytes %lu.",
+		       remaind, reqs[idx].len);
 		return -1;
 	}
 
