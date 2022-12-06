@@ -664,12 +664,15 @@ void mscp_stat_handler(int signum)
 		s.done += m.threads[n].done;
 
 	gettimeofday(&s.after, NULL);
-	if (signum == SIGALRM)
+	if (signum == SIGALRM) {
 		alarm(1);
-
-	print_progress(&s.before, &s.after, s.total, s.last, s.done);
-	s.before = s.after;
-	s.last = s.done;
+		print_progress(&s.before, &s.after, s.total, s.last, s.done);
+		s.before = s.after;
+		s.last = s.done;
+	} else {
+		/* called from mscp_stat_final. calculate progress from the beginning */
+		print_progress(&s.start, &s.after, s.total, 0, s.done);
+	}
 }
 
 int mscp_stat_init()
