@@ -23,7 +23,7 @@
 #endif
 
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
-#define DEFAULT_NR_AHEAD	16
+#define DEFAULT_NR_AHEAD	32
 #define DEFAULT_BUF_SZ		16384
 /* XXX: we use 16384 byte buffer pointed by
  * https://api.libssh.org/stable/libssh_tutor_sftp.html. The larget
@@ -95,7 +95,7 @@ void usage(bool print_help) {
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
 	       "\n"
-	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 16)\n"
+	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
 	       "\n"
 	       "    -v                 increment verbose output level\n"
@@ -489,7 +489,6 @@ void mscp_copy_thread_cleanup(void *arg)
 {
 	struct mscp_thread *t = arg;
 	t->finished = true;
-	__sync_synchronize();
 }
 
 void *mscp_copy_thread(void *arg)
