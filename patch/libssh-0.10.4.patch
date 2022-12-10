@@ -57,14 +57,14 @@ index a55a1b40..e34e075c 100644
  int ssh_buffer_validate_length(struct ssh_buffer_struct *buffer, size_t len);
  
 diff --git a/include/libssh/libssh.h b/include/libssh/libssh.h
-index 7857a77b..403a1585 100644
+index 7857a77b..3eef7a16 100644
 --- a/include/libssh/libssh.h
 +++ b/include/libssh/libssh.h
 @@ -833,6 +833,7 @@ LIBSSH_API const char* ssh_get_hmac_in(ssh_session session);
  LIBSSH_API const char* ssh_get_hmac_out(ssh_session session);
  
  LIBSSH_API ssh_buffer ssh_buffer_new(void);
-+LIBSSH_API ssh_buffer ssh_buffer_new_size(uint32_t size);
++LIBSSH_API ssh_buffer ssh_buffer_new_size(uint32_t size, uint32_t headroom);
  LIBSSH_API void ssh_buffer_free(ssh_buffer buffer);
  #define SSH_BUFFER_FREE(x) \
      do { if ((x) != NULL) { ssh_buffer_free(x); x = NULL; } } while(0)
@@ -109,39 +109,42 @@ index c090fef7..e2f86309 100644
  
  message(STATUS "Threads_FOUND=${Threads_FOUND}")
 diff --git a/src/buffer.c b/src/buffer.c
-index e0068015..85e8dba1 100644
+index e0068015..cc0caf35 100644
 --- a/src/buffer.c
 +++ b/src/buffer.c
-@@ -141,6 +141,37 @@ struct ssh_buffer_struct *ssh_buffer_new(void)
+@@ -141,6 +141,40 @@ struct ssh_buffer_struct *ssh_buffer_new(void)
      return buf;
  }
  
 +/**
-+ * @brief Create a new SSH buffer with specified size.
++ * @brief Create a new SSH buffer with a specified size and headroom.
 + *
-+ * @param[in] length for newly initialized SSH buffer.
++ * @param[in] len       length for newly initialized SSH buffer.
++ * @param[in] headroom  length for headroom
 + * @return A newly initialized SSH buffer, NULL on error.
 + */
-+struct ssh_buffer_struct *ssh_buffer_new_size(uint32_t len)
++struct ssh_buffer_struct *ssh_buffer_new_size(uint32_t len, uint32_t headroom)
 +{
 +    struct ssh_buffer_struct *buf = NULL;
 +    int rc;
++
++    if (len < headroom)
++	    return NULL;
 +
 +    buf = calloc(1, sizeof(struct ssh_buffer_struct));
 +    if (buf == NULL) {
 +        return NULL;
 +    }
 +
-+    /*
-+     * Always preallocate 64 bytes.
-+     *
-+     * -1 for realloc_buffer magic.
-+     */
 +    rc = ssh_buffer_allocate_size(buf, len);
 +    if (rc != 0) {
 +        SAFE_FREE(buf);
 +        return NULL;
 +    }
++
++    buf->pos += headroom;
++    buf->used += headroom;
++
 +    buffer_verify(buf);
 +
 +    return buf;
@@ -150,7 +153,7 @@ index e0068015..85e8dba1 100644
  /**
   * @brief Deallocate a SSH buffer.
   *
-@@ -328,6 +359,49 @@ int ssh_buffer_add_data(struct ssh_buffer_struct *buffer, const void *data, uint
+@@ -328,6 +362,49 @@ int ssh_buffer_add_data(struct ssh_buffer_struct *buffer, const void *data, uint
      return 0;
  }
  
@@ -201,10 +204,10 @@ index e0068015..85e8dba1 100644
   * @brief Ensure the buffer has at least a certain preallocated size.
   *
 diff --git a/src/sftp.c b/src/sftp.c
-index e01012a8..8e3a73c1 100644
+index e01012a8..702623a0 100644
 --- a/src/sftp.c
 +++ b/src/sftp.c
-@@ -2228,6 +2228,123 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
+@@ -2228,6 +2228,132 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
    return -1; /* not reached */
  }
  
@@ -226,13 +229,22 @@ index e01012a8..8e3a73c1 100644
 +  int packetlen;
 +  int rc;
 +
-+  buf_sz = (sizeof(uint32_t) + /* id */
++#define HEADROOM 16
++  /* sftp_packet_write() prepends a 5-bytes (uint32_t length and
++   * 1-byte type) header to the head of the payload by
++   * ssh_buffer_prepend_data(). Inserting headroom by
++   * ssh_buffer_new_size() eliminates memcpy for prepending the
++   * header.
++   */
++
++  buf_sz = (HEADROOM + /* for header */
++	    sizeof(uint32_t) + /* id */
 +	    ssh_string_len(file->handle) + 4 + /* file->handle */
 +	    sizeof(uint64_t) + /* file->offset */
 +	    sizeof(uint32_t) + /* count */
 +	    count); /* datastring */
 +
-+  buffer = ssh_buffer_new_size(buf_sz);
++  buffer = ssh_buffer_new_size(buf_sz, HEADROOM);
 +  if (buffer == NULL) {
 +    ssh_set_error_oom(sftp->session);
 +    return -1;
