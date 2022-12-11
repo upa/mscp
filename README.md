@@ -15,6 +15,8 @@ standard `sshd` supporting the SFTP subsystem (e.g. openssh-server),
 and you need to be able to ssh to the hosts as usual. `mscp` does not
 require anything else.
 
+https://user-images.githubusercontent.com/184632/206889149-7cc6178a-6f0f-41e6-855c-d25e15a9abc5.mp4
+
 
 Differences from `scp` on usage:
 
@@ -72,6 +74,9 @@ make
 # install the mscp binary to CMAKE_INSTALL_PREFIX/bin (usually /usr/local/bin)
 make install
 ```
+Source tar balls (`mscp-vX.X.X.tar.gz`, not `Sorce Code`) in
+[Releases page](https://github.com/upa/mscp/releases) contains the patched version
+of libssh. So you can start from cmake with it.
 
 ## Run
 
