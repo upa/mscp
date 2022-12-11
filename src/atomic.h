@@ -55,4 +55,17 @@ static inline void lock_release(lock *l)
 	}
 }
 
+static inline void lock_release_via_cleanup(void *l)
+{
+	lock_release(l);
+}
+
+#define LOCK_ACQUIRE_THREAD(l)				\
+		lock_acquire(l);			\
+		pthread_cleanup_push(lock_release_via_cleanup, l)
+
+
+#define LOCK_RELEASE_THREAD(l) \
+	pthread_cleanup_pop(1)
+
 #endif /* _ATOMIC_H_ */

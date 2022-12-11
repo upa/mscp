@@ -554,7 +554,7 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
 	struct file *f = c->f;
 	int ret = 0;
 
-	lock_acquire(&f->lock); /* XXX: is always acquiring lock per-chunk heavy? */
+	LOCK_ACQUIRE_THREAD(&f->lock);
 	if (f->state == FILE_STATE_INIT) {
 		if (file_dst_prepare(f, f->dst_is_remote ? sftp : NULL) < 0) {
 			ret = -1;
@@ -565,7 +565,7 @@ int chunk_prepare(struct chunk *c, sftp_session sftp)
 	}
 
 out:
-	lock_release(&f->lock);
+	LOCK_RELEASE_THREAD();
 	return ret;
 }
 

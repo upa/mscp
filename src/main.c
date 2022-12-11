@@ -507,9 +507,9 @@ void *mscp_copy_thread(void *arg)
 	pthread_cleanup_push(mscp_copy_thread_cleanup, t);
 
 	while (1) {
-		lock_acquire(&m.chunk_lock);
+		LOCK_ACQUIRE_THREAD(&m.chunk_lock);
 		c = chunk_acquire(&m.chunk_list);
-		lock_release(&m.chunk_lock);
+		LOCK_RELEASE_THREAD();
 
 		if (!c)
 			break; /* no more chunks */
