@@ -74,7 +74,7 @@ make
 # install the mscp binary to CMAKE_INSTALL_PREFIX/bin (usually /usr/local/bin)
 make install
 ```
-Source tar balls (`mscp-vX.X.X.tar.gz`, not `Sorce Code`) in
+Source tar balls (`mscp-vX.X.X.tar.gz`, not `Source Code`) in
 [Releases page](https://github.com/upa/mscp/releases) contains the patched version
 of libssh. So you can start from cmake with it.
 

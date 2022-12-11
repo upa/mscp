@@ -69,7 +69,7 @@ jobs:
         run: |
           cd ..
           cp -r mscp mscp-${{env.VERSION}}
-          tar cvf mscp-${{env.VERSION}}.tar.gz --exclude-vcs mscp-${{env.VERSION}}
+          tar zcvf mscp-${{env.VERSION}}.tar.gz --exclude-vcs mscp-${{env.VERSION}}
 
       - name: Release
         uses: softprops/action-gh-release@v1
