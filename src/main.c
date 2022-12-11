@@ -90,10 +90,11 @@ void usage(bool print_help) {
 	if (!print_help)
 		return;
 
-	printf("    -n NR_CONNECTIONS  number of connections (default: half of # of cpu cores)\n"
+	printf("    -n NR_CONNECTIONS  number of connections "
+	       "(default: floor(log(cores)*2)+1)\n"
 	       "    -m COREMASK        hex value to specify cores where threads pinned\n"
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
-	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize / nr_conn)\n"
+	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
 	       "\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
@@ -164,6 +165,7 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 	char c[2] = { 'x', '\0' };
 	const char *_coremask;
 	long v, needle;
+	int ncores = nr_cpus();
 
 	/*
 	 * This function returns array of usable cores in `cores` and
@@ -194,6 +196,8 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 
 		for (needle = 0x01; needle < 0x10; needle <<= 1) {
 			nr_all++;
+			if (nr_all > ncores)
+				break; /* too long coremask */
  			if (v & needle) {
 				nr_usable++;
 				core_list = realloc(core_list, sizeof(int) * nr_usable);
@@ -214,6 +218,11 @@ int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 	*cores = core_list;
 	*nr_cores = nr_usable;
 	return 0;
+}
+
+int default_nr_threads()
+{
+	return (int)(floor(log(nr_cpus()) * 2) + 1);
 }
 
 int main(int argc, char **argv)
@@ -237,8 +246,7 @@ int main(int argc, char **argv)
 	lock_init(&m.chunk_lock);
 	m.nr_ahead = DEFAULT_NR_AHEAD;
 	m.buf_sz = DEFAULT_BUF_SZ;
-	m.nr_threads = (int)(nr_cpus() / 2);
-	m.nr_threads = m.nr_threads == 0 ? 1 : m.nr_threads;
+	m.nr_threads = default_nr_threads();
 
 	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDl:p:i:c:M:CHdNh")) != -1) {
 		switch (ch) {
@@ -365,6 +373,7 @@ int main(int argc, char **argv)
 			pprint(2, " %d", cores[n]);
 		pprint(2, "\n");
 	}
+	pprint2("number of connections: %d\n", m.nr_threads);
 
 	/* create control session */
 	m.host = find_hostname(optind, argc, argv);
@@ -405,7 +414,8 @@ int main(int argc, char **argv)
 
 	/* prepare thread instances */
 	if ((n = list_count(&m.chunk_list)) < m.nr_threads) {
-		pprint3("we have only %d chunk(s). set NR_CONNECTIONS to %d\n", n, n);
+		pprint2("we have only %d chunk(s). "
+			"set number of connections to %d\n", n, n);
 		m.nr_threads = n;
 	}
 
