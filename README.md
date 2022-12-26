@@ -1,4 +1,4 @@
-# mscp
+# mscp: multi-threaded scp
 
 [![build on ubuntu](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml) [![build on macOS](https://github.com/upa/mscp/actions/workflows/build-macos.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-macos.yml) [![test](https://github.com/upa/mscp/actions/workflows/test.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/test.yml)
 
@@ -65,8 +65,8 @@ bash ./scripts/install-build-deps.sh
 mkdir build && mv build
 cmake ..
 
-## in macOS, you may need OPENSSL_ROOT_DIR for cmake:
-cmake .. -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl@1.1
+# in macOS, you may need OPENSSL_ROOT_DIR for cmake:
+# cmake .. -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl@1.1
 
 # build
 make
