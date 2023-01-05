@@ -45,7 +45,6 @@ static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
 	}
 
 	if (opts->hmac) {
-		pr_warn("%s\n", opts->hmac);
 		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_C_S, opts->hmac) < 0) {
 			pr_err("failed to set hmac for client to server\n");
 			return -1;
