@@ -62,7 +62,7 @@ patch -d libssh -p1 < patch/libssh-0.10.4.patch
 bash ./scripts/install-build-deps.sh
 
 # configure mscp
-mkdir build && mv build
+mkdir build && cd build
 cmake ..
 
 # in macOS, you may need OPENSSL_ROOT_DIR for cmake:
