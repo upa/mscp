@@ -681,6 +681,7 @@ void mscp_stat_handler(int signum)
 	} else {
 		/* called from mscp_stat_final. calculate progress from the beginning */
 		print_progress(&s.start, &s.after, s.total, 0, s.done);
+		pprint(1, "\n"); /* this is final output. */
 	}
 }
 
