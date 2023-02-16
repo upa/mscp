@@ -102,6 +102,7 @@ void usage(bool print_help) {
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
 	       "    -D                 dry run\n"
+	       "    -r                 no effect\n"
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -p PORT            port number\n"
@@ -248,7 +249,7 @@ int main(int argc, char **argv)
 	m.buf_sz = DEFAULT_BUF_SZ;
 	m.nr_threads = default_nr_threads();
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDl:p:i:c:M:CHdNh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:CHdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			m.nr_threads = atoi(optarg);
@@ -312,6 +313,9 @@ int main(int argc, char **argv)
 			break;
 		case 'D':
 			dryrun = true;
+			break;
+		case 'r':
+			/* for compatibility with scp */
 			break;
 		case 'l':
 			opts.login_name = optarg;
