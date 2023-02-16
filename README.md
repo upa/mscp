@@ -141,7 +141,7 @@ copy done: test/testdir/asdf
 
 ```console
 $ mscp -h
-mscp v0.0.5: copy files over multiple ssh connections
+mscp v0.0.6: copy files over multiple ssh connections
 
 Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
@@ -159,6 +159,7 @@ Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
     -v                 increment verbose output level
     -q                 disable output
     -D                 dry run
+    -r                 no effect
 
     -l LOGIN_NAME      login name
     -p PORT            port number
