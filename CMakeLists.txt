@@ -50,7 +50,7 @@ install(TARGETS mscp RUNTIME DESTINATION bin)
 
 
 # libmscp
-add_library(mscp-shared SHARED src/mscp.c src/ssh.c src/path.c)
+add_library(mscp-shared SHARED src/mscp.c src/ssh.c src/path.c src/pprint.c)
 target_include_directories(mscp-shared PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp-shared PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp-shared PRIVATE ${MSCP_LINK_LIBS})
@@ -60,7 +60,7 @@ set_target_properties(mscp-shared
 	OUTPUT_NAME	mscp)
 
 # test executable
-add_executable(test-mscp src/test.c src/ssh.c src/path.c)
+add_executable(test-mscp src/test.c src/ssh.c src/path.c src/pprint.c)
 target_include_directories(test-mscp PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(test-mscp PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(test-mscp PRIVATE ${MSCP_LINK_LIBS})

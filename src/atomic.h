@@ -65,7 +65,7 @@ static inline void lock_release_via_cleanup(void *l)
 		pthread_cleanup_push(lock_release_via_cleanup, l)
 
 
-#define LOCK_RELEASE_THREAD(l) \
+#define LOCK_RELEASE_THREAD() \
 	pthread_cleanup_pop(1)
 
 #endif /* _ATOMIC_H_ */

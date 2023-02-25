@@ -158,7 +158,7 @@ int mscp_prepare(struct mscp *m)
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
 		if (mscp_stat(s->path, &ss, src_sftp) < 0) {
-			pr_err("stat: %s\n", mscp_stat_strerror(src_sftp));
+			pr_err("stat: %s\n", mscp_strerror(src_sftp));
 			return -1;
 		}
 		src_path_is_dir = mstat_is_dir(ss);
@@ -168,14 +168,14 @@ int mscp_prepare(struct mscp *m)
 		if (walk_src_path(src_sftp, s->path, &tmp) < 0)
 			return -1;
 		
-		if (resolve_dst_path(src_sftp, s->path, m->dst_path, &tmp,
+		if (resolve_dst_path(s->path, m->dst_path, &tmp,
 				     src_path_is_dir, dst_path_is_dir) < 0)
 			return -1;
 
 		list_splice_tail(&tmp, m->path_list.prev);
 	}
 
-	if (prepare_chunk(&m->path_list, &m->chunk_list, m->opts->nr_threads,
+	if (resolve_chunk(&m->path_list, &m->chunk_list, m->opts->nr_threads,
 			  m->opts->max_chunk_sz, m->opts->min_chunk_sz) < 0)
 		return -1;
 

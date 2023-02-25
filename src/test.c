@@ -29,7 +29,7 @@ int path_walk_test(int argc, char **argv)
 		if (ret < 0)
 			return ret;
 
-		ret = resolve_dst_path(NULL, argv[n], argv[argc - 1], &tmp,
+		ret = resolve_dst_path(argv[n], argv[argc - 1], &tmp,
 				       mstat_is_dir(src), dst_is_dir);
 		if (ret < 0)
 			return ret;
@@ -39,7 +39,7 @@ int path_walk_test(int argc, char **argv)
 
 	path_dump(&path_list);
 
-	ret = prepare_chunk(&path_list, &chunk_list, 4, 1024 * 1024, 0);
+	ret = resolve_chunk(&path_list, &chunk_list, 4, 1024 * 1024, 0);
 	if (ret < 0)
 		return ret;
 

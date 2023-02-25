@@ -39,16 +39,24 @@ struct chunk {
 
 
 /* recursivly walk through src_path and fill path_list for each file */
-int walk_src_path(sftp_session sftp, const char *src_path, struct list_head *path_list);
+int walk_src_path(sftp_session src_sftp, const char *src_path,
+		  struct list_head *path_list);
 
 /* fill path->dst_path for all files */
-int resolve_dst_path(sftp_session sftp, const char *src_path, const char *dst_path,
+int resolve_dst_path(const char *src_path, const char *dst_path,
 		     struct list_head *path_list,
 		     bool src_path_is_dir, bool dst_path_is_dir);
 
-/* prepare chunk_list for files in the path_list */
-int prepare_chunk(struct list_head *path_list, struct list_head *chunk_list,
+/* resolve chunks from files in the path_list */
+int resolve_chunk(struct list_head *path_list, struct list_head *chunk_list,
 		  int nr_conn, int min_chunk_sz, int max_chunk_sz);
+
+/* prepare dst file. mkdir -p and touch dst file */
+int prepare_dst_path(struct path *p, sftp_session dst_sftp);
+
+/* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
+int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
+	       int nr_ahead, int buf_sz, size_t *counter);
 
 /* just print contents. just for debugging */
 void path_dump(struct list_head *path_list);
@@ -128,6 +136,14 @@ static mdirent *mscp_readdir(mdir *d)
         return &e;
 }
 
+/* wrap retriving error */
+static const char *mscp_strerror(sftp_session sftp)
+{
+	if (sftp)
+		return sftp_get_ssh_error(sftp);
+	return strerrno();
+}
+
 /* warp stat/sftp_stat */
 struct mscp_stat {
         struct stat l;
@@ -149,13 +165,6 @@ static int mscp_stat(const char *path, mstat *s, sftp_session sftp)
         }
 
         return 0;
-}
-
-static const char *mscp_stat_strerror(sftp_session sftp)
-{
-	if (sftp)
-		return sftp_get_ssh_error(sftp);
-	return strerrno();
 }
 
 static int mscp_stat_check_err_noent(sftp_session sftp)
@@ -187,6 +196,104 @@ static void mscp_stat_free(mstat s) {
                          (s.r->type == SSH_FILEXFER_TYPE_DIRECTORY) :   \
                          S_ISDIR(s.l.st_mode))
 
+/* wrap mkdir */
+static int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp)
+{
+	int ret;
 
+	if (sftp) {
+		ret = sftp_mkdir(sftp, path, mode);
+		if (ret < 0 &&
+		    sftp_get_error(sftp) != SSH_FX_FILE_ALREADY_EXISTS) {
+			pr_err("failed to create %s: %s\n",
+			       path, sftp_get_ssh_error(sftp));
+			return -1;
+		}
+	} else {
+		if (mkdir(path, mode) == -1 && errno != EEXIST) {
+			pr_err("failed to create %s: %s\n",
+			       path, strerrno());
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/* wrap open/sftp_open */
+struct mscp_file_handle {
+	int fd;
+	sftp_file sf;
+};
+typedef struct mscp_file_handle mfh;
+
+static mfh mscp_open(const char *path, mode_t mode, int flags, size_t off,
+		      sftp_session sftp)
+{
+	mfh h;
+
+	h.fd = -1;
+	h.sf = NULL;
+
+	if (sftp) {
+		h.sf = sftp_open(sftp, path, flags, mode);
+		if (!h.sf) {
+			pr_err("sftp_open %s: %s\n", path, sftp_get_ssh_error(sftp));
+			return h;
+		}
+
+		if (sftp_seek64(h.sf, off) < 0) {
+			pr_err("sftp_seek64 %s: %s\n", path, sftp_get_ssh_error(sftp));
+			sftp_close(h.sf);
+			h.sf = NULL;
+			return h;
+		}
+	} else {
+		h.fd = open(path, flags, mode);
+		if (h.fd < 0) {
+			pr_err("open %s: %s\n", path, strerrno());
+			return h;
+		}
+		if (lseek(h.fd, off, SEEK_SET) < 0) {
+			pr_err("lseek %s: %s\n", path, strerrno());
+			close(h.fd);
+			h.fd = -1;
+			return h;
+		}
+	}
+
+	return h;
+}
+
+#define mscp_open_is_failed(h) (h.fd < 0 && h.sf == NULL)
+
+static void mscp_close(mfh h)
+{
+	if (h.sf)
+		sftp_close(h.sf);
+	if (h.fd > 0)
+		close(h.fd);
+	h.sf = NULL;
+	h.fd = -1;
+}
+
+/* wrap chmod/sftp_chmod */
+
+static int mscp_chmod(const char *path, mode_t mode, sftp_session sftp)
+{
+	if (sftp) {
+		if (sftp_chmod(sftp, path, mode) < 0)  {
+			pr_err("sftp_chmod %s: %s\n", path, sftp_get_ssh_error(sftp));
+			return -1;
+		}
+	} else {
+		if (chmod(path, mode) < 0) {
+			pr_err("chmod %s: %s\n", path, strerrno());
+			return -1;
+		}
+	}
+
+	return 0;
+}
 
 #endif /* _PATH_H_ */
