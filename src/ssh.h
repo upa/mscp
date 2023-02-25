@@ -25,7 +25,7 @@ struct ssh_opts {
 /* ssh_init_sftp_session() creates sftp_session. sshdst accpets
  * user@hostname and hostname notations (by libssh).
  */
-sftp_session ssh_init_sftp_session(char *sshdst, struct ssh_opts *opts);
+sftp_session ssh_init_sftp_session(const char *sshdst, struct ssh_opts *opts);
 void ssh_sftp_close(sftp_session sftp);
 
 #define sftp_ssh(sftp) (sftp)->session

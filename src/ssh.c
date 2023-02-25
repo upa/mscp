@@ -148,7 +148,7 @@ static struct ssh_callbacks_struct cb = {
 	.userdata = NULL,
 };
 
-static ssh_session ssh_init_session(char *sshdst, struct ssh_opts *opts)
+static ssh_session ssh_init_session(const char *sshdst, struct ssh_opts *opts)
 {
 	ssh_session ssh = ssh_new();
 
@@ -187,7 +187,7 @@ free_out:
 	return NULL;
 }
 
-sftp_session ssh_init_sftp_session(char *sshdst, struct ssh_opts *opts)
+sftp_session ssh_init_sftp_session(const char *sshdst, struct ssh_opts *opts)
 {
 	sftp_session sftp;
 	ssh_session ssh = ssh_init_session(sshdst, opts);
