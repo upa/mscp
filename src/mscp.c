@@ -118,6 +118,46 @@ static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
         return 0;
 }
 
+static int default_nr_threads()
+{
+        return (int)(floor(log(nr_cpus()) * 2) + 1);
+}
+
+static int validate_and_set_defaut_params(struct mscp_opts *o)
+{
+	/* set default values */
+	if (!(o->direct == MSCP_DIRECT_L2R || o->direct == MSCP_DIRECT_R2L)) {
+		pr_err("invalid direction: %d\n", o->direct);
+		return -1;
+	}
+
+	if (o->nr_threads < 0) {
+		pr_err("invalid nr_threads: %d\n", o->nr_threads);
+		return -1;
+	} else if (o->nr_threads == 0)
+		o->nr_threads = default_nr_threads();
+
+	if (o->nr_ahead < 0) {
+		pr_err("invalid nr_ahead: %d\n", o->nr_ahead);
+		return -1;
+	} else if (o->nr_ahead == 0)
+		o->nr_ahead = DEFAULT_NR_AHEAD;
+
+	if (o->min_chunk_sz == 0)
+		o->min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
+
+	if (o->max_chunk_sz && o->min_chunk_sz > o->max_chunk_sz) {
+		pr_err("smaller max chunk size than min chunk size: %lu < %lu\n",
+		       o->max_chunk_sz, o->min_chunk_sz);
+		return -1;
+	}
+
+	if (o->buf_sz == 0)
+		o->buf_sz = DEFAULT_BUF_SZ;
+
+	return 0;
+}
+
 struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 {
 	struct mscp *m;
@@ -128,6 +168,8 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 		pr_err("failed to allocate memory: %s\n", strerrno());
 		return NULL;
 	}
+
+	validate_and_set_defaut_params(opts);
 
 	memset(m, 0, sizeof(*m));
 	INIT_LIST_HEAD(&m->src_list);
@@ -159,6 +201,8 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 	m->ssh_opts.debuglevel		= opts->ssh_debug_level;
 	m->ssh_opts.no_hostkey_check	= opts->ssh_no_hostkey_check;
 	m->ssh_opts.nodelay		= opts->ssh_disable_tcp_nodely;
+
+	pprint_set_level(opts->verbose_level);
 
 	return m;
 
