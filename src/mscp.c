@@ -297,7 +297,7 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 int mscp_prepare(struct mscp *m)
 {
 	sftp_session src_sftp = NULL, dst_sftp = NULL;
-	bool src_path_is_dir, dst_path_is_dir;
+	bool src_path_is_dir, dst_path_is_dir, dst_path_should_dir = false;
 	struct list_head tmp;
 	struct src *s;
 	mstat ss, ds;
@@ -315,6 +315,9 @@ int mscp_prepare(struct mscp *m)
 		pr_err("invalid copy direction: %d\n", m->opts->direction);
 		return -1;
 	}
+
+	if (list_count(&m->src_list) > 1)
+		dst_path_should_dir = true;
 
 	if (mscp_stat(m->dst_path, &ds, dst_sftp) == 0) {
 		if (mstat_is_dir(ds))
@@ -336,8 +339,12 @@ int mscp_prepare(struct mscp *m)
 		if (walk_src_path(src_sftp, s->path, &tmp) < 0)
 			return -1;
 		
+		if (list_count(&tmp) > 1)
+			dst_path_should_dir = true;
+
 		if (resolve_dst_path(s->path, m->dst_path, &tmp,
-				     src_path_is_dir, dst_path_is_dir) < 0)
+				     src_path_is_dir, dst_path_is_dir,
+				     dst_path_should_dir) < 0)
 			return -1;
 
 		list_splice_tail(&tmp, m->path_list.prev);

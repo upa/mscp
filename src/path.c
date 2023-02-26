@@ -104,7 +104,8 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 
 static int src2dst_path(const char *src_path, const char *src_file_path,
 			const char *dst_path, char *dst_file_path, size_t len,
-			bool src_path_is_dir, bool dst_path_is_dir)
+			bool src_path_is_dir, bool dst_path_is_dir,
+			bool dst_path_should_dir)
 {
 	char copy[PATH_MAX];
 	char *prefix;
@@ -121,10 +122,16 @@ static int src2dst_path(const char *src_path, const char *src_file_path,
 	else
 		offset = strlen(prefix) + 1;
 
-
-	/* both are file */
-	if (!src_path_is_dir && !dst_path_is_dir)
-		strncpy(dst_file_path, dst_path, len);
+	if (!src_path_is_dir && !dst_path_is_dir) {
+		/* src path is file. dst path is (1) file, or (2) does not exist.
+		 * In the second case, we need to put src under the dst.
+		 */
+		if (dst_path_should_dir)
+			snprintf(dst_file_path, len, "%s/%s",
+				 dst_path, src_path + offset);
+		else
+			strncpy(dst_file_path, dst_path, len);
+	}
 
 	/* src is file, and dst is dir */
 	if (!src_path_is_dir && dst_path_is_dir)
@@ -145,13 +152,15 @@ static int src2dst_path(const char *src_path, const char *src_file_path,
 }
 
 int resolve_dst_path(const char *src_path, const char *dst_path,
-		     struct list_head *path_list, bool src_is_dir, bool dst_is_dir)
+		     struct list_head *path_list, bool src_path_is_dir,
+		     bool dst_path_is_dir,  bool dst_path_should_dir)
 {
 	struct path *p;
 
 	list_for_each_entry(p, path_list, list) {
 		if (src2dst_path(src_path, p->path, dst_path, p->dst_path, PATH_MAX,
-				 src_is_dir, dst_is_dir) < 0)
+				 src_path_is_dir, dst_path_is_dir,
+				 dst_path_should_dir) < 0)
 			return -1;
 	}
 

@@ -45,7 +45,8 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 /* fill path->dst_path for all files */
 int resolve_dst_path(const char *src_path, const char *dst_path,
 		     struct list_head *path_list,
-		     bool src_path_is_dir, bool dst_path_is_dir);
+		     bool src_path_is_dir, bool dst_path_is_dir,
+		     bool dst_path_should_dir);
 
 /* resolve chunks from files in the path_list */
 int resolve_chunk(struct list_head *path_list, struct list_head *chunk_list,
