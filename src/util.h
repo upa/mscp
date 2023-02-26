@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
@@ -19,8 +20,8 @@
 				  __func__, ##__VA_ARGS__)
 
 #define pr_err(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[31m"	\
-				 "ERR:%s():\x1b[0m " fmt,	\
-				 __func__, ##__VA_ARGS__)
+				 "ERR:%s:%d:%s():\x1b[0m " fmt,	\
+				 basename(__FILE__), __LINE__, __func__, ##__VA_ARGS__)
 
 #ifdef DEBUG
 #define pr_debug(fmt, ...) fprintf(stderr, "\x1b[1m\x1b[33m"    \

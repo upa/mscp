@@ -139,6 +139,8 @@ static int src2dst_path(const char *src_path, const char *src_file_path,
 		snprintf(dst_file_path, len, "%s/%s",
 			 dst_path, src_file_path + strlen(src_path) + 1);
 
+	pprint3("file: %s -> %s\n", src_file_path, dst_file_path);
+
 	return 0;
 }
 
@@ -266,7 +268,7 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         strncpy(path, p->dst_path, sizeof(path));
 
         /* mkdir -p.
-	 * XXX: this may be  slow when dst is the remote side. need speed-up. */
+	 * XXX: this may be slow when dst is the remote side. need speed-up. */
         for (needle = strchr(path + 1, '/'); needle; needle = strchr(needle + 1, '/')) {
                 *needle = '\0';
 
@@ -290,12 +292,10 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         }
 
         /* open file with O_TRUNC to set file size 0 */
-        mode = O_WRONLY|O_CREAT|O_TRUNC;
-	h = mscp_open(p->dst_path, mode, S_IRUSR|S_IWUSR, 0, sftp);
-	if (mscp_open_is_failed(h)) {
-		pr_err("open %s: %s\n", p->dst_path, mscp_strerror(sftp));
+	h = mscp_open(p->dst_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR, 0, sftp);
+	if (mscp_open_is_failed(h))
 		return -1;
-	}
+
 	mscp_close(h);
 
         return 0;
@@ -348,8 +348,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
                 reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
                                                  &reqs[idx].id);
                 if (reqs[idx].len < 0) {
-                        pr_err("sftp_async_write: %d or %s\n",
-                               sftp_get_error(sf->sftp), strerrno());
+                        pr_err("sftp_async_write: %s or %s\n",
+			       sftp_get_ssh_error(sf->sftp), strerrno());
                         return -1;
                 }
                 thrown -= reqs[idx].len;
@@ -358,7 +358,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
         for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
                 ret = sftp_async_write_end(sf, reqs[idx].id, 1);
                 if (ret != SSH_OK) {
-                        pr_err("sftp_async_write_end: %d\n", sftp_get_error(sf->sftp));
+                        pr_err("sftp_async_write_end: %s\n",
+			       sftp_get_ssh_error(sf->sftp));
                         return -1;
                 }
 
@@ -375,8 +376,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
                 reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
                                                  &reqs[idx].id);
                 if (reqs[idx].len < 0) {
-                        pr_err("sftp_async_write: %d or %s\n",
-                               sftp_get_error(sf->sftp), strerrno());
+                        pr_err("sftp_async_write: %s or %s\n",
+                               sftp_get_ssh_error(sf->sftp), strerrno());
                         return -1;
                 }
                 thrown -= reqs[idx].len;
@@ -485,7 +486,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	/* open src */
         flags = O_RDONLY;
         mode = S_IRUSR;
-	s = mscp_open(c->p->path, mode, flags, c->off, src_sftp);
+	s = mscp_open(c->p->path, flags, mode, c->off, src_sftp);
 	if (mscp_open_is_failed(s)) {
 		mscp_close(d);
 		return -1;
@@ -494,7 +495,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	/* open dst */
         flags = O_WRONLY;
         mode = S_IRUSR|S_IWUSR;
-	d = mscp_open(c->p->dst_path, mode, flags, c->off, dst_sftp);
+	d = mscp_open(c->p->dst_path, flags, mode, c->off, dst_sftp);
 	if (mscp_open_is_failed(d))
 		return -1;
 
@@ -506,7 +507,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 
 	if (refcnt_dec(&c->p->refcnt) == 0) {
 		c->p->state = FILE_STATE_DONE;
-		mscp_chmod(c->p->path, c->p->mode, dst_sftp);
+		mscp_chmod(c->p->dst_path, c->p->mode, dst_sftp);
 		pprint2("copy done: %s\n", c->p->path);
 	}
 

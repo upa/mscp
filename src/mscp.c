@@ -56,6 +56,14 @@ struct src {
 #define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
 #define DEFAULT_NR_AHEAD        32
 #define DEFAULT_BUF_SZ          16384
+/* XXX: we use 16384 byte buffer pointed by
+ * https://api.libssh.org/stable/libssh_tutor_sftp.html. The larget
+ * read length from sftp_async_read is 65536 byte. Read sizes larger
+ * than 65536 cause a situation where data remainds but
+ * sftp_async_read returns 0.
+ */
+
+#define non_null_string(s) (s[0] != '\0')
 
 static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 {
@@ -125,9 +133,9 @@ static int default_nr_threads()
 
 static int validate_and_set_defaut_params(struct mscp_opts *o)
 {
-	/* set default values */
-	if (!(o->direct == MSCP_DIRECT_L2R || o->direct == MSCP_DIRECT_R2L)) {
-		pr_err("invalid direction: %d\n", o->direct);
+	if (!(o->direction == MSCP_DIRECTION_L2R ||
+	      o->direction == MSCP_DIRECTION_R2L)) {
+		pr_err("invalid copy direction: %d\n", o->direction);
 		return -1;
 	}
 
@@ -145,15 +153,36 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 
 	if (o->min_chunk_sz == 0)
 		o->min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
+	else {
+		if (o->min_chunk_sz < getpagesize() ||
+		    o->min_chunk_sz % getpagesize() != 0) {
+			pr_err("min chunk size must be "
+			       "larget than and multiple of page size %d: %lu\n",
+			       getpagesize(), o->min_chunk_sz);
+			return -1;
+		}
+	}
 
-	if (o->max_chunk_sz && o->min_chunk_sz > o->max_chunk_sz) {
-		pr_err("smaller max chunk size than min chunk size: %lu < %lu\n",
-		       o->max_chunk_sz, o->min_chunk_sz);
-		return -1;
+	if (o->max_chunk_sz) {
+		if (o->max_chunk_sz < getpagesize() ||
+		    o->max_chunk_sz % getpagesize() != 0) {
+			pr_err("min chunk size must be "
+			       "larget than and multiple of page size %d: %lu\n",
+			       getpagesize(), o->max_chunk_sz);
+		}
+		if (o->min_chunk_sz > o->max_chunk_sz) {
+			pr_err("smaller max chunk size than min chunk size: %lu < %lu\n",
+			       o->max_chunk_sz, o->min_chunk_sz);
+			return -1;
+		}
 	}
 
 	if (o->buf_sz == 0)
 		o->buf_sz = DEFAULT_BUF_SZ;
+	else if (o->buf_sz == 0) {
+		pr_err("invalid buf size: %lu\n", o->buf_sz);
+		return -1;
+	}
 
 	return 0;
 }
@@ -169,7 +198,8 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 		return NULL;
 	}
 
-	validate_and_set_defaut_params(opts);
+	if (validate_and_set_defaut_params(opts) < 0)
+		goto free_out;
 
 	memset(m, 0, sizeof(*m));
 	INIT_LIST_HEAD(&m->src_list);
@@ -192,11 +222,17 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 	}
 
 	m->opts = opts;
-	m->ssh_opts.login_name		= opts->ssh_login_name;
-	m->ssh_opts.port		= opts->ssh_port;
-	m->ssh_opts.identity		= opts->ssh_identity;
-	m->ssh_opts.cipher		= opts->ssh_cipher_spec;
-	m->ssh_opts.hmac		= opts->ssh_hmac_spec;
+	if (non_null_string(opts->ssh_login_name))
+		m->ssh_opts.login_name = opts->ssh_login_name;
+	if (non_null_string(opts->ssh_port))
+		m->ssh_opts.port = opts->ssh_port;
+	if (non_null_string(opts->ssh_identity))
+		m->ssh_opts.identity = opts->ssh_identity;
+	if (non_null_string(opts->ssh_cipher_spec))
+		m->ssh_opts.cipher = opts->ssh_cipher_spec;
+	if (non_null_string(opts->ssh_hmac_spec))
+		m->ssh_opts.hmac = opts->ssh_hmac_spec;
+
 	m->ssh_opts.compress		= opts->ssh_compress_level;
 	m->ssh_opts.debuglevel		= opts->ssh_debug_level;
 	m->ssh_opts.no_hostkey_check	= opts->ssh_no_hostkey_check;
@@ -249,7 +285,11 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 		return -1;
 	}
 
-	strncpy(m->dst_path, dst_path, PATH_MAX);
+	if (!non_null_string(dst_path))
+		strncpy(m->dst_path, ".", 1);
+	else
+		strncpy(m->dst_path, dst_path, PATH_MAX);
+
 	return 0;
 }
 
@@ -262,17 +302,17 @@ int mscp_prepare(struct mscp *m)
 	struct src *s;
 	mstat ss, ds;
 	
-	switch (m->opts->direct) {
-	case MSCP_DIRECT_L2R:
+	switch (m->opts->direction) {
+	case MSCP_DIRECTION_L2R:
 		src_sftp = NULL;
 		dst_sftp = m->first;
 		break;
-	case MSCP_DIRECT_R2L:
+	case MSCP_DIRECTION_R2L:
 		src_sftp = m->first;
 		dst_sftp = NULL;
 		break;
 	default:
-		pr_err("invalid mscp direction: %d\n", m->opts->direct);
+		pr_err("invalid copy direction: %d\n", m->opts->direction);
 		return -1;
 	}
 
@@ -448,12 +488,12 @@ void *mscp_copy_thread(void *arg)
 	struct mscp *m = t->m;
         struct chunk *c;
 
-        switch (m->opts->direct) {
-        case MSCP_DIRECT_L2R:
+        switch (m->opts->direction) {
+        case MSCP_DIRECTION_L2R:
                 src_sftp = NULL;
                 dst_sftp = t->sftp;
                 break;
-        case MSCP_DIRECT_R2L:
+        case MSCP_DIRECTION_R2L:
                 src_sftp = t->sftp;
                 dst_sftp = NULL;
                 break;

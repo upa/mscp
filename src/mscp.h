@@ -3,30 +3,37 @@
 
 #include <stdbool.h>
 
-#define MSCP_DIRECT_L2R	1
-#define MSCP_DIRECT_R2L	2
+#define MSCP_DIRECTION_L2R	1
+#define MSCP_DIRECTION_R2L	2
+
+#define MSCP_MAX_COREMASK_STR	64
+#define MSCP_MAX_LOGIN_NAME	64
+#define MSCP_MAX_PORT_STR	32
+#define MSCP_MAX_IDENTITY_PATH	PATH_MAX
+#define MSCP_MAX_CIPHER_STR	32
+#define MSCP_MAX_HMACP_STR	32
 
 struct mscp_opts {
 	/* mscp options */
-	int	direct;	/* MSCP_DIRECT_ */
+	int	direction;	/* MSCP_DIRECTION_ */
 
 	int	nr_threads;
 	int	nr_ahead;
 	size_t	min_chunk_sz;
 	size_t	max_chunk_sz;
 	size_t	buf_sz;
-	char	coremask[64];
+	char	coremask[MSCP_MAX_COREMASK_STR];
 
 	int	verbose_level;
 	bool	quiet;
 	bool	dryrun;
 
 	/* ssh options */
-	char	ssh_login_name[64];
-	char	ssh_port[32];
-	char	ssh_identity[PATH_MAX];
-	char	ssh_cipher_spec[64];
-	char	ssh_hmac_spec[32];
+	char	ssh_login_name[MSCP_MAX_LOGIN_NAME];
+	char	ssh_port[MSCP_MAX_PORT_STR];
+	char	ssh_identity[MSCP_MAX_IDENTITY_PATH];
+	char	ssh_cipher_spec[MSCP_MAX_CIPHER_STR];
+	char	ssh_hmac_spec[MSCP_MAX_HMACP_STR];
 	int	ssh_debug_level;
 	int	ssh_compress_level;
 	bool	ssh_no_hostkey_check;

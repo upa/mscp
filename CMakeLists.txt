@@ -19,9 +19,6 @@ if(APPLE)
 endif() # APPLE
 
 
-# mscp executable
-add_executable(mscp src/main.c src/platform.c src/ssh.c src/file.c src/pprint.c)
-
 set(MSCP_LINK_LIBS m pthread)
 set(MSCP_LINK_DIRS "")
 set(MSCP_COMPILE_OPTS "")
@@ -40,17 +37,12 @@ list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
 find_package(ZLIB)
 list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
-target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
-target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
-target_link_libraries(mscp PRIVATE ${MSCP_LINK_LIBS})
-target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
-target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
-
-install(TARGETS mscp RUNTIME DESTINATION bin)
 
 
-# libmscp
-add_library(mscp-shared SHARED src/mscp.c src/ssh.c src/path.c src/pprint.c src/platform.c )
+set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/pprint.c src/platform.c)
+
+# shared libmscp
+add_library(mscp-shared SHARED ${LIBMSCP_SRC})
 target_include_directories(mscp-shared PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp-shared PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp-shared PRIVATE ${MSCP_LINK_LIBS})
@@ -59,12 +51,25 @@ set_target_properties(mscp-shared
 	PROPERTIES
 	OUTPUT_NAME	mscp)
 
-# test executable
-add_executable(test-mscp src/test.c src/ssh.c src/path.c src/pprint.c src/platform.c)
-target_include_directories(test-mscp PRIVATE ${MSCP_INCLUDE_DIRS})
-target_link_directories(test-mscp PRIVATE ${MSCP_LINK_DIRS})
-target_link_libraries(test-mscp PRIVATE ${MSCP_LINK_LIBS})
-target_compile_options(test-mscp PRIVATE ${MSCP_COMPILE_OPTS})
+# static libmscp
+add_library(mscp-static STATIC ${LIBMSCP_SRC})
+target_include_directories(mscp-static PRIVATE ${MSCP_INCLUDE_DIRS})
+target_link_directories(mscp-static PRIVATE ${MSCP_LINK_DIRS})
+target_link_libraries(mscp-static PRIVATE ${MSCP_LINK_LIBS})
+target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
+set_target_properties(mscp-static
+	PROPERTIES
+	OUTPUT_NAME	mscp)
+
+# mscp executable
+add_executable(mscp src/main.c)
+target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
+target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
+target_link_libraries(mscp mscp-static)
+
+
+install(TARGETS mscp RUNTIME DESTINATION bin)
+
 
 # Test
 add_test(NAME	pytest

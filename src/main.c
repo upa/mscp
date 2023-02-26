@@ -1,20 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
-#include <signal.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <math.h>
-#include <pthread.h>
+#include <limits.h>
 
-#include <list.h>
+#include <mscp.h>
 #include <util.h>
-#include <ssh.h>
-#include <file.h>
-#include <pprint.h>
-#include <atomic.h>
-#include <platform.h>
+
 
 #ifndef _VERSION /* passed through cmake */
 #define VERSION "(unknown)"
@@ -22,61 +13,6 @@
 #define VERSION _VERSION
 #endif
 
-#define DEFAULT_MIN_CHUNK_SZ    (64 << 20)      /* 64MB */
-#define DEFAULT_NR_AHEAD	32
-#define DEFAULT_BUF_SZ		16384
-/* XXX: we use 16384 byte buffer pointed by
- * https://api.libssh.org/stable/libssh_tutor_sftp.html. The larget
- * read length from sftp_async_read is 65536 byte. Read sizes larger
- * than 65536 cause a situation where data remainds but
- * sftp_async_read returns 0.
- */
-
-
-
-struct mscp_thread {
-	sftp_session    sftp;
-
-	pthread_t       tid;
-	int		cpu;
-	size_t          done;           /* copied bytes */
-	bool            finished;
-	int		ret;
-};
-
-struct mscp {
-	char                    *host;  /* remote host (and username) */
-	struct ssh_opts         *opts;  /* ssh parameters */
-
-	struct list_head        file_list;
-	struct list_head        chunk_list;	/* stack of chunks */
-	lock                    chunk_lock;	/* lock for chunk list */
-
-	char    *target;
-
-	int	nr_threads;	/* number of threads */
-	int	buf_sz;		/* i/o buf size */
-	int	nr_ahead;	/* # of ahead read command for remote to local copy */
-
-	struct mscp_thread *threads;
-} m;
-
-void *mscp_copy_thread(void *arg);
-int mscp_stat_init();
-void mscp_stat_final();
-
-
-
-void stop_copy_threads(int sig)
-{
-	int n;
-
-	pr("stopping...\n");
-	for (n = 0; n < m.nr_threads; n++) {
-		if (m.threads[n].tid && !m.threads[n].finished)
-			pthread_cancel(m.threads[n].tid);
-	}
-}
 
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
@@ -117,232 +53,205 @@ void usage(bool print_help) {
 	       "\n");
 }
 
-char *find_hostname(int ind, int argc, char **argv)
+char *split_remote_and_path(const char *string, char **remote, char **path)
 {
-	char *h, *hostnames[argc];
-	int n, cnt = 0;
+	char *s, *p;
 
-	for (n = ind; n < argc; n++) {
-		h = file_find_hostname(argv[n]);
-		if (h)
-			hostnames[cnt++] = h;
-	}
-
-	if (cnt == 0)
-		return NULL;
-
-	/* check all hostnames are identical */
-	for (n = 1; n < cnt; n++) {
-		int s1 = strlen(hostnames[n - 1]);
-		int s2 = strlen(hostnames[n]);
-		if (s1 != s2) {
-			pr_err("different hostnames: %s and %s\n",
-			       hostnames[n - 1], hostnames[n]);
-			goto err_out;
-		}
-		if (strncmp(hostnames[n - 1], hostnames[n], s1) != 0) {
-			pr_err("different hostnames: %s and %s\n",
-			       hostnames[n - 1], hostnames[n]);
-			goto err_out;
-		}
-	}
-
-	for (n = 1; n < cnt; n++) {
-		free(hostnames[n]);
-	}
-
-	return hostnames[0];
-
-err_out:
-	for (n = 0; n < cnt; n++) {
-		free(hostnames[n]);
-	}
-	return NULL;
-}
-
-int expand_coremask(const char *coremask, int **cores, int *nr_cores)
-{
-	int n, *core_list, core_list_len = 0, nr_usable, nr_all;
-	char c[2] = { 'x', '\0' };
-	const char *_coremask;
-	long v, needle;
-	int ncores = nr_cpus();
-
-	/*
-	 * This function returns array of usable cores in `cores` and
-	 * returns the number of usable cores (array length) through
-	 * nr_cores.
+	/* split user@host:path into user@host, and path.
+	 * return value is strdup()ed memory (for free()).
 	 */
 
-	if (strncmp(coremask, "0x", 2) == 0)
-		_coremask = coremask + 2;
-	else
-		_coremask = coremask;
-
-	core_list = realloc(NULL, sizeof(int) * 64);
-	if (!core_list) {
-		pr_err("failed to realloc: %s\n", strerrno());
-		return -1;
+	if (!(s = strdup(string))) {
+		pr_err("failed to allocate memory: %s\n", strerrno());
+		return NULL;
 	}
 
-	nr_usable = 0;
-	nr_all = 0;
-	for (n = strlen(_coremask) - 1; n >=0; n--) {
-		c[0] = _coremask[n];
-		v = strtol(c, NULL, 16);
-		if (v == LONG_MIN || v == LONG_MAX) {
-			pr_err("invalid coremask: %s\n", coremask);
-			return -1;
-		}
-
-		for (needle = 0x01; needle < 0x10; needle <<= 1) {
-			nr_all++;
-			if (nr_all > ncores)
-				break; /* too long coremask */
- 			if (v & needle) {
-				nr_usable++;
-				core_list = realloc(core_list, sizeof(int) * nr_usable);
-				if (!core_list) {
-					pr_err("failed to realloc: %s\n", strerrno());
-					return -1;
-				}
-				core_list[nr_usable - 1] = nr_all - 1;
-			}
+	if ((p = strchr(s, ':'))) {
+		if (p == s || ((p > s) && *(p - 1) == '\\')) {
+			/* first byte is colon, or escaped colon. no user@host here  */
+			goto no_remote;
+		} else {
+			/* we found ':', so this is remote:path notation. split it */
+			*p = '\0';
+			*remote = s;
+			*path = p + 1;
+			return s;
 		}
 	}
 
-	if (nr_usable < 1) {
-		pr_err("invalid core mask: %s\n", coremask);
-		return -1;
-	}
-
-	*cores = core_list;
-	*nr_cores = nr_usable;
-	return 0;
+no_remote:
+	*remote = NULL;
+	*path = s;
+	return s;
 }
 
-int default_nr_threads()
+struct target {
+	char *remote;
+	char *path;
+};
+
+struct target *validate_targets(char **arg, int len)
 {
-	return (int)(floor(log(nr_cpus()) * 2) + 1);
+	/* arg is array of source ... remote.
+	 * There are two cases:
+	 *
+	 * 1. remote:path remote:path ... path, remote to local copy
+	 * 2. path path ... remote:path, local to remote copy.
+	 *
+	 * This function split (remote:)path args into struct target,
+	 * and validate all remotes are identical (mscp does not support
+	 * remote to remote copy).
+	 */
+
+	struct target *t;
+	char *r;
+	int n;
+
+	if ((t = calloc(len, sizeof(struct target))) == NULL) {
+		pr_err("failed to allocate memory: %s\n", strerrno());
+		return NULL;
+	}
+	memset(t, 0, len * sizeof(struct target));
+
+	/* split remote:path into remote and path */
+	for (n = 0; n < len; n++) {
+		if (split_remote_and_path(arg[n], &t[n].remote, &t[n].path) == NULL)
+			goto free_target_out;
+	}
+
+	/* check all remote are identical. t[len - 1] is destination,
+	 * so we need to check t[0] to t[len - 2] having the identical
+	 * remote */
+	r = t[0].remote;
+	for (n = 1; n < len - 1; n++) {
+		if (!r && t[n].remote) {
+			goto invalid_remotes;
+		}
+		if (r) {
+			if (!t[n].remote ||
+			    strlen(r) != strlen(t[n].remote) ||
+			    strcmp(r, t[n].remote) != 0)
+				goto invalid_remotes;
+		}
+	}
+
+	/* check inconsistent remote position in args */
+	if (t[0].remote == NULL && t[len - 1].remote == NULL) {
+		pr_err("no remote host given\n");
+		goto free_split_out;
+	}
+
+	if (t[0].remote != NULL && t[len - 1].remote != NULL) {
+		pr_err("no local path given\n");
+		goto free_split_out;
+	}
+
+	return t;
+
+invalid_remotes:
+	pr_err("specified remote host invalid\n");
+
+free_split_out:
+	for (n = 0; n < len; n++)
+		t[n].remote ? free(t[n].remote) : free(t[n].path);
+
+free_target_out:
+	free(t);
+	return NULL;
 }
 
 int main(int argc, char **argv)
 {
-	struct ssh_opts opts;
-	sftp_session ctrl;
-	int min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
-	int max_chunk_sz = 0;
-	char *coremask = NULL;;
-	int verbose = 1;
-	bool dryrun = false;
-	int ret = 0, n;
-	int *cores, nr_cores;
-	char ch;
+	struct mscp_opts o;
+	struct mscp *m;
+	struct target *t;
+	int ch, n, i;
+	char *remote;
 
-	memset(&opts, 0, sizeof(opts));
-	opts.nodelay = 1;
-	memset(&m, 0, sizeof(m));
-	INIT_LIST_HEAD(&m.file_list);
-	INIT_LIST_HEAD(&m.chunk_list);
-	lock_init(&m.chunk_lock);
-	m.nr_ahead = DEFAULT_NR_AHEAD;
-	m.buf_sz = DEFAULT_BUF_SZ;
-	m.nr_threads = default_nr_threads();
+	memset(&o, 0, sizeof(o));
 
 	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:CHdNh")) != -1) {
 		switch (ch) {
 		case 'n':
-			m.nr_threads = atoi(optarg);
-			if (m.nr_threads < 1) {
+			o.nr_threads = atoi(optarg);
+			if (o.nr_threads < 1) {
 				pr_err("invalid number of connections: %s\n", optarg);
 				return 1;
 			}
 			break;
 		case 'm':
-			coremask = optarg;
+			strncpy(o.coremask, optarg, sizeof(o.coremask));
 			break;
 		case 's':
-			min_chunk_sz = atoi(optarg);
-			if (min_chunk_sz < getpagesize()) {
-				pr_err("min chunk size must be "
-				       "larger than or equal to %d: %s\n",
-				       getpagesize(), optarg);
-				return 1;
-			}
-			if (min_chunk_sz % getpagesize() != 0) {
-				pr_err("min chunk size must be "
-				       "multiple of page size %d: %s\n",
-				       getpagesize(), optarg);
-				return -1;
-			}
+			o.min_chunk_sz = atoi(optarg);
 			break;
 		case 'S':
-			max_chunk_sz = atoi(optarg);
-			if (max_chunk_sz < getpagesize()) {
-				pr_err("max chunk size must be "
-				       "larger than or equal to %d: %s\n",
-				       getpagesize(), optarg);
-				return 1;
-			}
-			if (max_chunk_sz % getpagesize() != 0) {
-				pr_err("max chunk size must be "
-				       "multiple of page size %d: %s\n",
-				       getpagesize(), optarg);
-				return -1;
-			}
+			o.max_chunk_sz = atoi(optarg);
 			break;
 		case 'a':
-			m.nr_ahead = atoi(optarg);
-			if (m.nr_ahead < 1) {
-				pr_err("invalid number of ahead: %s\n", optarg);
-				return -1;
-			}
+			o.nr_ahead = atoi(optarg);
 			break;
 		case 'b':
-			m.buf_sz = atoi(optarg);
-			if (m.buf_sz < 1) {
-				pr_err("invalid buffer size: %s\n", optarg);
-				return -1;
-			}
+			o.buf_sz = atoi(optarg);
 			break;
 		case 'v':
-			verbose++;
+			o.verbose_level++;
 			break;
 		case 'q':
-			verbose = -1;
+			o.verbose_level = -1;
 			break;
 		case 'D':
-			dryrun = true;
+			o.dryrun = true;
 			break;
 		case 'r':
 			/* for compatibility with scp */
 			break;
 		case 'l':
-			opts.login_name = optarg;
+			if (strlen(optarg) > MSCP_MAX_LOGIN_NAME - 1) {
+				pr_err("too long login name: %s\n", optarg);
+				return -1;
+			}
+			strncpy(o.ssh_login_name, optarg, MSCP_MAX_LOGIN_NAME - 1);
 			break;
 		case 'p':
-			opts.port = optarg;
+			if (strlen(optarg) > MSCP_MAX_PORT_STR - 1) {
+				pr_err("too long port string: %s\n", optarg);
+				return -1;
+			}
+			strncpy(o.ssh_port, optarg, MSCP_MAX_PORT_STR);
 			break;
 		case 'i':
-			opts.identity = optarg;
+			if (strlen(optarg) > MSCP_MAX_IDENTITY_PATH - 1) {
+				pr_err("too long identity path: %s\n", optarg);
+				return -1;
+			}
+			strncpy(o.ssh_identity, optarg, MSCP_MAX_IDENTITY_PATH);
 			break;
 		case 'c':
-			opts.cipher = optarg;
+			if (strlen(optarg) > MSCP_MAX_CIPHER_STR - 1) {
+				pr_err("too long cipher string: %s\n", optarg);
+				return -1;
+			}
+			strncpy(o.ssh_cipher_spec, optarg, MSCP_MAX_CIPHER_STR);
 			break;
 		case 'M':
-			opts.hmac = optarg;
+			if (strlen(optarg) > MSCP_MAX_HMACP_STR - 1) {
+				pr_err("too long hmac string: %s\n", optarg);
+				return -1;
+			}
+			strncpy(o.ssh_hmac_spec, optarg, MSCP_MAX_HMACP_STR);
 			break;
 		case 'C':
-			opts.compress++;
+			o.ssh_compress_level++;
 			break;
 		case 'H':
-			opts.no_hostkey_check = true;
+			o.ssh_no_hostkey_check = true;
 			break;
 		case 'd':
-			opts.debuglevel++;
+			o.ssh_debug_level++;
 			break;
 		case 'N':
-			opts.nodelay = 0;
+			o.ssh_disable_tcp_nodely = true;
 			break;
 		case 'h':
 			usage(true);
@@ -353,365 +262,48 @@ int main(int argc, char **argv)
 		}
 	}
 
-	pprint_set_level(verbose);
-
 	if (argc - optind < 2) {
 		/* mscp needs at lease 2 (src and target) argument */
 		usage(false);
 		return 1;
 	}
-	m.target = argv[argc - 1];
+	i = argc - optind;
 
-	if (max_chunk_sz > 0 && min_chunk_sz > max_chunk_sz) {
-		pr_err("smaller max chunk size than min chunk size: %d < %d\n",
-		       max_chunk_sz, min_chunk_sz);
-		return 1;
-	}
-
-	/* expand usable cores from coremask */
-	if (coremask) {
-		if (expand_coremask(coremask, &cores, &nr_cores) < 0)
-			return -1;
-		pprint(2, "cpu cores:");
-		for (n = 0; n < nr_cores; n++)
-			pprint(2, " %d", cores[n]);
-		pprint(2, "\n");
-	}
-	pprint2("number of connections: %d\n", m.nr_threads);
-
-	/* create control session */
-	m.host = find_hostname(optind, argc, argv);
-	if (!m.host) {
-		pr_err("no remote host given\n");
-		return 1;
-	}
-	pprint3("connecting to %s for checking destinations...\n", m.host);
-	ctrl = ssh_init_sftp_session(m.host, &opts);
-	if (!ctrl)
-		return 1;
-	m.opts = &opts; /* save ssh-able ssh_opts */
-
-
-	/* fill file list */
-	ret = file_fill(ctrl, &m.file_list, &argv[optind], argc - optind - 1, m.target);
-	if (ret < 0)
-		goto out;
-
-#ifdef DEBUG
-	file_dump(&m.file_list);
-#endif
-
-	/* fill chunk list */
-	ret = chunk_fill(&m.file_list, &m.chunk_list,
-			 m.nr_threads, min_chunk_sz, max_chunk_sz);
-	if (ret < 0)
-		goto out;
-
-#ifdef DEBUG
-	chunk_dump(&m.chunk_list);
-#endif
-
-	if (dryrun) {
-		ssh_sftp_close(ctrl);
-		return 0;
-	}
-
-	/* prepare thread instances */
-	if ((n = list_count(&m.chunk_list)) < m.nr_threads) {
-		pprint2("we have only %d chunk(s). "
-			"set number of connections to %d\n", n, n);
-		m.nr_threads = n;
-	}
-
-	m.threads = calloc(m.nr_threads, sizeof(struct mscp_thread));
-	memset(m.threads, 0, m.nr_threads * sizeof(struct mscp_thread));
-	for (n = 0; n < m.nr_threads; n++) {
-		struct mscp_thread *t = &m.threads[n];
-		t->finished = false;
-		if (!coremask)
-			t->cpu = -1;
-		else
-			t->cpu = cores[n % nr_cores];
-
-		if (n == 0) {
-			t->sftp = ctrl; /* reuse ctrl sftp session */
-			ctrl = NULL;
-		} else {
-			pprint3("connecting to %s for a copy thread...\n", m.host);
-			t->sftp = ssh_init_sftp_session(m.host, m.opts);
-		}
-		if (!t->sftp) {
-			ret = 1;
-			goto out;
-		}
-	}
-
-	/* init mscp stat for printing progress bar */
-	if (mscp_stat_init() < 0) {
-		ret = 1;
-		goto out;
-	}
-
-	/* spawn copy threads */
-	for (n = 0; n < m.nr_threads; n++) {
-		struct mscp_thread *t = &m.threads[n];
-		ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t);
-		if (ret < 0) {
-			pr_err("pthread_create error: %d\n", ret);
-			stop_copy_threads(0);
-			ret = 1;
-			goto join_out;
-		}
-	}
-
-	/* register SIGINT to stop threads */
-	if (signal(SIGINT, stop_copy_threads) == SIG_ERR) {
-		pr_err("cannot set signal: %s\n", strerrno());
-		ret = 1;
-		goto out;
-	}
-
-join_out:
-	/* waiting for threads join... */
-	for (n = 0; n < m.nr_threads; n++) {
-		if (m.threads[n].tid) {
-			pthread_join(m.threads[n].tid, NULL);
-			if (m.threads[n].ret < 0)
-				ret = m.threads[n].ret;
-		}
-	}
-
-	/* print final result */
-	mscp_stat_final();
-
-out:
-	if (ctrl)
-		ssh_sftp_close(ctrl);
-
-	if (m.threads) {
-		for (n = 0; n < m.nr_threads; n++) {
-			struct mscp_thread *t = &m.threads[n];
-			if (t->sftp)
-				ssh_sftp_close(t->sftp);
-		}
-	}
-
-	return ret;
-}
-
-void mscp_copy_thread_cleanup(void *arg)
-{
-	struct mscp_thread *t = arg;
-	t->finished = true;
-}
-
-void *mscp_copy_thread(void *arg)
-{
-	struct mscp_thread *t = arg;
-	sftp_session sftp = t->sftp;
-	struct chunk *c;
-
-	if (t->cpu > -1) {
-		if (set_thread_affinity(pthread_self(), t->cpu) < 0)
-			return NULL;
-	}
-
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-	pthread_cleanup_push(mscp_copy_thread_cleanup, t);
-
-	while (1) {
-		LOCK_ACQUIRE_THREAD(&m.chunk_lock);
-		c = chunk_acquire(&m.chunk_list);
-		LOCK_RELEASE_THREAD();
-
-		if (!c)
-			break; /* no more chunks */
-
-		if ((t->ret = chunk_prepare(c, sftp)) < 0)
-			break;
-
-		if ((t->ret = chunk_copy(c, sftp, m.nr_ahead, m.buf_sz, &t->done)) < 0)
-			break;
-	}
-
-	pthread_cleanup_pop(1);
-
-	if (t->ret < 0)
-		pr_err("copy failed: chunk %s 0x%010lx-0x%010lx\n",
-		       c->f->src_path, c->off, c->off + c->len);
-
-	return NULL;
-}
-
-
-/* progress bar-related functions */
-
-double calculate_timedelta(struct timeval *b, struct timeval *a)
-{
-	double sec, usec;
-
-	if (a->tv_usec < b->tv_usec) {
-		a->tv_usec += 1000000;
-		a->tv_sec--;
-	}
-
-	sec = a->tv_sec - b->tv_sec;
-	usec = a->tv_usec - b->tv_usec;
-	sec += usec / 1000000;
-
-	return sec;
-}
-
-double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
-{
-	return (double)diff / calculate_timedelta(b, a);
-}
-
-char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a)
-{
-	static char buf[16];
-	double elapsed = calculate_timedelta(b, a);
-	double eta;
-
-	if (diff == 0)
-		snprintf(buf, sizeof(buf), "--:-- ETA");
-	else {
-		eta = remain / (diff / elapsed);
-		snprintf(buf, sizeof(buf), "%02d:%02d ETA",
-			 (int)floor(eta / 60), (int)round(eta) % 60);
-	}
-	return buf;
-}
-
-void print_progress_bar(double percent, char *suffix)
-{
-	int n, thresh, bar_width;
-	struct winsize ws;
-	char buf[128];
-
-	/*
-	 * [=======>   ] XX% SUFFIX
-	 */
-
-	buf[0] = '\0';
-
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
-		return; /* XXX */
-	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
-
-	memset(buf, 0, sizeof(buf));
-	if (bar_width > 8) {
-		thresh = floor(bar_width * (percent / 100)) - 1;
-
-		for (n = 1; n < bar_width - 1; n++) {
-			if (n <= thresh)
-				buf[n] = '=';
-			else
-				buf[n] = ' ';
-		}
-		buf[thresh] = '>';
-		buf[0] = '[';
-		buf[bar_width - 1] = ']';
-		snprintf(buf + bar_width, sizeof(buf) - bar_width,
-			 " %3d%% ", (int)floor(percent));
-	}
-
-	pprint1("%s%s", buf, suffix);
-}
-
-void print_progress(struct timeval *b, struct timeval *a,
-		    size_t total, size_t last, size_t done)
-{
-	char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
-	char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
-	char suffix[128];
-	int bps_u, byte_tu, byte_du;
-	size_t total_round, done_round;
-	int percent;
-	double bps;
-
-#define array_size(a) (sizeof(a) / sizeof(a[0]))
-
-	if (total <= 0) {
-		pprint1("total 0 byte transferred");
-		return; /* copy 0-byte file(s) */
-	}
-
-	total_round = total;
-	for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
-	     byte_tu++)
-		total_round /= 1024;
-
-	bps = calculate_bps(done - last, b, a);
-	for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
-		bps /= 1000;
-
-	percent = floor(((double)(done) / (double)total) * 100);
-
-	done_round = done;
-	for (byte_du = 0; done_round > 1000 && byte_du < array_size(byte_units) - 1;
-	     byte_du++)
-		done_round /= 1024;
-
-	snprintf(suffix, sizeof(suffix), "%4lu%s/%lu%s %6.1f%s  %s",
-		 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
-		 bps, bps_units[bps_u], calculate_eta(total - done, done - last, b, a));
-
-	print_progress_bar(percent, suffix);
-}
-
-
-struct mscp_stat {
-	struct timeval start, before, after;
-	size_t total;
-	size_t last;
-	size_t done;
-} s;
-
-void mscp_stat_handler(int signum)
-{
-	int n;
-
-	for (s.done = 0, n = 0; n < m.nr_threads; n++)
-		s.done += m.threads[n].done;
-
-	gettimeofday(&s.after, NULL);
-	if (signum == SIGALRM) {
-		alarm(1);
-		print_progress(&s.before, &s.after, s.total, s.last, s.done);
-		s.before = s.after;
-		s.last = s.done;
-	} else {
-		/* called from mscp_stat_final. calculate progress from the beginning */
-		print_progress(&s.start, &s.after, s.total, 0, s.done);
-		pprint(1, "\n"); /* this is final output. */
-	}
-}
-
-int mscp_stat_init()
-{
-	struct file *f;
-
-	memset(&s, 0, sizeof(s));
-	list_for_each_entry(f, &m.file_list, list) {
-		s.total += f->size;
-	}
-
-	if (signal(SIGALRM, mscp_stat_handler) == SIG_ERR) {
-		pr_err("signal: %s\n", strerrno());
+	if ((t = validate_targets(argv + optind, i)) == NULL)
 		return -1;
+
+	if (t[0].remote) {
+		/* copy remote to local */
+		o.direction = MSCP_DIRECTION_R2L;
+		remote = t[0].remote;
+	} else {
+		/* copy local to remote */
+		o.direction = MSCP_DIRECTION_L2R;
+		remote = t[i - 1].remote;
 	}
 
-	gettimeofday(&s.start, NULL);
-	s.before = s.start;
-	alarm(1);
+	if ((m = mscp_init(remote, &o)) == NULL)
+		return -1;
+
+	if (mscp_connect(m) < 0)
+		return -1;
+
+	for (n = 0; n < i - 1; n++) {
+		if (mscp_add_src_path(m, t[n].path) < 0)
+			return -1;
+	}
+
+	if (mscp_set_dst_path(m, t[i - 1].path) < 0)
+		return -1;
+
+	if (mscp_prepare(m) < 0)
+		return -1;
+
+	if (mscp_start(m) < 0)
+		return -1;
+
+	mscp_cleanup(m);
+	mscp_free(m);
 
 	return 0;
-}
-
-void mscp_stat_final()
-{
-	alarm(0);
-	mscp_stat_handler(0);
 }
