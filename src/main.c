@@ -92,7 +92,7 @@ struct target {
 
 struct target *validate_targets(char **arg, int len)
 {
-	/* arg is array of source ... remote.
+	/* arg is array of source ... destination.
 	 * There are two cases:
 	 *
 	 * 1. remote:path remote:path ... path, remote to local copy
