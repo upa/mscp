@@ -16,7 +16,7 @@
 #include <mscp.h>
 
 struct mscp {
-	const char		*remote;	/* remote host (and uername) */
+	char			*remote;	/* remote host (and uername) */
 	struct mscp_opts	*opts;
 	struct ssh_opts		ssh_opts;
 
@@ -597,6 +597,10 @@ void mscp_cleanup(struct mscp *m)
 void mscp_free(struct mscp *m)
 {
 	mscp_cleanup(m);
+	if (m->remote)
+		free(m->remote);
+	if (m->cores)
+		free(m->cores);
 	free(m);
 }
 

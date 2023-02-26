@@ -2,6 +2,7 @@
 #define _MSCP_H_
 
 #include <stdbool.h>
+#include <limits.h>
 
 #define MSCP_DIRECTION_L2R	1
 #define MSCP_DIRECTION_R2L	2
@@ -42,13 +43,31 @@ struct mscp_opts {
 
 struct mscp;
 
+/* initialize and return a mscp instance with option validation  */
 struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts);
+
+/* establish the first SFTP session. mscp_prepare() and mscp_start()
+ * requires mscp_connect() beforehand */
 int mscp_connect(struct mscp *m);
+
+/* add a source file path to be copied */
 int mscp_add_src_path(struct mscp *m, const char *src_path);
+
+/* set the destination file path */
 int mscp_set_dst_path(struct mscp *m, const char *dst_path);
+
+/* check source files, resolve destination file paths for all source
+ * files, and prepare chunks for all files. */
 int mscp_prepare(struct mscp *m);
+
+/* start to copy files */
 int mscp_start(struct mscp *m);
+
+/* cleanup mscp instance. after mscp_cleanup(), process can restart
+ * from mscp_connect() with the same setting. */
 void mscp_cleanup(struct mscp *m);
+
+/* free mscp instance */
 void mscp_free(struct mscp *m);
 
 #endif /* _MSCP_H_ */
