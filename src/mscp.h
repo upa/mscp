@@ -15,6 +15,7 @@ struct mscp_opts {
 	size_t	min_chunk_sz;
 	size_t	max_chunk_sz;
 	size_t	buf_sz;
+	char	coremask[64];
 
 	int	verbose_level;
 	bool	quiet;
@@ -35,9 +36,12 @@ struct mscp_opts {
 struct mscp;
 
 struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts);
+int mscp_connect(struct mscp *m);
 int mscp_add_src_path(struct mscp *m, const char *src_path);
 int mscp_set_dst_path(struct mscp *m, const char *dst_path);
 int mscp_prepare(struct mscp *m);
 int mscp_start(struct mscp *m);
+void mscp_cleanup(struct mscp *m);
+void mscp_free(struct mscp *m);
 
 #endif /* _MSCP_H_ */
