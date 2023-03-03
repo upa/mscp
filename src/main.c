@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 	struct mscp_ssh_opts s;
 	struct mscp_opts o;
 	struct target *t;
-	int ch, n, i;
+	int ch, n, i, ret;
 	char *remote;
 
 	memset(&s, 0, sizeof(s));
@@ -304,9 +304,8 @@ int main(int argc, char **argv)
 	if ((m = mscp_init(remote, &o, &s)) == NULL)
 		return -1;
 
-	if (mscp_connect(m) < 0) {
+	if (mscp_connect(m) < 0)
 		return -1;
-	}
 
 	for (n = 0; n < i - 1; n++) {
 		if (mscp_add_src_path(m, t[n].path) < 0)
@@ -327,16 +326,14 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (mscp_start(m) < 0)
-		return -1;
+	ret = mscp_start(m);
 
 	print_stat_final();
 
-err_out:
 	mscp_cleanup(m);
 	mscp_free(m);
 
-	return 0;
+	return ret;
 }
 
 

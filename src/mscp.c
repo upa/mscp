@@ -1,7 +1,5 @@
 #include <stdbool.h>
 #include <unistd.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
 #include <math.h>
 #include <pthread.h>
 
