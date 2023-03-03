@@ -2,8 +2,10 @@
 #define _ATOMIC_H_
 
 #include <stdlib.h>
+#include <assert.h>
 #include <pthread.h>
-#include <util.h>
+
+#include <message.h>
 
 typedef int refcnt;
 
@@ -28,31 +30,13 @@ static inline void lock_init(lock *l)
 static inline void lock_acquire(lock *l)
 {
 	int ret = pthread_mutex_lock(l);
-	if (ret < 0) {
-		switch (ret) {
-		case EINVAL:
-			pr_err("invalid mutex\n");
-			exit(1);
-		case EDEADLK:
-			pr_err("a deadlock would occur\n");
-			exit(1);
-		}
-	}
+	assert(ret == 0);
 }
 
 static inline void lock_release(lock *l)
 {
 	int ret = pthread_mutex_unlock(l);
-	if (ret < 0) {
-		switch (ret) {
-		case EINVAL:
-			pr_err("invalid mutex\n");
-			exit(1);
-		case EPERM:
-			pr_err("this thread does not hold this mutex\n");
-			exit(1);
-		}
-	}
+	assert(ret == 0);
 }
 
 static inline void lock_release_via_cleanup(void *l)

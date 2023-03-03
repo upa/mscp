@@ -66,7 +66,7 @@ char *split_remote_and_path(const char *string, char **remote, char **path)
 	 */
 
 	if (!(s = strdup(string))) {
-		pr_err("failed to allocate memory: %s\n", strerrno());
+		fprintf(stderr, "strdup: %s\n", strerrno());
 		return NULL;
 	}
 
@@ -112,7 +112,7 @@ struct target *validate_targets(char **arg, int len)
 	int n;
 
 	if ((t = calloc(len, sizeof(struct target))) == NULL) {
-		pr_err("failed to allocate memory: %s\n", strerrno());
+		fprintf(stderr, "calloc: %s\n", strerrno());
 		return NULL;
 	}
 	memset(t, 0, len * sizeof(struct target));
@@ -141,19 +141,19 @@ struct target *validate_targets(char **arg, int len)
 
 	/* check inconsistent remote position in args */
 	if (t[0].remote == NULL && t[len - 1].remote == NULL) {
-		pr_err("no remote host given\n");
+		fprintf(stderr, "no remote host given\n");
 		goto free_split_out;
 	}
 
 	if (t[0].remote != NULL && t[len - 1].remote != NULL) {
-		pr_err("no local path given\n");
+		fprintf(stderr, "no local path given\n");
 		goto free_split_out;
 	}
 
 	return t;
 
 invalid_remotes:
-	pr_err("specified remote host invalid\n");
+	fprintf(stderr, "specified remote host invalid\n");
 
 free_split_out:
 	for (n = 0; n < len; n++)
@@ -190,7 +190,8 @@ int main(int argc, char **argv)
 		case 'n':
 			o.nr_threads = atoi(optarg);
 			if (o.nr_threads < 1) {
-				pr_err("invalid number of connections: %s\n", optarg);
+				fprintf(stderr, "invalid number of connections: %s\n",
+					optarg);
 				return 1;
 			}
 			break;
@@ -223,42 +224,42 @@ int main(int argc, char **argv)
 			break;
 		case 'l':
 			if (strlen(optarg) > MSCP_SSH_MAX_LOGIN_NAME - 1) {
-				pr_err("too long login name: %s\n", optarg);
+				fprintf(stderr, "long login name: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.login_name, optarg, MSCP_SSH_MAX_LOGIN_NAME - 1);
 			break;
 		case 'p':
 			if (strlen(optarg) > MSCP_SSH_MAX_PORT_STR - 1) {
-				pr_err("too long port string: %s\n", optarg);
+				fprintf(stderr, "long port string: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.port, optarg, MSCP_SSH_MAX_PORT_STR);
 			break;
 		case 'i':
 			if (strlen(optarg) > MSCP_SSH_MAX_IDENTITY_PATH - 1) {
-				pr_err("too long identity path: %s\n", optarg);
+				fprintf(stderr, "long identity path: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.identity, optarg, MSCP_SSH_MAX_IDENTITY_PATH);
 			break;
 		case 'c':
 			if (strlen(optarg) > MSCP_SSH_MAX_CIPHER_STR - 1) {
-				pr_err("too long cipher string: %s\n", optarg);
+				fprintf(stderr, "long cipher string: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.cipher, optarg, MSCP_SSH_MAX_CIPHER_STR);
 			break;
 		case 'M':
 			if (strlen(optarg) > MSCP_SSH_MAX_HMAC_STR - 1) {
-				pr_err("too long hmac string: %s\n", optarg);
+				fprintf(stderr, "long hmac string: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.hmac, optarg, MSCP_SSH_MAX_HMAC_STR);
 			break;
 		case 'C':
 			if (strlen(optarg) > MSCP_SSH_MAX_COMP_STR - 1) {
-				pr_err("too long compress string: %s\n", optarg);
+				fprintf(stderr, "long compress string: %s\n", optarg);
 				return -1;
 			}
 			strncpy(s.compress, optarg, MSCP_SSH_MAX_COMP_STR);
@@ -301,32 +302,44 @@ int main(int argc, char **argv)
 		remote = t[i - 1].remote;
 	}
 
-	if ((m = mscp_init(remote, &o, &s)) == NULL)
+	if ((m = mscp_init(remote, &o, &s)) == NULL) {
+		fprintf(stderr, "mscp_init: %s\n", mscp_get_error());
 		return -1;
+	}
 
-	if (mscp_connect(m) < 0)
+	if (mscp_connect(m) < 0) {
+		fprintf(stderr, "mscp_connect: %s\n", mscp_get_error());
 		return -1;
+	}
 
 	for (n = 0; n < i - 1; n++) {
-		if (mscp_add_src_path(m, t[n].path) < 0)
+		if (mscp_add_src_path(m, t[n].path) < 0) {
+			fprintf(stderr, "mscp_add_src_path: %s\n", mscp_get_error());
 			return -1;
+		}
         }
 
-	if (mscp_set_dst_path(m, t[i - 1].path) < 0)
+	if (mscp_set_dst_path(m, t[i - 1].path) < 0) {
+		fprintf(stderr, "mscp_set_dst_path: %s\n", mscp_get_error());
 		return -1;
+	}
 
-	if (mscp_prepare(m) < 0)
+	if (mscp_prepare(m) < 0) {
+		fprintf(stderr, "mscp_prepare: %s\n", mscp_get_error());
 		return -1;
+	}
 
 	if (print_stat_init() < 0)
 		return -1;
 
 	if (signal(SIGINT, sigint_handler) == SIG_ERR) {
-		pr_err("cannot set handler for SIGINT: %s\n", strerrno());
+		fprintf(stderr, "signal: %s\n", strerrno());
 		return -1;
 	}
 
 	ret = mscp_start(m);
+	if (ret < 0)
+		fprintf(stderr, "%s\n", mscp_get_error());
 
 	print_stat_final();
 
@@ -488,7 +501,7 @@ int print_stat_init()
 	memset(&x, 0, sizeof(x));
 
         if (signal(SIGALRM, print_stat_handler) == SIG_ERR) {
-                pr_err("signal: %s\n", strerrno());
+                fprintf(stderr, "signal: %s\n", strerrno());
                 return -1;
         }
 

@@ -63,6 +63,12 @@ struct mscp;
 struct mscp *mscp_init(const char *remote_host,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s);
 
+/* return a fd for read message from mscp */
+int mscp_msg_fd(struct mscp *m);
+
+/* get message for the most recent error (not thread safe) */
+const char *mscp_get_error();
+
 /* establish the first SFTP session. mscp_prepare() and mscp_start()
  * requires mscp_connect() beforehand */
 int mscp_connect(struct mscp *m);

@@ -11,7 +11,7 @@
 #include <atomic.h>
 #include <path.h>
 #include <pprint.h>
-
+#include <message.h>
 
 static int append_path(sftp_session sftp, const char *path, mstat s,
 		       struct list_head *path_list)
@@ -19,7 +19,7 @@ static int append_path(sftp_session sftp, const char *path, mstat s,
 	struct path *p;
 
 	if (!(p = malloc(sizeof(*p)))) {
-		pr_err("failed to allocate memory: %s\n", strerrno());
+		mscp_set_error("failed to allocate memory: %s", strerrno());
 		return -1;
 	}
 
@@ -82,7 +82,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			continue;
 		
 		if (strlen(path) + 1 + strlen(mdirent_name(e)) > PATH_MAX) {
-			pr_err("too long path: %s/%s\n", path, mdirent_name(e));
+			mscp_set_error("too long path: %s/%s", path, mdirent_name(e));
 			return -1;
 		}
 		snprintf(next_path, sizeof(next_path), "%s/%s", path, mdirent_name(e));
@@ -114,7 +114,7 @@ static int src2dst_path(const char *src_path, const char *src_file_path,
 	strncpy(copy, src_path, PATH_MAX - 1);
 	prefix = dirname(copy);
 	if (!prefix) {
-		pr_err("dirname: %s\n", strerrno());
+		mscp_set_error("dirname: %s", strerrno());
 		return -1;
 	}
 	if (strlen(prefix) == 1 && prefix[0] == '.')
@@ -184,7 +184,7 @@ static struct chunk *alloc_chunk(struct path *p)
         struct chunk *c;
 
         if (!(c = malloc(sizeof(*c)))) {
-                pr_err("%s\n", strerrno());
+                mscp_set_error("malloc %s", strerrno());
                 return NULL;
         }
         memset(c, 0, sizeof(*c));
@@ -292,7 +292,8 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 		if (mscp_stat_check_err_noent(sftp) == 0) {
 			/* no file on the path. create directory. */
 			if (mscp_mkdir(path, mode, sftp) < 0) {
-				pr_err("mkdir %s: %s", path, mscp_strerror(sftp));
+				mscp_set_error("mkdir %s: %s", path,
+					       mscp_strerror(sftp));
 				return -1;
 			}
 		}
@@ -357,8 +358,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
                 reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
                                                  &reqs[idx].id);
                 if (reqs[idx].len < 0) {
-                        pr_err("sftp_async_write: %s or %s\n",
-			       sftp_get_ssh_error(sf->sftp), strerrno());
+                        mscp_set_error("sftp_async_write: %s or %s",
+				       sftp_get_ssh_error(sf->sftp), strerrno());
                         return -1;
                 }
                 thrown -= reqs[idx].len;
@@ -367,8 +368,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
         for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
                 ret = sftp_async_write_end(sf, reqs[idx].id, 1);
                 if (ret != SSH_OK) {
-                        pr_err("sftp_async_write_end: %s\n",
-			       sftp_get_ssh_error(sf->sftp));
+                        mscp_set_error("sftp_async_write_end: %s",
+				       sftp_get_ssh_error(sf->sftp));
                         return -1;
                 }
 
@@ -385,16 +386,17 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
                 reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
                                                  &reqs[idx].id);
                 if (reqs[idx].len < 0) {
-                        pr_err("sftp_async_write: %s or %s\n",
-                               sftp_get_ssh_error(sf->sftp), strerrno());
+                        mscp_set_error("sftp_async_write: %s or %s",
+				       sftp_get_ssh_error(sf->sftp), strerrno());
                         return -1;
                 }
                 thrown -= reqs[idx].len;
         }
 
         if (remaind < 0) {
-                pr_err("invalid remaind bytes %ld. last async_write_end bytes %lu.",
-                       remaind, reqs[idx].len);
+                mscp_set_error("invalid remaind bytes %ld. "
+			       "last async_write_end bytes %lu.",
+			       remaind, reqs[idx].len);
                 return -1;
         }
 
@@ -422,8 +424,8 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
                 reqs[idx].len = min(thrown, sizeof(buf));
                 reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
                 if (reqs[idx].id < 0) {
-                        pr_err("sftp_async_read_begin: %d\n",
-                               sftp_get_error(sf->sftp));
+                        mscp_set_error("sftp_async_read_begin: %d",
+				       sftp_get_error(sf->sftp));
                         return -1;
                 }
                 thrown -= reqs[idx].len;
@@ -432,7 +434,8 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
         for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
                 read_bytes = sftp_async_read(sf, buf, reqs[idx].len, reqs[idx].id);
                 if (read_bytes == SSH_ERROR) {
-                        pr_err("sftp_async_read: %d\n", sftp_get_error(sf->sftp));
+                        mscp_set_error("sftp_async_read: %d",
+				       sftp_get_error(sf->sftp));
                         return -1;
                 }
 
@@ -444,12 +447,12 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
 
                 write_bytes = write(fd, buf, read_bytes);
                 if (write_bytes < 0) {
-                        pr_err("write: %s\n", strerrno());
+                        mscp_set_error("write: %s", strerrno());
                         return -1;
                 }
 
                 if (write_bytes < read_bytes) {
-                        pr_err("failed to write full bytes\n");
+                        mscp_set_error("failed to write full bytes");
                         return -1;
                 }
 
@@ -458,9 +461,9 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
         }
 
         if (remaind < 0) {
-                pr_err("invalid remaind bytes %ld. last async_read bytes %ld. "
-                       "last write bytes %ld\n",
-                       remaind, read_bytes, write_bytes);
+                mscp_set_error("invalid remaind bytes %ld. last async_read bytes %ld. "
+			       "last write bytes %ld",
+			       remaind, read_bytes, write_bytes);
                 return -1;
         }
 

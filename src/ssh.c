@@ -7,6 +7,7 @@
 
 #include <ssh.h>
 #include <util.h>
+#include <message.h>
 
 static int ssh_verify_known_hosts(ssh_session session);
 
@@ -19,47 +20,47 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 
 	if (is_specified(opts->login_name) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_USER, opts->login_name) < 0) {
-		pr_err("failed to set login name\n");
+		mscp_set_error("failed to set login name");
 		return -1;
 	}
 
 	if (is_specified(opts->port) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
-		pr_err("failed to set port number\n");
+		mscp_set_error("failed to set port number");
 		return -1;
 	}
 
 	if (is_specified(opts->identity) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_IDENTITY, opts->identity) < 0) {
-		pr_err("failed to set identity\n");
+		mscp_set_error("failed to set identity");
 		return -1;
 	}
 
 	if (is_specified(opts->cipher)) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_C_S, opts->cipher) < 0) {
-			pr_err("failed to set cipher for client to server\n");
+			mscp_set_error("failed to set cipher for client to server");
 			return -1;
 		}
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_S_C, opts->cipher) < 0) {
-			pr_err("failed to set cipher for server to client\n");
+			mscp_set_error("failed to set cipher for server to client");
 			return -1;
 		}
 	}
 
 	if (is_specified(opts->hmac)) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_C_S, opts->hmac) < 0) {
-			pr_err("failed to set hmac for client to server\n");
+			mscp_set_error("failed to set hmac for client to server");
 			return -1;
 		}
 		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_S_C, opts->hmac) < 0) {
-			pr_err("failed to set hmac for server to client\n");
+			mscp_set_error("failed to set hmac for server to client");
 			return -1;
 		}
 	}
 
 	if (is_specified(opts->compress) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_COMPRESSION, opts->compress) < 0) {
-		pr_err("failed to enable ssh compression\n");
+		mscp_set_error("failed to enable ssh compression");
 		return -1;
 	}
 
@@ -67,7 +68,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 	if (!opts->enable_nagle) {
 		int v = 1;
 		if (ssh_options_set(ssh, SSH_OPTIONS_NODELAY, &v) < 0) {
-			pr_err("failed to set TCP_NODELAY\n");
+			mscp_set_error("failed to set TCP_NODELAY");
 			return -1;
 		}
 	}
@@ -152,17 +153,17 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 		goto free_out;
 
 	if (ssh_options_set(ssh, SSH_OPTIONS_HOST, sshdst) != SSH_OK) {
-		pr_err("failed to set destination host\n");
+		mscp_set_error("failed to set destination host");
 		goto free_out;
 	}
 
 	if (ssh_connect(ssh) != SSH_OK) {
-		pr_err("failed to connect ssh server: %s\n", ssh_get_error(ssh));
+		mscp_set_error("failed to connect ssh server: %s", ssh_get_error(ssh));
 		goto free_out;
 	}
 
 	if (ssh_authenticate(ssh, opts) != 0) {
-		pr_err("authentication failed: %s\n", ssh_get_error(ssh));
+		mscp_set_error("authentication failed: %s", ssh_get_error(ssh));
 		goto disconnect_out;
 	}
 
@@ -190,13 +191,14 @@ sftp_session ssh_init_sftp_session(const char *sshdst, struct mscp_ssh_opts *opt
 
 	sftp = sftp_new(ssh);
 	if (!sftp) {
-		pr_err("failed to allocate sftp session: %s\n", ssh_get_error(ssh));
+		mscp_set_error("failed to allocate sftp session: %s",
+			       ssh_get_error(ssh));
 		goto err_out;
 	}
 
 	if (sftp_init(sftp) != SSH_OK) {
-		pr_err("failed to initialize sftp session: err code %d\n",
-		       sftp_get_error(sftp));
+		mscp_set_error("failed to initialize sftp session: err code %d",
+			       sftp_get_error(sftp));
 		goto err_out;
 	}
 

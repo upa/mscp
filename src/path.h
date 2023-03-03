@@ -9,6 +9,7 @@
 #include <list.h>
 #include <atomic.h>
 #include <ssh.h>
+#include <message.h>
 
 struct path {
 	struct list_head	list;	/* mscp->path_list */
@@ -99,15 +100,15 @@ static mdir *mscp_opendir(const char *path, sftp_session sftp)
         if (sftp) {
                 d->r = sftp_opendir(sftp, path);
                 if (!d->r) {
-                        pr_err("sftp_opendir '%s': %s\n",
-			       path, sftp_get_ssh_error(sftp));
+                        mscp_set_error("sftp_opendir '%s': %s",
+				       path, sftp_get_ssh_error(sftp));
                         free(d);
                         return NULL;
                 }
         } else {
                 d->l = opendir(path);
                 if (!d->l) {
-                        pr_err("opendir '%s': %s\n", path, strerrno());
+                        mscp_set_error("opendir '%s': %s", path, strerrno());
                         free(d);
                         return NULL;
                 }
@@ -207,14 +208,13 @@ static int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp)
 		ret = sftp_mkdir(sftp, path, mode);
 		if (ret < 0 &&
 		    sftp_get_error(sftp) != SSH_FX_FILE_ALREADY_EXISTS) {
-			pr_err("failed to create %s: %s\n",
-			       path, sftp_get_ssh_error(sftp));
+			mscp_set_error("sftp_mkdir '%s': %s",
+				       path, sftp_get_ssh_error(sftp));
 			return -1;
 		}
 	} else {
 		if (mkdir(path, mode) == -1 && errno != EEXIST) {
-			pr_err("failed to create %s: %s\n",
-			       path, strerrno());
+			mscp_set_error("mkdir '%s': %s", path, strerrno());
 			return -1;
 		}
 	}
@@ -240,12 +240,14 @@ static mfh mscp_open(const char *path, int flags, mode_t mode, size_t off,
 	if (sftp) {
 		h.sf = sftp_open(sftp, path, flags, mode);
 		if (!h.sf) {
-			pr_err("sftp_open '%s': %s\n", path, sftp_get_ssh_error(sftp));
+			mscp_set_error("sftp_open '%s': %s",
+				       path, sftp_get_ssh_error(sftp));
 			return h;
 		}
 
 		if (sftp_seek64(h.sf, off) < 0) {
-			pr_err("sftp_seek64 '%s': %s\n", path, sftp_get_ssh_error(sftp));
+			mscp_set_error("sftp_seek64 '%s': %s",
+				       path, sftp_get_ssh_error(sftp));
 			sftp_close(h.sf);
 			h.sf = NULL;
 			return h;
@@ -253,11 +255,11 @@ static mfh mscp_open(const char *path, int flags, mode_t mode, size_t off,
 	} else {
 		h.fd = open(path, flags, mode);
 		if (h.fd < 0) {
-			pr_err("open '%s': %s\n", path, strerrno());
+			mscp_set_error("open '%s': %s", path, strerrno());
 			return h;
 		}
 		if (lseek(h.fd, off, SEEK_SET) < 0) {
-			pr_err("lseek '%s': %s\n", path, strerrno());
+			mscp_set_error("lseek '%s': %s", path, strerrno());
 			close(h.fd);
 			h.fd = -1;
 			return h;
@@ -285,12 +287,13 @@ static int mscp_chmod(const char *path, mode_t mode, sftp_session sftp)
 {
 	if (sftp) {
 		if (sftp_chmod(sftp, path, mode) < 0)  {
-			pr_err("sftp_chmod '%s': %s\n", path, sftp_get_ssh_error(sftp));
+			mscp_set_error("sftp_chmod '%s': %s",
+				       path, sftp_get_ssh_error(sftp));
 			return -1;
 		}
 	} else {
 		if (chmod(path, mode) < 0) {
-			pr_err("chmod '%s': %s\n", path, strerrno());
+			mscp_set_error("chmod '%s': %s", path, strerrno());
 			return -1;
 		}
 	}
