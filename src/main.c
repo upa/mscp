@@ -184,6 +184,7 @@ int main(int argc, char **argv)
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
+	o.severity = MSCP_SEVERITY_WARN;
 
 	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:C:HdNh")) != -1) {
 		switch (ch) {
@@ -211,10 +212,10 @@ int main(int argc, char **argv)
 			o.buf_sz = atoi(optarg);
 			break;
 		case 'v':
-			o.verbose_level++;
+			o.severity++;
 			break;
 		case 'q':
-			o.verbose_level = -1;
+			o.severity = MSCP_SEVERITY_NONE;
 			break;
 		case 'D':
 			o.dryrun = true;

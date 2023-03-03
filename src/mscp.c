@@ -19,6 +19,8 @@ struct mscp {
 	struct mscp_opts	*opts;
 	struct mscp_ssh_opts	*ssh_opts;
 
+	int			msg_fd;		/* writer fd for message pipe */
+
 	int			 *cores;	/* usable cpu cores by COREMASK */
 	int			 nr_cores;	/* length of array of cores */
 
@@ -197,6 +199,9 @@ struct mscp *mscp_init(const char *remote_host,
 		return NULL;
 	}
 
+	m->msg_fd = o->msg_fd;
+	mprint_set_severity(o->severity);
+
 	if (validate_and_set_defaut_params(o) < 0)
 		goto free_out;
 
@@ -214,22 +219,30 @@ struct mscp *mscp_init(const char *remote_host,
 	if (strlen(o->coremask) > 0) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
 			goto free_out;
-		pprint(1, "usable cpu cores:");
+		mpr_notice(m, "usable cpu cores:");
 		for (n = 0; n < m->nr_cores; n++)
-			pprint(2, " %d", m->cores[n]);
-		pprint(1, "\n");
+			mpr_notice(m, "%d", m->cores[n]);
+		mpr_notice(m, "\n");
 	}
 
 	m->opts = o;
 	m->ssh_opts = s;
-
-	pprint_set_level(o->verbose_level);
 
 	return m;
 
 free_out:
 	free(m);
 	return NULL;
+}
+
+void mscp_set_msg_fd(struct mscp *m, int fd)
+{
+	m->msg_fd = fd;
+}
+
+int mscp_get_msg_fd(struct mscp *m)
+{
+	return m->msg_fd;
 }
 
 int mscp_connect(struct mscp *m)
@@ -367,8 +380,8 @@ int mscp_start(struct mscp *m)
 	int n, ret;
 
 	if ((n = list_count(&m->chunk_list)) < m->opts->nr_threads) {
-		pprint1("we have only %d chunk(s). "
-			"set number of connections to %d\n", n, n);
+		mpr_notice(m, "we have only %d chunk(s). "
+			   "set number of connections to %d\n", n, n);
 		m->opts->nr_threads = n;
 	}
 
@@ -388,7 +401,8 @@ int mscp_start(struct mscp *m)
 			m->first = NULL;
 		}
 		else {
-			pprint2("connecting to %s for a copy thread...\n", m->remote);
+			mpr_notice(m, "connecting to %s for a copy thread...\n",
+				   m->remote);
 			t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 			if (!t->sftp)
 				return -1;

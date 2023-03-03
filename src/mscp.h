@@ -20,10 +20,12 @@ struct mscp_opts {
 	size_t	buf_sz;
 	char	coremask[MSCP_MAX_COREMASK_STR];
 
-	int	verbose_level;
-	bool	quiet;
-	bool	dryrun;
+	/* messaging */
+	int	severity; 	/* messaging severity. set MSCP_SERVERITY_* */
+	int	msg_fd;		/* fd to output message. default STDOUT,
+				 * and -1 disables output */
 
+	bool	dryrun;
 };
 
 #define MSCP_SSH_MAX_LOGIN_NAME		64
@@ -63,12 +65,6 @@ struct mscp;
 struct mscp *mscp_init(const char *remote_host,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s);
 
-/* return a fd for read message from mscp */
-int mscp_msg_fd(struct mscp *m);
-
-/* get message for the most recent error (not thread safe) */
-const char *mscp_get_error();
-
 /* establish the first SFTP session. mscp_prepare() and mscp_start()
  * requires mscp_connect() beforehand */
 int mscp_connect(struct mscp *m);
@@ -98,5 +94,33 @@ void mscp_cleanup(struct mscp *m);
 
 /* free mscp instance */
 void mscp_free(struct mscp *m);
+
+
+/* messaging with mscp */
+
+/* severity filter for messages. specifiy it with mscp_opts->serverity.
+ */
+enum {
+	MSCP_SEVERITY_NONE	= -1,
+	MSCP_SEVERITY_ERR	= 0,
+	MSCP_SEVERITY_WARN	= 1,
+	MSCP_SEVERITY_NOTICE	= 2,
+        MSCP_SEVERITY_INFO	= 3,
+	MSCP_SEVERITY_DEBUG	= 4,
+};
+
+/* set fd to which mscp writes messages. default is STDOUT.
+ * supposed fd is pipe write fd.
+ */
+void mscp_set_msg_fd(struct mscp *m, int fd);
+
+/* retrieve the fd for read message from mscp */
+int mscp_get_msg_fd(struct mscp *m);
+
+/* get message for the most recent error (not thread safe) */
+const char *mscp_get_error();
+
+
+
 
 #endif /* _MSCP_H_ */

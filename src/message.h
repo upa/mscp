@@ -3,27 +3,26 @@
 
 #include <libgen.h>
 
-enum {
-	MSCP_SEVERITY_ERR = 0,
-	MSCP_SEVERITY_WARN,
-	MSCP_SEVERITY_NOTICE,
-	MSCP_SEVERITY_INFO,
-	MSCP_SEVERITY_DEBUG,
-};
+#include <mscp.h>
 
 /* message print. printed messages are passed to application via msg_fd */
-//void mprint_set_severity(int severity);
-//void mprint(int severity, const char *fmt, ...);
+void mprint_set_severity(int severity);
+void mprint(int fd, int severity, const char *fmt, ...);
 
-#define mpr_err(fmt, ...) mprint(MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
-#define mpr_warn(fmt, ...) mprint(MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
-#define mpr_notice(fmt, ...) mprint(MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
-#define mpr_info(fmt, ...) mprint(MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
-#define mpr_debug(fmt, ...) mprint(MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
+#define mpr_err(m, fmt, ...)						\
+	mprint(m->msg_fd, MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
+#define mpr_warn(m, fmt, ...)						\
+	mprint(m->msg_fd, MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
+#define mpr_notice(m, fmt, ...)						\
+	mprint(m->msg_fd, MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
+#define mpr_info(m, fmt, ...)						\
+	mprint(m->msg_fd, MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
+#define mpr_debug(m, fmt, ...)						\
+	mprint(m->msg_fd, MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
 
 
 /* error message buffer */
-#define mscp_set_error(fmt, ...)						\
+#define mscp_set_error(fmt, ...)					\
 	_mscp_set_error("%s:%d:%s: " fmt,				\
 			basename(__FILE__), __LINE__, __func__, ##__VA_ARGS__)
 
