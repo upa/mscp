@@ -2,8 +2,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
+#include <math.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include <mscp.h>
+#include <pprint.h>
 #include <util.h>
 
 
@@ -160,11 +164,20 @@ free_target_out:
 	return NULL;
 }
 
+struct mscp *m = NULL;
+
+void sigint_handler(int sig)
+{
+	mscp_stop(m);
+}
+
+int print_stat_init();
+void print_stat_final();
+
 int main(int argc, char **argv)
 {
 	struct mscp_ssh_opts s;
 	struct mscp_opts o;
-	struct mscp *m;
 	struct target *t;
 	int ch, n, i;
 	char *remote;
@@ -291,13 +304,14 @@ int main(int argc, char **argv)
 	if ((m = mscp_init(remote, &o, &s)) == NULL)
 		return -1;
 
-	if (mscp_connect(m) < 0)
+	if (mscp_connect(m) < 0) {
 		return -1;
+	}
 
 	for (n = 0; n < i - 1; n++) {
 		if (mscp_add_src_path(m, t[n].path) < 0)
 			return -1;
-	}
+        }
 
 	if (mscp_set_dst_path(m, t[i - 1].path) < 0)
 		return -1;
@@ -305,11 +319,191 @@ int main(int argc, char **argv)
 	if (mscp_prepare(m) < 0)
 		return -1;
 
+	if (print_stat_init() < 0)
+		return -1;
+
+	if (signal(SIGINT, sigint_handler) == SIG_ERR) {
+		pr_err("cannot set handler for SIGINT: %s\n", strerrno());
+		return -1;
+	}
+
 	if (mscp_start(m) < 0)
 		return -1;
 
+	print_stat_final();
+
+err_out:
 	mscp_cleanup(m);
 	mscp_free(m);
 
 	return 0;
+}
+
+
+/* progress bar-related functions */
+
+double calculate_timedelta(struct timeval *b, struct timeval *a)
+{
+        double sec, usec;
+
+        if (a->tv_usec < b->tv_usec) {
+                a->tv_usec += 1000000;
+                a->tv_sec--;
+        }
+
+        sec = a->tv_sec - b->tv_sec;
+        usec = a->tv_usec - b->tv_usec;
+        sec += usec / 1000000;
+
+        return sec;
+}
+
+
+double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
+{
+        return (double)diff / calculate_timedelta(b, a);
+}
+
+char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a)
+{
+        static char buf[16];
+        double elapsed = calculate_timedelta(b, a);
+        double eta;
+
+        if (diff == 0)
+                snprintf(buf, sizeof(buf), "--:-- ETA");
+        else {
+                eta = remain / (diff / elapsed);
+                snprintf(buf, sizeof(buf), "%02d:%02d ETA",
+                         (int)floor(eta / 60), (int)round(eta) % 60);
+        }
+        return buf;
+}
+
+void print_progress_bar(double percent, char *suffix)
+{
+        int n, thresh, bar_width;
+        struct winsize ws;
+        char buf[128];
+
+        /*
+         * [=======>   ] XX% SUFFIX
+         */
+
+        buf[0] = '\0';
+
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
+                return; /* XXX */
+        bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
+
+        memset(buf, 0, sizeof(buf));
+        if (bar_width > 8) {
+                thresh = floor(bar_width * (percent / 100)) - 1;
+
+                for (n = 1; n < bar_width - 1; n++) {
+                        if (n <= thresh)
+                                buf[n] = '=';
+                        else
+                                buf[n] = ' ';
+                }
+                buf[thresh] = '>';
+                buf[0] = '[';
+                buf[bar_width - 1] = ']';
+                snprintf(buf + bar_width, sizeof(buf) - bar_width,
+                         " %3d%% ", (int)floor(percent));
+        }
+
+        pprint0("%s%s", buf, suffix);
+}
+
+void print_progress(struct timeval *b, struct timeval *a,
+		    size_t total, size_t last, size_t done)
+{
+        char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
+        char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
+        char suffix[128];
+        int bps_u, byte_tu, byte_du;
+        size_t total_round, done_round;
+        int percent;
+        double bps;
+
+#define array_size(a) (sizeof(a) / sizeof(a[0]))
+
+        if (total <= 0) {
+                pprint1("total 0 byte transferred");
+                return; /* copy 0-byte file(s) */
+        }
+
+        total_round = total;
+        for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
+             byte_tu++)
+                total_round /= 1024;
+
+        bps = calculate_bps(done - last, b, a);
+        for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
+                bps /= 1000;
+
+        percent = floor(((double)(done) / (double)total) * 100);
+
+        done_round = done;
+        for (byte_du = 0; done_round > 1000 && byte_du < array_size(byte_units) - 1;
+             byte_du++)
+                done_round /= 1024;
+
+        snprintf(suffix, sizeof(suffix), "%4lu%s/%lu%s %6.1f%s  %s",
+                 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
+                 bps, bps_units[bps_u], calculate_eta(total - done, done - last, b, a));
+
+        print_progress_bar(percent, suffix);
+}
+
+struct xfer_stat {
+        struct timeval start, before, after;
+        size_t total;
+        size_t last;
+        size_t done;
+};
+__thread struct xfer_stat x;
+
+void print_stat_handler(int signum)
+{
+	struct mscp_stats s;
+
+	mscp_get_stats(m, &s);
+	x.total = s.total;
+	x.done = s.done;
+
+        gettimeofday(&x.after, NULL);
+        if (signum == SIGALRM) {
+                alarm(1);
+                print_progress(&x.before, &x.after, x.total, x.last, x.done);
+                x.before = x.after;
+                x.last = x.done;
+        } else {
+                /* called from mscp_stat_final. calculate progress from the beginning */
+                print_progress(&x.start, &x.after, x.total, 0, x.done);
+                pprint(0, "\n"); /* this is final output. */
+        }
+}
+
+int print_stat_init()
+{
+	memset(&x, 0, sizeof(x));
+
+        if (signal(SIGALRM, print_stat_handler) == SIG_ERR) {
+                pr_err("signal: %s\n", strerrno());
+                return -1;
+        }
+
+        gettimeofday(&x.start, NULL);
+        x.before = x.start;
+        alarm(1);
+
+        return 0;
+}
+
+void print_stat_final()
+{
+        alarm(0);
+        print_stat_handler(0);
 }

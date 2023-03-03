@@ -52,6 +52,11 @@ struct mscp_ssh_opts {
 	bool	enable_nagle;
 };
 
+struct mscp_stats {
+	size_t total;	/* total bytes to be transferred */
+	size_t done;	/* total bytes transferred */
+};
+
 struct mscp;
 
 /* initialize and return a mscp instance with option validation  */
@@ -74,6 +79,12 @@ int mscp_prepare(struct mscp *m);
 
 /* start to copy files */
 int mscp_start(struct mscp *m);
+
+/* stop copying files */
+void mscp_stop(struct mscp *m);
+
+/* get stats */
+void mscp_get_stats(struct mscp *m, struct mscp_stats *s);
 
 /* cleanup mscp instance. after mscp_cleanup(), process can restart
  * from mscp_connect() with the same setting. */
