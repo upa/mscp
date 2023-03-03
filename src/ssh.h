@@ -5,27 +5,12 @@
 #include "libssh/libssh.h"
 #include "libssh/sftp.h"
 
-
-struct ssh_opts {
-	char    *login_name;		/* -l */
-	char    *port;			/* -p */
-	char    *identity;		/* -i */
-	char    *cipher;		/* -c */
-	char	*hmac;			/* -M */
-	int     compress;		/* -C */
-	int	nodelay;		/* -N */
-	int     debuglevel;		/* -v */
-	bool	no_hostkey_check;	/* -H */
-
-#define PASSWORD_BUF_SZ	128
-	char    *password;	/* password for password auth */
-	char	*passphrase;	/* passphrase for private key  */
-};
+#include <mscp.h>
 
 /* ssh_init_sftp_session() creates sftp_session. sshdst accpets
  * user@hostname and hostname notations (by libssh).
  */
-sftp_session ssh_init_sftp_session(const char *sshdst, struct ssh_opts *opts);
+sftp_session ssh_init_sftp_session(const char *sshdst, struct mscp_ssh_opts *opts);
 void ssh_sftp_close(sftp_session sftp);
 
 #define sftp_ssh(sftp) (sftp)->session

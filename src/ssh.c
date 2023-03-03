@@ -11,29 +11,31 @@
 static int ssh_verify_known_hosts(ssh_session session);
 
 
-static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
-{
-	ssh_set_log_level(opts->debuglevel);
+#define is_specified(s) (strlen(s) > 0)
 
-	if (opts->login_name &&
+static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
+{
+	ssh_set_log_level(opts->debug_level);
+
+	if (is_specified(opts->login_name) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_USER, opts->login_name) < 0) {
 		pr_err("failed to set login name\n");
 		return -1;
 	}
 
-	if (opts->port &&
+	if (is_specified(opts->port) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
 		pr_err("failed to set port number\n");
 		return -1;
 	}
 
-	if (opts->identity &&
+	if (is_specified(opts->identity) &&
 	    ssh_options_set(ssh, SSH_OPTIONS_IDENTITY, opts->identity) < 0) {
 		pr_err("failed to set identity\n");
 		return -1;
 	}
 
-	if (opts->cipher) {
+	if (is_specified(opts->cipher)) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_C_S, opts->cipher) < 0) {
 			pr_err("failed to set cipher for client to server\n");
 			return -1;
@@ -44,7 +46,7 @@ static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
 		}
 	}
 
-	if (opts->hmac) {
+	if (is_specified(opts->hmac)) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_C_S, opts->hmac) < 0) {
 			pr_err("failed to set hmac for client to server\n");
 			return -1;
@@ -55,22 +57,25 @@ static int ssh_set_opts(ssh_session ssh, struct ssh_opts *opts)
 		}
 	}
 
-	if (opts->compress &&
-	    ssh_options_set(ssh, SSH_OPTIONS_COMPRESSION, "yes") < 0) {
+	if (is_specified(opts->compress) &&
+	    ssh_options_set(ssh, SSH_OPTIONS_COMPRESSION, opts->compress) < 0) {
 		pr_err("failed to enable ssh compression\n");
 		return -1;
 	}
 
-	if (opts->nodelay &&
-	    ssh_options_set(ssh, SSH_OPTIONS_NODELAY, &opts->nodelay) < 0) {
-		pr_err("failed to set nodelay\n");
-		return -1;
+	/* if NOT specified to enable Nagle's algorithm, disable it (set TCP_NODELAY) */
+	if (!opts->enable_nagle) {
+		int v = 1;
+		if (ssh_options_set(ssh, SSH_OPTIONS_NODELAY, &v) < 0) {
+			pr_err("failed to set TCP_NODELAY\n");
+			return -1;
+		}
 	}
 
 	return 0;
 }
 
-static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
+static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 {
 	int auth_bit_mask;
 	int ret;
@@ -86,21 +91,16 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 	    ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
 		return 0;
 
-	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY &&
-	    ssh_userauth_publickey_auto(ssh, NULL, opts->passphrase) == SSH_AUTH_SUCCESS)
-		return 0;
+	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
+		char *p = is_specified(opts->passphrase) ? opts->passphrase : NULL;
+		if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
+			return 0;
+	}
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
-		if (!opts->password) {
-			opts->password = malloc(PASSWORD_BUF_SZ);
-			if (!opts->password) {
-				pr_err("malloc: %s\n", strerrno());
-				return -1;
-			}
-			memset(opts->password, 0, PASSWORD_BUF_SZ);
-
-			if (ssh_getpass("Password: ", opts->password, PASSWORD_BUF_SZ,
-					0, 0) < 0) {
+		if (!is_specified(opts->password)) {
+			if (ssh_getpass("Password: ", opts->password,
+					MSCP_SSH_MAX_PASSWORD, 0, 0) < 0) {
 				return -1;
 			}
 		}
@@ -115,30 +115,22 @@ static int ssh_authenticate(ssh_session ssh, struct ssh_opts *opts)
 static int ssh_cache_passphrase(const char *prompt, char *buf, size_t len, int echo,
 				int verify, void *userdata)
 {
-	struct ssh_opts *opts = userdata;
+	struct mscp_ssh_opts *opts = userdata;
 
 	/* This function is called on the first time for importing
 	 * priv key file with passphrase. It is not called on the
 	 * second time or after because cached passphrase is passed
 	 * to ssh_userauth_publickey_auto(). */
 
-	if (opts->passphrase) {
-		/* passphrase is cached, but this function is called.
-		 * maybe it was an invalid passphrase? */
-		free(opts->passphrase);
-		opts->passphrase = NULL;
-	}
-
 	if (ssh_getpass("Passphrase: ", buf, len, echo, verify) < 0)
 		return -1;
 
 	/* cache the passphrase */
-	opts->passphrase = malloc(len);
-	if (!opts->passphrase) {
-		pr_err("malloc: %s\n", strerrno());
-		return -1;
+	if (strlen(buf) > MSCP_SSH_MAX_PASSPHRASE - 1)  {
+		pr_warn("sorry, passphrase is too long to cache...\n");
+		return 0;
 	}
-	memcpy(opts->passphrase, buf, len);
+	strncpy(opts->passphrase, buf, MSCP_SSH_MAX_PASSPHRASE);
 
 	return 0;
 }
@@ -148,7 +140,7 @@ static struct ssh_callbacks_struct cb = {
 	.userdata = NULL,
 };
 
-static ssh_session ssh_init_session(const char *sshdst, struct ssh_opts *opts)
+static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *opts)
 {
 	ssh_session ssh = ssh_new();
 
@@ -187,7 +179,7 @@ free_out:
 	return NULL;
 }
 
-sftp_session ssh_init_sftp_session(const char *sshdst, struct ssh_opts *opts)
+sftp_session ssh_init_sftp_session(const char *sshdst, struct mscp_ssh_opts *opts)
 {
 	sftp_session sftp;
 	ssh_session ssh = ssh_init_session(sshdst, opts);

@@ -18,7 +18,7 @@
 struct mscp {
 	char			*remote;	/* remote host (and uername) */
 	struct mscp_opts	*opts;
-	struct ssh_opts		ssh_opts;
+	struct mscp_ssh_opts	*ssh_opts;
 
 	int			 *cores;	/* usable cpu cores by COREMASK */
 	int			 nr_cores;	/* length of array of cores */
@@ -187,7 +187,8 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	return 0;
 }
 
-struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
+struct mscp *mscp_init(const char *remote_host,
+		       struct mscp_opts *o, struct mscp_ssh_opts *s)
 {
 	struct mscp *m;
 	int n;
@@ -198,7 +199,7 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 		return NULL;
 	}
 
-	if (validate_and_set_defaut_params(opts) < 0)
+	if (validate_and_set_defaut_params(o) < 0)
 		goto free_out;
 
 	memset(m, 0, sizeof(*m));
@@ -212,33 +213,19 @@ struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts)
 		goto free_out;
 	}
 
-	if (strlen(opts->coremask) > 0) {
-		if (expand_coremask(opts->coremask, &m->cores, &m->nr_cores) < 0)
+	if (strlen(o->coremask) > 0) {
+		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
 			goto free_out;
-		pprint(2, "usable cpu cores:");
+		pprint(1, "usable cpu cores:");
 		for (n = 0; n < m->nr_cores; n++)
 			pprint(2, " %d", m->cores[n]);
-		pprint(2, "\n");
+		pprint(1, "\n");
 	}
 
-	m->opts = opts;
-	if (non_null_string(opts->ssh_login_name))
-		m->ssh_opts.login_name = opts->ssh_login_name;
-	if (non_null_string(opts->ssh_port))
-		m->ssh_opts.port = opts->ssh_port;
-	if (non_null_string(opts->ssh_identity))
-		m->ssh_opts.identity = opts->ssh_identity;
-	if (non_null_string(opts->ssh_cipher_spec))
-		m->ssh_opts.cipher = opts->ssh_cipher_spec;
-	if (non_null_string(opts->ssh_hmac_spec))
-		m->ssh_opts.hmac = opts->ssh_hmac_spec;
+	m->opts = o;
+	m->ssh_opts = s;
 
-	m->ssh_opts.compress		= opts->ssh_compress_level;
-	m->ssh_opts.debuglevel		= opts->ssh_debug_level;
-	m->ssh_opts.no_hostkey_check	= opts->ssh_no_hostkey_check;
-	m->ssh_opts.nodelay		= opts->ssh_disable_tcp_nodely;
-
-	pprint_set_level(opts->verbose_level);
+	pprint_set_level(o->verbose_level);
 
 	return m;
 
@@ -249,7 +236,7 @@ free_out:
 
 int mscp_connect(struct mscp *m)
 {
-	m->first = ssh_init_sftp_session(m->remote, &m->ssh_opts);
+	m->first = ssh_init_sftp_session(m->remote, m->ssh_opts);
 	if (!m->first)
 		return -1;
 
@@ -385,7 +372,7 @@ int mscp_start(struct mscp *m)
 	m_local = m;
 
 	if ((n = list_count(&m->chunk_list)) < m->opts->nr_threads) {
-		pprint2("we have only %d chunk(s). "
+		pprint1("we have only %d chunk(s). "
 			"set number of connections to %d\n", n, n);
 		m->opts->nr_threads = n;
 	}
@@ -406,8 +393,8 @@ int mscp_start(struct mscp *m)
 			m->first = NULL;
 		}
 		else {
-			pprint3("connecting to %s for a copy thread...\n", m->remote);
-			t->sftp = ssh_init_sftp_session(m->remote, &m->ssh_opts);
+			pprint2("connecting to %s for a copy thread...\n", m->remote);
+			t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 			if (!t->sftp)
 				return -1;
 		}
@@ -678,7 +665,7 @@ static void print_progress_bar(double percent, char *suffix)
                          " %3d%% ", (int)floor(percent));
         }
 
-        pprint1("%s%s", buf, suffix);
+        pprint0("%s%s", buf, suffix);
 }
 
 static void print_progress(struct timeval *b, struct timeval *a,
@@ -748,7 +735,7 @@ static void mscp_stat_handler(int signum)
         } else {
                 /* called from mscp_stat_final. calculate progress from the beginning */
                 print_progress(&s.start, &s.after, s.total, 0, s.done);
-                pprint(1, "\n"); /* this is final output. */
+                pprint(0, "\n"); /* this is final output. */
         }
 }
 

@@ -17,10 +17,10 @@
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
-	       "            [-c cipher_spec] [-M hmac_spec] source ... target\n"
+	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target\n"
 	       "\n");
 
 	if (!print_help)
@@ -45,10 +45,10 @@ void usage(bool print_help) {
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
-	       "    -C                 enable compression on libssh\n"
+	       "    -C COMPRESS        enable compression: yes, no, zlib, zlib@openssh.com\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
-	       "    -N                 disable tcp nodelay (default on)\n"
+	       "    -N                 enable Nagle's algorithm (default disabled)\n"
 	       "    -h                 print this help\n"
 	       "\n");
 }
@@ -162,15 +162,17 @@ free_target_out:
 
 int main(int argc, char **argv)
 {
+	struct mscp_ssh_opts s;
 	struct mscp_opts o;
 	struct mscp *m;
 	struct target *t;
 	int ch, n, i;
 	char *remote;
 
+	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:CHdNh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:C:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -207,51 +209,55 @@ int main(int argc, char **argv)
 			/* for compatibility with scp */
 			break;
 		case 'l':
-			if (strlen(optarg) > MSCP_MAX_LOGIN_NAME - 1) {
+			if (strlen(optarg) > MSCP_SSH_MAX_LOGIN_NAME - 1) {
 				pr_err("too long login name: %s\n", optarg);
 				return -1;
 			}
-			strncpy(o.ssh_login_name, optarg, MSCP_MAX_LOGIN_NAME - 1);
+			strncpy(s.login_name, optarg, MSCP_SSH_MAX_LOGIN_NAME - 1);
 			break;
 		case 'p':
-			if (strlen(optarg) > MSCP_MAX_PORT_STR - 1) {
+			if (strlen(optarg) > MSCP_SSH_MAX_PORT_STR - 1) {
 				pr_err("too long port string: %s\n", optarg);
 				return -1;
 			}
-			strncpy(o.ssh_port, optarg, MSCP_MAX_PORT_STR);
+			strncpy(s.port, optarg, MSCP_SSH_MAX_PORT_STR);
 			break;
 		case 'i':
-			if (strlen(optarg) > MSCP_MAX_IDENTITY_PATH - 1) {
+			if (strlen(optarg) > MSCP_SSH_MAX_IDENTITY_PATH - 1) {
 				pr_err("too long identity path: %s\n", optarg);
 				return -1;
 			}
-			strncpy(o.ssh_identity, optarg, MSCP_MAX_IDENTITY_PATH);
+			strncpy(s.identity, optarg, MSCP_SSH_MAX_IDENTITY_PATH);
 			break;
 		case 'c':
-			if (strlen(optarg) > MSCP_MAX_CIPHER_STR - 1) {
+			if (strlen(optarg) > MSCP_SSH_MAX_CIPHER_STR - 1) {
 				pr_err("too long cipher string: %s\n", optarg);
 				return -1;
 			}
-			strncpy(o.ssh_cipher_spec, optarg, MSCP_MAX_CIPHER_STR);
+			strncpy(s.cipher, optarg, MSCP_SSH_MAX_CIPHER_STR);
 			break;
 		case 'M':
-			if (strlen(optarg) > MSCP_MAX_HMACP_STR - 1) {
+			if (strlen(optarg) > MSCP_SSH_MAX_HMAC_STR - 1) {
 				pr_err("too long hmac string: %s\n", optarg);
 				return -1;
 			}
-			strncpy(o.ssh_hmac_spec, optarg, MSCP_MAX_HMACP_STR);
+			strncpy(s.hmac, optarg, MSCP_SSH_MAX_HMAC_STR);
 			break;
 		case 'C':
-			o.ssh_compress_level++;
+			if (strlen(optarg) > MSCP_SSH_MAX_COMP_STR - 1) {
+				pr_err("too long compress string: %s\n", optarg);
+				return -1;
+			}
+			strncpy(s.compress, optarg, MSCP_SSH_MAX_COMP_STR);
 			break;
 		case 'H':
-			o.ssh_no_hostkey_check = true;
+			s.no_hostkey_check = true;
 			break;
 		case 'd':
-			o.ssh_debug_level++;
+			s.debug_level++;
 			break;
 		case 'N':
-			o.ssh_disable_tcp_nodely = true;
+			s.enable_nagle = true;
 			break;
 		case 'h':
 			usage(true);
@@ -282,7 +288,7 @@ int main(int argc, char **argv)
 		remote = t[i - 1].remote;
 	}
 
-	if ((m = mscp_init(remote, &o)) == NULL)
+	if ((m = mscp_init(remote, &o, &s)) == NULL)
 		return -1;
 
 	if (mscp_connect(m) < 0)

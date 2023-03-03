@@ -182,3 +182,14 @@ def test_override_dst_having_larger_size(mscp, src_prefix, dst_prefix):
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
+
+compressions = ["yes", "no", "none"]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("compress", compressions)
+def test_compression(mscp, src_prefix, dst_prefix, compress):
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst", size = 1024 * 1024 * 2).make()
+    run2ok([mscp, "-H", "-C", compress, src_prefix + src.path, dst_prefix + "dst"])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()

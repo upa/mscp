@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <pthread.h>
 
-static int pprint_level = 1;
+static int pprint_level = 0;
 
 static pthread_mutex_t pprint_lock = PTHREAD_MUTEX_INITIALIZER;
 

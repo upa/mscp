@@ -8,11 +8,6 @@
 #define MSCP_DIRECTION_R2L	2
 
 #define MSCP_MAX_COREMASK_STR	64
-#define MSCP_MAX_LOGIN_NAME	64
-#define MSCP_MAX_PORT_STR	32
-#define MSCP_MAX_IDENTITY_PATH	PATH_MAX
-#define MSCP_MAX_CIPHER_STR	32
-#define MSCP_MAX_HMACP_STR	32
 
 struct mscp_opts {
 	/* mscp options */
@@ -29,22 +24,39 @@ struct mscp_opts {
 	bool	quiet;
 	bool	dryrun;
 
+};
+
+#define MSCP_SSH_MAX_LOGIN_NAME		64
+#define MSCP_SSH_MAX_PORT_STR		32
+#define MSCP_SSH_MAX_IDENTITY_PATH	PATH_MAX
+#define MSCP_SSH_MAX_CIPHER_STR		32
+#define MSCP_SSH_MAX_HMAC_STR		32
+#define MSCP_SSH_MAX_COMP_STR		32 /* yes, no, zlib, zlib@openssh.com, none */
+#define MSCP_SSH_MAX_PASSWORD		128
+#define MSCP_SSH_MAX_PASSPHRASE		128
+
+struct mscp_ssh_opts {
 	/* ssh options */
-	char	ssh_login_name[MSCP_MAX_LOGIN_NAME];
-	char	ssh_port[MSCP_MAX_PORT_STR];
-	char	ssh_identity[MSCP_MAX_IDENTITY_PATH];
-	char	ssh_cipher_spec[MSCP_MAX_CIPHER_STR];
-	char	ssh_hmac_spec[MSCP_MAX_HMACP_STR];
-	int	ssh_debug_level;
-	int	ssh_compress_level;
-	bool	ssh_no_hostkey_check;
-	bool	ssh_disable_tcp_nodely;
+	char	login_name[MSCP_SSH_MAX_LOGIN_NAME];
+	char	port[MSCP_SSH_MAX_PORT_STR];
+	char	identity[MSCP_SSH_MAX_IDENTITY_PATH];
+	char	cipher[MSCP_SSH_MAX_CIPHER_STR];
+	char	hmac[MSCP_SSH_MAX_HMAC_STR];
+	char	compress[MSCP_SSH_MAX_COMP_STR];
+
+	char	password[MSCP_SSH_MAX_PASSWORD];
+	char	passphrase[MSCP_SSH_MAX_PASSPHRASE];
+
+	int	debug_level;
+	bool	no_hostkey_check;
+	bool	enable_nagle;
 };
 
 struct mscp;
 
 /* initialize and return a mscp instance with option validation  */
-struct mscp *mscp_init(const char *remote_host, struct mscp_opts *opts);
+struct mscp *mscp_init(const char *remote_host,
+		       struct mscp_opts *o, struct mscp_ssh_opts *s);
 
 /* establish the first SFTP session. mscp_prepare() and mscp_start()
  * requires mscp_connect() beforehand */
