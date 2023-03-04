@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <poll.h>
+#include <pthread.h>
 
 #include <mscp.h>
 #include <util.h>
@@ -168,14 +169,16 @@ free_target_out:
 
 struct mscp *m = NULL;
 int msg_fd = 0;
+pthread_t tid_stat = 0;
 
 void sigint_handler(int sig)
 {
+	if (tid_stat)
+		pthread_cancel(tid_stat);
 	mscp_stop(m);
 }
 
-int print_stat_init();
-void print_stat_final();
+void *print_stat_thread(void *arg);
 
 void print_cli(const char *fmt, ...)
 {
@@ -351,8 +354,10 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (print_stat_init() < 0)
+	if (pthread_create(&tid_stat, NULL, print_stat_thread, NULL) < 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerrno());
 		return -1;
+	}
 
 	if (signal(SIGINT, sigint_handler) == SIG_ERR) {
 		fprintf(stderr, "signal: %s\n", strerrno());
@@ -365,7 +370,8 @@ int main(int argc, char **argv)
 
 	ret = mscp_join(m);
 
-	print_stat_final();
+	pthread_cancel(tid_stat);
+	pthread_join(tid_stat, NULL);
 
 	mscp_cleanup(m);
 	mscp_free(m);
@@ -375,29 +381,6 @@ int main(int argc, char **argv)
 
 
 /* progress bar-related functions */
-
-void print_msg()
-{
-	struct pollfd x = { .fd = msg_fd, .events = POLLIN };
-	char buf[8192];
-
-	while (true) {
-		if (poll(&x, 1, 0) < 0) {
-			fprintf(stderr, "poll: %s\n", strerrno());
-			return;
-		}
-
-		if (!(x.revents & POLLIN))
-			break; /* no message */
-
-		memset(buf, 0, sizeof(buf));
-		if (read(msg_fd, buf, sizeof(buf)) < 0) {
-			fprintf(stderr, "read: %s\n", strerrno());
-			return;
-		}
-		print_cli("\r\033[K" "%s", buf);
-	}
-}
 
 double calculate_timedelta(struct timeval *b, struct timeval *a)
 {
@@ -514,15 +497,6 @@ void print_progress(struct timeval *b, struct timeval *a,
         print_progress_bar(percent, suffix);
 }
 
-void set_alarm(int msec)
-{
-	struct itimerval i;
-
-	memset(&i, 0, sizeof(i));
-	i.it_value.tv_usec = msec * 1000;
-	if (setitimer(ITIMER_REAL, &i, NULL) < 0)
-		fprintf(stderr, "setitimer: %s\n", strerrno());
-}
 
 struct xfer_stat {
         struct timeval start, before, after;
@@ -532,47 +506,61 @@ struct xfer_stat {
 };
 struct xfer_stat x;
 
-void print_stat_handler(int signum)
+void print_stat_thread_cleanup(void *arg)
 {
 	struct mscp_stats s;
 
-	print_msg();
-
+	gettimeofday(&x.after, NULL);
 	mscp_get_stats(m, &s);
 	x.total = s.total;
 	x.done = s.done;
 
-        gettimeofday(&x.after, NULL);
-        if (signum == SIGALRM) {
-		set_alarm(500);
-                print_progress(&x.before, &x.after, x.total, x.last, x.done);
-                x.before = x.after;
-                x.last = x.done;
-        } else {
-                /* called from mscp_stat_final. calculate progress from the beginning */
-                print_progress(&x.start, &x.after, x.total, 0, x.done);
-		print_cli("\n"); /* final output */
-        }
+	/* print progress from the beginning */
+	print_progress(&x.start, &x.after, x.total, 0, x.done);
+	print_cli("\n"); /* final output */
 }
 
-int print_stat_init()
+void *print_stat_thread(void *arg)
 {
+	struct pollfd pfd = { .fd = msg_fd, .events = POLLIN };
+	struct mscp_stats s;
+	char buf[8192];
+
 	memset(&x, 0, sizeof(x));
-
-        if (signal(SIGALRM, print_stat_handler) == SIG_ERR) {
-                fprintf(stderr, "signal: %s\n", strerrno());
-                return -1;
-        }
-
         gettimeofday(&x.start, NULL);
         x.before = x.start;
-	set_alarm(500);
 
-        return 0;
-}
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+        pthread_cleanup_push(print_stat_thread_cleanup, NULL);
 
-void print_stat_final()
-{
-	set_alarm(0);
-        print_stat_handler(0);
+	while (true) {
+		if (poll(&pfd, 1, 100) < 0) {
+			fprintf(stderr, "poll: %s\n", strerrno());
+			return NULL;
+		}
+
+		if (pfd.revents & POLLIN) {
+			memset(buf, 0, sizeof(buf));
+			if (read(msg_fd, buf, sizeof(buf)) < 0) {
+				fprintf(stderr, "read: %s\n", strerrno());
+				return NULL;
+			}
+			print_cli("\r\033[K" "%s", buf);
+		}
+
+		gettimeofday(&x.after, NULL);
+		if (calculate_timedelta(&x.before, &x.after) > 1) {
+			mscp_get_stats(m, &s);
+			x.total = s.total;
+			x.done = s.done;
+
+			print_progress(&x.before, &x.after, x.total, x.last, x.done);
+			x.before = x.after;
+			x.last = x.done;
+		}
+	}
+
+	pthread_cleanup_pop(1);
+	return NULL;
 }
