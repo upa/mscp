@@ -39,7 +39,7 @@ list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
 
 
-set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/pprint.c src/platform.c src/message.c)
+set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
 
 # shared libmscp
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})

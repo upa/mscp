@@ -57,6 +57,7 @@ struct mscp_ssh_opts {
 struct mscp_stats {
 	size_t total;	/* total bytes to be transferred */
 	size_t done;	/* total bytes transferred */
+	bool finished;	/* true when all copy threads finished */
 };
 
 struct mscp;
@@ -79,11 +80,14 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path);
  * files, and prepare chunks for all files. */
 int mscp_prepare(struct mscp *m);
 
-/* start to copy files */
+/* start to copy files. this function returns soon (non blocking) */
 int mscp_start(struct mscp *m);
 
 /* stop copying files */
 void mscp_stop(struct mscp *m);
+
+/* wait for copy thread join */
+int mscp_join(struct mscp *m);
 
 /* get stats */
 void mscp_get_stats(struct mscp *m, struct mscp_stats *s);

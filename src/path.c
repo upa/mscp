@@ -10,7 +10,6 @@
 #include <list.h>
 #include <atomic.h>
 #include <path.h>
-#include <pprint.h>
 #include <message.h>
 
 static int append_path(sftp_session sftp, const char *path, mstat s,
@@ -102,7 +101,7 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 	return walk_path_recursive(src_sftp, src_path, path_list);
 }
 
-static int src2dst_path(const char *src_path, const char *src_file_path,
+static int src2dst_path(int msg_fd, const char *src_path, const char *src_file_path,
 			const char *dst_path, char *dst_file_path, size_t len,
 			bool src_path_is_dir, bool dst_path_is_dir,
 			bool dst_path_should_dir)
@@ -146,19 +145,20 @@ static int src2dst_path(const char *src_path, const char *src_file_path,
 		snprintf(dst_file_path, len, "%s/%s",
 			 dst_path, src_file_path + strlen(src_path) + 1);
 
-	pprint3("file: %s -> %s\n", src_file_path, dst_file_path);
+	mpr_info(msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
 
 	return 0;
 }
 
-int resolve_dst_path(const char *src_path, const char *dst_path,
+int resolve_dst_path(int msg_fd, const char *src_path, const char *dst_path,
 		     struct list_head *path_list, bool src_path_is_dir,
 		     bool dst_path_is_dir,  bool dst_path_should_dir)
 {
 	struct path *p;
 
 	list_for_each_entry(p, path_list, list) {
-		if (src2dst_path(src_path, p->path, dst_path, p->dst_path, PATH_MAX,
+		if (src2dst_path(msg_fd, src_path, p->path,
+				 dst_path, p->dst_path, PATH_MAX,
 				 src_path_is_dir, dst_path_is_dir,
 				 dst_path_should_dir) < 0)
 			return -1;
@@ -311,7 +311,7 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         return 0;
 }
 
-int prepare_dst_path(struct path *p, sftp_session dst_sftp)
+static int prepare_dst_path(int msg_fd, struct path *p, sftp_session dst_sftp)
 {
 	int ret = 0;
 
@@ -322,7 +322,7 @@ int prepare_dst_path(struct path *p, sftp_session dst_sftp)
 			goto out;
 		}
 		p->state = FILE_STATE_OPENED;
-		pprint2("copy start: %s\n", p->path);
+		mpr_info(msg_fd, "copy start: %s\n", p->path);
 	}
 
 out:
@@ -482,7 +482,7 @@ static int _copy_chunk(struct chunk *c, mfh s, mfh d,
 	return -1;
 }
 
-int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
+int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, size_t *counter)
 {
 	mode_t mode;
@@ -492,7 +492,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 
 	assert((src_sftp && !dst_sftp) || (!src_sftp && dst_sftp));
 
-	if (prepare_dst_path(c->p, dst_sftp) < 0)
+	if (prepare_dst_path(msg_fd, c->p, dst_sftp) < 0)
 		return -1;
 
 	/* open src */
@@ -511,7 +511,14 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	if (mscp_open_is_failed(d))
 		return -1;
 
+	mpr_debug(msg_fd, "copy chunk start: %s 0x%lx-0x%lx\n",
+		  c->p->path, c->off, c->off + c->len);
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
+
+	mpr_debug(msg_fd, "copy chunk done: %s 0x%lx-0x%lx\n",
+		  c->p->path, c->off, c->off + c->len);
+
+
 	mscp_close(d);
 	mscp_close(s);
 	if (ret < 0)
@@ -520,7 +527,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	if (refcnt_dec(&c->p->refcnt) == 0) {
 		c->p->state = FILE_STATE_DONE;
 		mscp_chmod(c->p->dst_path, c->p->mode, dst_sftp);
-		pprint2("copy done: %s\n", c->p->path);
+		mpr_info(msg_fd, "copy done: %s\n", c->p->path);
 	}
 
 	return ret;

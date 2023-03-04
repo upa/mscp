@@ -8,7 +8,6 @@
 #include <util.h>       
 #include <ssh.h>                
 #include <path.h>
-#include <pprint.h>             
 #include <atomic.h>             
 #include <platform.h>
 #include <message.h>
@@ -219,10 +218,10 @@ struct mscp *mscp_init(const char *remote_host,
 	if (strlen(o->coremask) > 0) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
 			goto free_out;
-		mpr_notice(m, "usable cpu cores:");
+		mpr_notice(m->msg_fd, "usable cpu cores:");
 		for (n = 0; n < m->nr_cores; n++)
-			mpr_notice(m, "%d", m->cores[n]);
-		mpr_notice(m, "\n");
+			mpr_notice(m->msg_fd, "%d", m->cores[n]);
+		mpr_notice(m->msg_fd, "\n");
 	}
 
 	m->opts = o;
@@ -341,7 +340,7 @@ int mscp_prepare(struct mscp *m)
 		if (list_count(&tmp) > 1)
 			dst_path_should_dir = true;
 
-		if (resolve_dst_path(s->path, m->dst_path, &tmp,
+		if (resolve_dst_path(m->msg_fd, s->path, m->dst_path, &tmp,
 				     src_path_is_dir, dst_path_is_dir,
 				     dst_path_should_dir) < 0)
 			return -1;
@@ -380,7 +379,7 @@ int mscp_start(struct mscp *m)
 	int n, ret;
 
 	if ((n = list_count(&m->chunk_list)) < m->opts->nr_threads) {
-		mpr_notice(m, "we have only %d chunk(s). "
+		mpr_notice(m->msg_fd, "we have only %d chunk(s). "
 			   "set number of connections to %d\n", n, n);
 		m->opts->nr_threads = n;
 	}
@@ -401,7 +400,7 @@ int mscp_start(struct mscp *m)
 			m->first = NULL;
 		}
 		else {
-			mpr_notice(m, "connecting to %s for a copy thread...\n",
+			mpr_notice(m->msg_fd, "connecting to %s for a copy thread...\n",
 				   m->remote);
 			t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 			if (!t->sftp)
@@ -416,12 +415,17 @@ int mscp_start(struct mscp *m)
                 if (ret < 0) {
                         mscp_set_error("pthread_create error: %d", ret);
                         mscp_stop(m);
-                        ret = 1;
-                        goto join_out;
+			return -1;
                 }
         }
 
-join_out:
+	return 0;
+}
+
+int mscp_join(struct mscp *m)
+{
+	int n, ret = 0;
+
         /* waiting for threads join... */
         for (n = 0; n < m->opts->nr_threads; n++) {
                 if (m->threads[n].tid) {
@@ -431,7 +435,6 @@ join_out:
                 }
         }
 
-out:
         if (m->first) {
                 ssh_sftp_close(m->first);
 		m->first = NULL;
@@ -509,10 +512,8 @@ void *mscp_copy_thread(void *arg)
                 if (!c)
                         break; /* no more chunks */
 
-                if ((t->ret = prepare_dst_path(c->p, dst_sftp)) < 0)
-                        break;
-
-		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead,
+		if ((t->ret = copy_chunk(m->msg_fd,
+					 c, src_sftp, dst_sftp, m->opts->nr_ahead,
 					 m->opts->buf_sz, &t->done)) < 0)
 			break;
         }
@@ -590,9 +591,16 @@ void mscp_free(struct mscp *m)
 
 void mscp_get_stats(struct mscp *m, struct mscp_stats *s)
 {
+	bool finished = true;
 	int n;
+
 	s->total = m->total_bytes;
 	for (s->done = 0, n = 0; n < m->opts->nr_threads; n++) {
 		s->done += m->threads[n].done;
+
+		if (!m->threads[n].done)
+			finished = false;
 	}
+
+	s->finished = finished;
 }

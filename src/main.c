@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <limits.h>
 #include <math.h>
@@ -7,7 +8,6 @@
 #include <sys/ioctl.h>
 
 #include <mscp.h>
-#include <pprint.h>
 #include <util.h>
 
 
@@ -173,6 +173,15 @@ void sigint_handler(int sig)
 
 int print_stat_init();
 void print_stat_final();
+
+void print_cli(const char *fmt, ...)
+{
+        va_list va;
+	va_start(va, fmt);
+	vfprintf(stdout, fmt, va);
+	fflush(stdout);
+	va_end(va);
+}
 
 int main(int argc, char **argv)
 {
@@ -342,6 +351,8 @@ int main(int argc, char **argv)
 	if (ret < 0)
 		fprintf(stderr, "%s\n", mscp_get_error());
 
+	ret = mscp_join(m);
+
 	print_stat_final();
 
 	mscp_cleanup(m);
@@ -424,7 +435,7 @@ void print_progress_bar(double percent, char *suffix)
                          " %3d%% ", (int)floor(percent));
         }
 
-        pprint0("%s%s", buf, suffix);
+	print_cli("\r\033[K" "%s%s", buf, suffix);
 }
 
 void print_progress(struct timeval *b, struct timeval *a,
@@ -441,7 +452,7 @@ void print_progress(struct timeval *b, struct timeval *a,
 #define array_size(a) (sizeof(a) / sizeof(a[0]))
 
         if (total <= 0) {
-                pprint1("total 0 byte transferred");
+		print_cli("\r\033[K" "total 0 byte transferred");
                 return; /* copy 0-byte file(s) */
         }
 
@@ -474,7 +485,7 @@ struct xfer_stat {
         size_t last;
         size_t done;
 };
-__thread struct xfer_stat x;
+struct xfer_stat x;
 
 void print_stat_handler(int signum)
 {
@@ -493,7 +504,7 @@ void print_stat_handler(int signum)
         } else {
                 /* called from mscp_stat_final. calculate progress from the beginning */
                 print_progress(&x.start, &x.after, x.total, 0, x.done);
-                pprint(0, "\n"); /* this is final output. */
+		print_cli("\n"); /* final output */
         }
 }
 

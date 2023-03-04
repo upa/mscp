@@ -9,16 +9,16 @@
 void mprint_set_severity(int severity);
 void mprint(int fd, int severity, const char *fmt, ...);
 
-#define mpr_err(m, fmt, ...)						\
-	mprint(m->msg_fd, MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
-#define mpr_warn(m, fmt, ...)						\
-	mprint(m->msg_fd, MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
-#define mpr_notice(m, fmt, ...)						\
-	mprint(m->msg_fd, MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
-#define mpr_info(m, fmt, ...)						\
-	mprint(m->msg_fd, MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
-#define mpr_debug(m, fmt, ...)						\
-	mprint(m->msg_fd, MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
+#define mpr_err(fd, fmt, ...)					\
+	mprint(fd, MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
+#define mpr_warn(fd, fmt, ...)					\
+	mprint(fd, MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
+#define mpr_notice(fd, fmt, ...)				\
+	mprint(fd, MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
+#define mpr_info(fd, fmt, ...)					\
+	mprint(fd, MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
+#define mpr_debug(fd, fmt, ...)					\
+	mprint(fd, MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
 
 
 /* error message buffer */

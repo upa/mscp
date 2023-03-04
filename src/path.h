@@ -44,7 +44,7 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list);
 
 /* fill path->dst_path for all files */
-int resolve_dst_path(const char *src_path, const char *dst_path,
+int resolve_dst_path(int msg_fd, const char *src_path, const char *dst_path,
 		     struct list_head *path_list,
 		     bool src_path_is_dir, bool dst_path_is_dir,
 		     bool dst_path_should_dir);
@@ -53,11 +53,8 @@ int resolve_dst_path(const char *src_path, const char *dst_path,
 int resolve_chunk(struct list_head *path_list, struct list_head *chunk_list,
 		  int nr_conn, int min_chunk_sz, int max_chunk_sz);
 
-/* prepare dst file. mkdir -p and touch dst file */
-int prepare_dst_path(struct path *p, sftp_session dst_sftp);
-
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
-int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
+int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, size_t *counter);
 
 /* just print contents. just for debugging */
