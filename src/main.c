@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
+#include <poll.h>
 
 #include <mscp.h>
 #include <util.h>
@@ -166,6 +167,7 @@ free_target_out:
 }
 
 struct mscp *m = NULL;
+int msg_fd = 0;
 
 void sigint_handler(int sig)
 {
@@ -189,6 +191,7 @@ int main(int argc, char **argv)
 	struct mscp_ssh_opts s;
 	struct mscp_opts o;
 	struct target *t;
+	int pipe_fd[2];
 	int ch, n, i, ret;
 	char *remote;
 
@@ -313,6 +316,14 @@ int main(int argc, char **argv)
 		remote = t[i - 1].remote;
 	}
 
+	if (pipe(pipe_fd) < 0) {
+		fprintf(stderr, "pipe: %s\n", strerrno());
+		return -1;
+	}
+	msg_fd = pipe_fd[0];
+	o.msg_fd = pipe_fd[1];
+
+
 	if ((m = mscp_init(remote, &o, &s)) == NULL) {
 		fprintf(stderr, "mscp_init: %s\n", mscp_get_error());
 		return -1;
@@ -364,6 +375,29 @@ int main(int argc, char **argv)
 
 
 /* progress bar-related functions */
+
+void print_msg()
+{
+	struct pollfd x = { .fd = msg_fd, .events = POLLIN };
+	char buf[8192];
+
+	while (true) {
+		if (poll(&x, 1, 0) < 0) {
+			fprintf(stderr, "poll: %s\n", strerrno());
+			return;
+		}
+
+		if (!x.revents & POLLIN)
+			break; /* no message */
+
+		memset(buf, 0, sizeof(buf));
+		if (read(msg_fd, buf, sizeof(buf)) < 0) {
+			fprintf(stderr, "read: %s\n", strerrno());
+			return;
+		}
+		print_cli("\r\033[K" "%s", buf);
+	}
+}
 
 double calculate_timedelta(struct timeval *b, struct timeval *a)
 {
@@ -480,6 +514,16 @@ void print_progress(struct timeval *b, struct timeval *a,
         print_progress_bar(percent, suffix);
 }
 
+void set_alarm(int msec)
+{
+	struct itimerval i;
+
+	memset(&i, 0, sizeof(i));
+	i.it_value.tv_usec = msec * 1000;
+	if (setitimer(ITIMER_REAL, &i, NULL) < 0)
+		fprintf(stderr, "setitimer: %s\n", strerrno());
+}
+
 struct xfer_stat {
         struct timeval start, before, after;
         size_t total;
@@ -492,13 +536,15 @@ void print_stat_handler(int signum)
 {
 	struct mscp_stats s;
 
+	print_msg();
+
 	mscp_get_stats(m, &s);
 	x.total = s.total;
 	x.done = s.done;
 
         gettimeofday(&x.after, NULL);
         if (signum == SIGALRM) {
-                alarm(1);
+		set_alarm(500);
                 print_progress(&x.before, &x.after, x.total, x.last, x.done);
                 x.before = x.after;
                 x.last = x.done;
@@ -520,13 +566,13 @@ int print_stat_init()
 
         gettimeofday(&x.start, NULL);
         x.before = x.start;
-        alarm(1);
+	set_alarm(500);
 
         return 0;
 }
 
 void print_stat_final()
 {
-        alarm(0);
+	set_alarm(0);
         print_stat_handler(0);
 }

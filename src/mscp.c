@@ -198,13 +198,13 @@ struct mscp *mscp_init(const char *remote_host,
 		return NULL;
 	}
 
-	m->msg_fd = o->msg_fd;
 	mprint_set_severity(o->severity);
 
 	if (validate_and_set_defaut_params(o) < 0)
 		goto free_out;
 
 	memset(m, 0, sizeof(*m));
+	m->msg_fd = o->msg_fd;
 	INIT_LIST_HEAD(&m->src_list);
 	INIT_LIST_HEAD(&m->path_list);
 	INIT_LIST_HEAD(&m->chunk_list);
@@ -220,7 +220,7 @@ struct mscp *mscp_init(const char *remote_host,
 			goto free_out;
 		mpr_notice(m->msg_fd, "usable cpu cores:");
 		for (n = 0; n < m->nr_cores; n++)
-			mpr_notice(m->msg_fd, "%d", m->cores[n]);
+			mpr_notice(m->msg_fd, " %d", m->cores[n]);
 		mpr_notice(m->msg_fd, "\n");
 	}
 
