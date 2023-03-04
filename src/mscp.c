@@ -239,11 +239,6 @@ void mscp_set_msg_fd(struct mscp *m, int fd)
 	m->msg_fd = fd;
 }
 
-int mscp_get_msg_fd(struct mscp *m)
-{
-	return m->msg_fd;
-}
-
 int mscp_connect(struct mscp *m)
 {
 	m->first = ssh_init_sftp_session(m->remote, m->ssh_opts);
