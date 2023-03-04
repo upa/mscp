@@ -349,7 +349,7 @@ int mscp_prepare(struct mscp *m)
 	}
 
 	if (resolve_chunk(&m->path_list, &m->chunk_list, m->opts->nr_threads,
-			  m->opts->max_chunk_sz, m->opts->min_chunk_sz) < 0)
+			  m->opts->min_chunk_sz, m->opts->max_chunk_sz) < 0)
 		return -1;
 
 	/* save total bytes to be transferred */
