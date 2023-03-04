@@ -387,7 +387,7 @@ void print_msg()
 			return;
 		}
 
-		if (!x.revents & POLLIN)
+		if (!(x.revents & POLLIN))
 			break; /* no message */
 
 		memset(buf, 0, sizeof(buf));
