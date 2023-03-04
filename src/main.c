@@ -44,7 +44,7 @@ void usage(bool print_help) {
 	       "\n"
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
-	       "    -D                 dry run\n"
+	       "    -D                 dry run. check copy destinations with -vvv\n"
 	       "    -r                 no effect\n"
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
@@ -197,6 +197,7 @@ int main(int argc, char **argv)
 	int pipe_fd[2];
 	int ch, n, i, ret;
 	char *remote;
+	bool dryrun = false;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
@@ -234,7 +235,7 @@ int main(int argc, char **argv)
 			o.severity = MSCP_SEVERITY_NONE;
 			break;
 		case 'D':
-			o.dryrun = true;
+			dryrun = true;
 			break;
 		case 'r':
 			/* for compatibility with scp */
@@ -319,13 +320,14 @@ int main(int argc, char **argv)
 		remote = t[i - 1].remote;
 	}
 
-	if (pipe(pipe_fd) < 0) {
-		fprintf(stderr, "pipe: %s\n", strerrno());
-		return -1;
+	if (!dryrun) {
+		if (pipe(pipe_fd) < 0) {
+			fprintf(stderr, "pipe: %s\n", strerrno());
+			return -1;
+		}
+		msg_fd = pipe_fd[0];
+		o.msg_fd = pipe_fd[1];
 	}
-	msg_fd = pipe_fd[0];
-	o.msg_fd = pipe_fd[1];
-
 
 	if ((m = mscp_init(remote, &o, &s)) == NULL) {
 		fprintf(stderr, "mscp_init: %s\n", mscp_get_error());
@@ -354,6 +356,11 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	if (dryrun) {
+		ret = 0;
+		goto out;
+	}
+
 	if (pthread_create(&tid_stat, NULL, print_stat_thread, NULL) < 0) {
 		fprintf(stderr, "pthread_create: %s\n", strerrno());
 		return -1;
@@ -373,6 +380,7 @@ int main(int argc, char **argv)
 	pthread_cancel(tid_stat);
 	pthread_join(tid_stat, NULL);
 
+out:
 	mscp_cleanup(m);
 	mscp_free(m);
 
