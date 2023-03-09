@@ -129,9 +129,9 @@ include(CPack)
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
-list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky)
-list(APPEND DIST_VERS	20.04	22.04	8	8.6)
-list(APPEND DIST_PKGS	deb	deb	rpm	rpm)
+list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky	alpine)
+list(APPEND DIST_VERS	20.04	22.04	8	8.6	3.17)
+list(APPEND DIST_PKGS	deb	deb	rpm	rpm	static)
 
 list(LENGTH DIST_NAMES _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
