@@ -9,6 +9,26 @@ project(mscp
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
+if(APPLE)
+	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
+	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
+endif() # APPLE
+
+
+option(BUILD_CONAN OFF) # Build mscp with conan
+if(BUILD_CONAN)
+	message(STATUS "Build mscp with conan")
+endif()
+
+option(BUILD_STATIC OFF) # Build mscp with -static LD flag
+if (BUILD_STATIC)
+	message(STATUS "Build mscp with -static LD optiong")
+	if (NOT BUILD_CONAN)
+		message(WARNING
+			"BUILD_STATIC strongly recommended with BUILD_CONAN option")
+	endif()
+endif()
+
 
 # add libssh static library
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -16,12 +36,13 @@ set(WITH_SERVER OFF)
 set(BUILD_SHARED_LIBS OFF)
 set(WITH_EXAMPLES OFF)
 set(BUILD_STATIC_LIB ON)
+if(BUILD_CONAN)
+	message(STATUS
+		"Disable libssh GSSAPI support beucase libkrb5 doesn't exist on conan")
+	set(WITH_GSSAPI OFF)
+endif()
 add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
-if(APPLE)
-	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
-	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
-endif() # APPLE
 
 
 # mscp executable
@@ -36,9 +57,19 @@ list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include
 list(APPEND MSCP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 list(APPEND MSCP_LINK_LIBS ssh-static)
 
+if(BUILD_CONAN)
+	find_package(ZLIB REQUIRED)
+	find_package(OpenSSL REQUIRED)
+	list(APPEND MSCP_LINK_LIBS ZLIB::ZLIB)
+	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
+endif()
+
 target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp PRIVATE ${MSCP_LINK_LIBS})
+if (BUILD_STATIC)
+	target_link_options(mscp PRIVATE -static)
+endif()
 target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
