@@ -22,7 +22,7 @@ endif()
 
 option(BUILD_STATIC OFF) # Build mscp with -static LD flag
 if (BUILD_STATIC)
-	message(STATUS "Build mscp with -static LD optiong")
+	message(STATUS "Build mscp with -static LD option")
 	if (NOT BUILD_CONAN)
 		message(WARNING
 			"BUILD_STATIC strongly recommended with BUILD_CONAN option")
@@ -38,7 +38,7 @@ set(WITH_EXAMPLES OFF)
 set(BUILD_STATIC_LIB ON)
 if(BUILD_CONAN)
 	message(STATUS
-		"Disable libssh GSSAPI support beucase libkrb5 doesn't exist on conan")
+		"Disable libssh GSSAPI support because libkrb5 doesn't exist in conan")
 	set(WITH_GSSAPI OFF)
 endif()
 add_subdirectory(libssh EXCLUDE_FROM_ALL)
