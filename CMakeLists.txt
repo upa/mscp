@@ -11,6 +11,11 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 
 # add libssh static library
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(WITH_SERVER OFF)
+set(BUILD_SHARED_LIBS OFF)
+set(WITH_EXAMPLES OFF)
+set(BUILD_STATIC_LIB ON)
 add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
 if(APPLE)
@@ -30,15 +35,6 @@ set(MSCP_INCLUDE_DIRS ${mscp_SOURCE_DIR}/src)
 list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 list(APPEND MSCP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 list(APPEND MSCP_LINK_LIBS ssh-static)
-
-find_package(GSSAPI)
-list(APPEND MSCP_LINK_LIBS ${GSSAPI_LIBRARIES})
-
-find_package(OpenSSL)
-list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
-
-find_package(ZLIB)
-list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
 target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
 target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
