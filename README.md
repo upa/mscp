@@ -17,27 +17,41 @@ require anything else.
 
 https://user-images.githubusercontent.com/184632/206889149-7cc6178a-6f0f-41e6-855c-d25e15a9abc5.mp4
 
+--------------------------------------------------------------------
 
 Differences from `scp` on usage:
 
 - remote glob on remote shell expansion is not supported.
 - remote to remote copy is not supported.
-- `-r` option is not needed.
+- `-r` option is not needed to transfer directories.
 - and any other differences I have not implemented and noticed.
+
 
 
 ## Install
 
-- homebrew
+- macOS
 
 ```console
 brew install upa/tap/mscp
 ```
 
-- Linux
+- Ubuntu 22.04
+```console
+wget https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-ubuntu-22.04-x86_64.deb
+apt-get install -f ./mscp_0.0.6-ubuntu-22.04-x86_64.deb
+```
 
-Download a package for your environment from [Releases
-page](https://github.com/upa/mscp/releases).
+- Ubuntu 20.04
+```console
+wget https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-ubuntu-20.04-x86_64.deb
+apt-get install -f ./mscp_0.0.6-ubuntu-20.04-x86_64.deb
+```
+
+- Rocky 8.6
+```console
+yum install https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-rocky-8.6-x86_64.rpm
+```
 
 
 ## Build
