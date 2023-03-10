@@ -9,11 +9,11 @@ RUN cd /etc/yum.repos.d/
 RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
 RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
 
-# install numpy and pytest, sshd for test, and rpm-build
+# install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y update && yum -y install \
 	python3 python3-pip openssh openssh-server openssh-clients rpm-build
 
-RUN python3 -m pip install numpy pytest
+RUN python3 -m pip install pytest
 
 
 # preparation for sshd

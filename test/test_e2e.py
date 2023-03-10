@@ -1,6 +1,5 @@
 
 import pytest
-import numpy
 import hashlib
 import os
 

@@ -32,6 +32,7 @@ if (BUILD_STATIC)
 endif()
 
 
+
 # add libssh static library
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(WITH_SERVER OFF)
@@ -47,26 +48,30 @@ add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
 
 
-
-
-
+# setup mscp compile options
 set(MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 set(MSCP_BUILD_INCLUDE_DIRS
 	${mscp_SOURCE_DIR}/src
 	${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 
-
+set(MSCP_LINK_LIBS ssh-static)
+if(BUILD_CONAN)
+	find_package(ZLIB REQUIRED)
+	find_package(OpenSSL REQUIRED)
+	list(APPEND MSCP_LINK_LIBS ZLIB::ZLIB)
+	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
+endif()
 
 set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
 
-# shared libmscp
+# libmscp.so
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
 target_include_directories(mscp-shared
 	PUBLIC	$<BUILD_INTERFACE:${mscp_SOURCE_DIR}/include>
 		$<INSTALL_INTERFACE:include>
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS})
 target_compile_options(mscp-shared PRIVATE ${MSCP_COMPILE_OPTS})
-target_link_libraries(mscp-shared PRIVATE ssh-static)
+target_link_libraries(mscp-shared PRIVATE ${MSCP_LINK_LIBS})
 set_target_properties(mscp-shared
 	PROPERTIES
 	OUTPUT_NAME	mscp
@@ -75,12 +80,12 @@ set_target_properties(mscp-shared
 install(TARGETS mscp-shared)
 
 
-# static libmscp
+# libmscp.a
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
 target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
-target_link_libraries(mscp-static PRIVATE ssh-static)
+target_link_libraries(mscp-static PRIVATE ${MSCP_LINK_LIBS})
 set_target_properties(mscp-static
 	PROPERTIES
 	OUTPUT_NAME	mscp)
@@ -88,23 +93,12 @@ set_target_properties(mscp-static
 install(TARGETS mscp-static)
 
 
-
-set(MSCP_LINK_LIBS m pthread)
-set(MSCP_LINK_DIRS "")
-list(APPEND MSCP_LINK_LIBS ssh-static)
-
-if(BUILD_CONAN)
-	find_package(ZLIB REQUIRED)
-	find_package(OpenSSL REQUIRED)
-	list(APPEND MSCP_LINK_LIBS ZLIB::ZLIB)
-	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
-endif()
-
 # mscp executable
+list(APPEND MSCP_LINK_LIBS m pthread)
+
 add_executable(mscp src/main.c)
 target_include_directories(mscp
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
-target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp mscp-static ${MSCP_LINK_LIBS})
 if (BUILD_STATIC)
 	target_link_options(mscp PRIVATE -static)

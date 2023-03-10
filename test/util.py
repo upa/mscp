@@ -1,6 +1,5 @@
 
 import hashlib
-import numpy
 import os
 
 
@@ -39,7 +38,7 @@ class File():
 
     def make_content_random(self):
         with open(self.path, "wb") as f:
-            f.write(numpy.random.bytes(self.size))
+            f.write(os.urandom(self.size))
 
     def cleanup(self):
         os.remove(self.path)

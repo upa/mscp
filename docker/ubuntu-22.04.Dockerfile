@@ -8,11 +8,11 @@ COPY . ${mscpdir}
 RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates
 
-# install numpy and pytest, and sshd for test
+# install pytest, and sshd for test
 RUN apt-get install -y --no-install-recommends  \
         python3 python3-pip openssh-server
 
-RUN python3 -m pip install numpy pytest
+RUN python3 -m pip install pytest
 
 
 # preparation for sshd

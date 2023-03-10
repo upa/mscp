@@ -4,11 +4,11 @@ ARG mscpdir="/mscp"
 
 COPY . ${mscpdir}
 
-# install numpy and pytest, sshd for test, and rpm-build
+# install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y install \
 	python3 python3-pip openssh openssh-server openssh-clients rpm-build
 
-RUN python3 -m pip install numpy pytest
+RUN python3 -m pip install pytest
 
 
 # preparation for sshd

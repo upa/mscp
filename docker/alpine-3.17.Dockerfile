@@ -10,7 +10,7 @@ RUN apk add --no-cache \
 	gcc make cmake python3 py3-pip perl linux-headers libc-dev	\
 	openssh bash python3-dev g++
 
-RUN pip3 install conan pytest numpy
+RUN pip3 install conan pytest
 
 # Build mscp as a single binary
 RUN conan profile detect --force
