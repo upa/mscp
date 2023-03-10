@@ -62,6 +62,7 @@ set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
 target_include_directories(mscp-shared PRIVATE ${MSCP_INCLUDE_DIRS})
 target_compile_options(mscp-shared PRIVATE ${MSCP_COMPILE_OPTS})
+target_link_libraries(mscp-shared PRIVATE ssh-static)
 set_target_properties(mscp-shared
 	PROPERTIES
 	OUTPUT_NAME	mscp)
@@ -70,6 +71,7 @@ set_target_properties(mscp-shared
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static PRIVATE ${MSCP_INCLUDE_DIRS})
 target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
+target_link_libraries(mscp-static PRIVATE ssh-static)
 set_target_properties(mscp-static
 	PROPERTIES
 	OUTPUT_NAME	mscp)
