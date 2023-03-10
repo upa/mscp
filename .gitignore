@@ -1,4 +1,5 @@
 build
 html
 compile_commands.json
+CMakeUserPresets.json
 .*.swp

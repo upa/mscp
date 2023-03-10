@@ -9,33 +9,50 @@ project(mscp
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
-
-# add libssh static library
-add_subdirectory(libssh EXCLUDE_FROM_ALL)
-
 if(APPLE)
 	list(APPEND CMAKE_PREFIX_PATH /usr/local) # intel mac homebrew prefix
 	list(APPEND CMAKE_PREFIX_PATH /opt/homebrew) # arm mac homebrew prefix
 endif() # APPLE
 
 
-set(MSCP_LINK_LIBS m pthread)
-set(MSCP_LINK_DIRS "")
+option(BUILD_CONAN OFF) # Build mscp with conan
+if(BUILD_CONAN)
+	message(STATUS "Build mscp with conan")
+endif()
+
+option(BUILD_STATIC OFF) # Build mscp with -static LD flag
+if (BUILD_STATIC)
+	message(STATUS "Build mscp with -static LD option")
+	if (NOT BUILD_CONAN)
+		message(WARNING
+			"BUILD_STATIC strongly recommended with BUILD_CONAN option")
+	endif()
+endif()
+
+
+# add libssh static library
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(WITH_SERVER OFF)
+set(BUILD_SHARED_LIBS OFF)
+set(WITH_EXAMPLES OFF)
+set(BUILD_STATIC_LIB ON)
+if(BUILD_CONAN)
+	message(STATUS
+		"Disable libssh GSSAPI support because libkrb5 doesn't exist in conan")
+	set(WITH_GSSAPI OFF)
+endif()
+add_subdirectory(libssh EXCLUDE_FROM_ALL)
+
+
+
+
+
 set(MSCP_COMPILE_OPTS "")
 set(MSCP_INCLUDE_DIRS ${mscp_SOURCE_DIR}/src)
 
 list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 list(APPEND MSCP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
-list(APPEND MSCP_LINK_LIBS ssh-static)
 
-find_package(GSSAPI)
-list(APPEND MSCP_LINK_LIBS ${GSSAPI_LIBRARIES})
-
-find_package(OpenSSL)
-list(APPEND MSCP_LINK_LIBS ${OPENSSL_LIBRARIES})
-
-find_package(ZLIB)
-list(APPEND MSCP_LINK_LIBS ${ZLIB_LIBRARIES})
 
 
 
@@ -44,8 +61,6 @@ set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
 # shared libmscp
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
 target_include_directories(mscp-shared PRIVATE ${MSCP_INCLUDE_DIRS})
-target_link_directories(mscp-shared PRIVATE ${MSCP_LINK_DIRS})
-target_link_libraries(mscp-shared PRIVATE ${MSCP_LINK_LIBS})
 target_compile_options(mscp-shared PRIVATE ${MSCP_COMPILE_OPTS})
 set_target_properties(mscp-shared
 	PROPERTIES
@@ -54,18 +69,35 @@ set_target_properties(mscp-shared
 # static libmscp
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static PRIVATE ${MSCP_INCLUDE_DIRS})
-target_link_directories(mscp-static PRIVATE ${MSCP_LINK_DIRS})
-target_link_libraries(mscp-static PRIVATE ${MSCP_LINK_LIBS})
 target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
 set_target_properties(mscp-static
 	PROPERTIES
 	OUTPUT_NAME	mscp)
 
+
+
+
+set(MSCP_LINK_LIBS m pthread)
+set(MSCP_LINK_DIRS "")
+list(APPEND MSCP_LINK_LIBS ssh-static)
+
+if(BUILD_CONAN)
+	find_package(ZLIB REQUIRED)
+	find_package(OpenSSL REQUIRED)
+	list(APPEND MSCP_LINK_LIBS ZLIB::ZLIB)
+	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
+endif()
+
 # mscp executable
 add_executable(mscp src/main.c)
 target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
+target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
+target_link_libraries(mscp mscp-static ${MSCP_LINK_LIBS})
+if (BUILD_STATIC)
+	target_link_options(mscp PRIVATE -static)
+endif()
+target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
 target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
-target_link_libraries(mscp mscp-static)
 
 
 install(TARGETS mscp RUNTIME DESTINATION bin)
@@ -123,9 +155,9 @@ include(CPack)
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
-list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky)
-list(APPEND DIST_VERS	20.04	22.04	8	8.6)
-list(APPEND DIST_PKGS	deb	deb	rpm	rpm)
+list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky	alpine)
+list(APPEND DIST_VERS	20.04	22.04	8	8.6	3.17)
+list(APPEND DIST_PKGS	deb	deb	rpm	rpm	static)
 
 list(LENGTH DIST_NAMES _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
