@@ -47,12 +47,11 @@ add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
 
 
-set(MSCP_COMPILE_OPTS "")
-set(MSCP_INCLUDE_DIRS ${mscp_SOURCE_DIR}/src)
 
-list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
-list(APPEND MSCP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
-
+set(MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
+set(MSCP_BUILD_INCLUDE_DIRS
+	${mscp_SOURCE_DIR}/src
+	${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 
 
 
@@ -60,22 +59,31 @@ set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
 
 # shared libmscp
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
-target_include_directories(mscp-shared PRIVATE ${MSCP_INCLUDE_DIRS})
+target_include_directories(mscp-shared
+	PUBLIC	$<BUILD_INTERFACE:${mscp_SOURCE_DIR}/include>
+		$<INSTALL_INTERFACE:include>
+	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS})
 target_compile_options(mscp-shared PRIVATE ${MSCP_COMPILE_OPTS})
 target_link_libraries(mscp-shared PRIVATE ssh-static)
 set_target_properties(mscp-shared
 	PROPERTIES
-	OUTPUT_NAME	mscp)
+	OUTPUT_NAME	mscp
+	PUBLIC_HEADER	${mscp_SOURCE_DIR}/include/mscp.h)
+
+install(TARGETS mscp-shared)
+
 
 # static libmscp
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
-target_include_directories(mscp-static PRIVATE ${MSCP_INCLUDE_DIRS})
+target_include_directories(mscp-static
+	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
 target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
 target_link_libraries(mscp-static PRIVATE ssh-static)
 set_target_properties(mscp-static
 	PROPERTIES
 	OUTPUT_NAME	mscp)
 
+install(TARGETS mscp-static)
 
 
 
@@ -92,7 +100,8 @@ endif()
 
 # mscp executable
 add_executable(mscp src/main.c)
-target_include_directories(mscp PRIVATE ${MSCP_INCLUDE_DIRS})
+target_include_directories(mscp
+	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
 target_link_directories(mscp PRIVATE ${MSCP_LINK_DIRS})
 target_link_libraries(mscp mscp-static ${MSCP_LINK_LIBS})
 if (BUILD_STATIC)
