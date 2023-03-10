@@ -376,6 +376,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "%s\n", mscp_get_error());
 
 	ret = mscp_join(m);
+	if (ret != 0)
+		fprintf(stderr, "%s\n", mscp_get_error());
 
 	pthread_cancel(tid_stat);
 	pthread_join(tid_stat, NULL);

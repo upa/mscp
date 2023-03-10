@@ -289,12 +289,14 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 int mscp_prepare(struct mscp *m)
 {
 	sftp_session src_sftp = NULL, dst_sftp = NULL;
-	bool src_path_is_dir, dst_path_is_dir, dst_path_should_dir = false;
+	bool src_path_is_dir, dst_path_is_dir, dst_path_should_dir;
 	struct list_head tmp;
 	struct path *p;
 	struct src *s;
 	mstat ss, ds;
 	
+	src_path_is_dir = dst_path_is_dir = dst_path_should_dir = false;
+
 	switch (m->opts->direction) {
 	case MSCP_DIRECTION_L2R:
 		src_sftp = NULL;
@@ -316,8 +318,7 @@ int mscp_prepare(struct mscp *m)
 		if (mstat_is_dir(ds))
 			dst_path_is_dir = true;
 		mscp_stat_free(ds);
-	} else
-		dst_path_is_dir = false;
+	}
 
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
@@ -438,6 +439,9 @@ int mscp_join(struct mscp *m)
         if (m->threads) {
                 for (n = 0; n < m->opts->nr_threads; n++) {
                         struct mscp_thread *t = &m->threads[n];
+			if (t->ret != 0)
+				ret = ret;
+
                         if (t->sftp) {
                                 ssh_sftp_close(t->sftp);
 				t->sftp = NULL;
