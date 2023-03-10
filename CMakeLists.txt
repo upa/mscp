@@ -6,6 +6,8 @@ project(mscp
 	VERSION ${MSCP_VERSION}
 	LANGUAGES C)
 
+include(GNUInstallDirs)
+
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
