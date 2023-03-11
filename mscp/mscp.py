@@ -35,6 +35,20 @@ class mscp:
         self.dst_path = None
         self.state = _STATE_INIT
 
+    def __del__(self):
+
+        if not hasattr(self, "state"):
+            return # this instance failed on mscp_init
+
+        if self.state == _STATE_RUNNING:
+            self.stop()
+        if self.state == _STATE_STOPPED:
+            self.join()
+        if self.state == _STATE_JOINED:
+            self.cleanup()
+        if self.state == _STATE_CLEANED:
+            self.free()
+
     def _state2str(self):
         return _state_str[self.state]
 
