@@ -257,7 +257,7 @@ void mscp_set_msg_fd(struct mscp *m, int fd);
  *
  * @return 	pointer to the message.
  */
-const char *mscp_get_error();
+const char *mscp_get_error(void);
 
 
 
