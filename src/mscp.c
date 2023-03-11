@@ -15,6 +15,7 @@
 
 struct mscp {
 	char			*remote;	/* remote host (and uername) */
+	int			direction;	/* copy direction */
 	struct mscp_opts	*opts;
 	struct mscp_ssh_opts	*ssh_opts;
 
@@ -131,12 +132,6 @@ static int default_nr_threads()
 
 static int validate_and_set_defaut_params(struct mscp_opts *o)
 {
-	if (!(o->direction == MSCP_DIRECTION_L2R ||
-	      o->direction == MSCP_DIRECTION_R2L)) {
-		mscp_set_error("invalid copy direction: %d", o->direction);
-		return -1;
-	}
-
 	if (o->nr_threads < 0) {
 		mscp_set_error("invalid nr_threads: %d", o->nr_threads);
 		return -1;
@@ -186,11 +181,22 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	return 0;
 }
 
-struct mscp *mscp_init(const char *remote_host,
+struct mscp *mscp_init(const char *remote_host, int direction,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s)
 {
 	struct mscp *m;
 	int n;
+
+	if (!remote_host) {
+		mscp_set_error("empty remote host\n");
+		return NULL;
+	}
+
+	if (!(direction == MSCP_DIRECTION_L2R ||
+	      direction == MSCP_DIRECTION_R2L)) {
+		mscp_set_error("invalid copy direction: %d", direction);
+		return NULL;
+	}
 
 	m = malloc(sizeof(*m));
 	if (!m) {
@@ -204,16 +210,18 @@ struct mscp *mscp_init(const char *remote_host,
 		goto free_out;
 
 	memset(m, 0, sizeof(*m));
-	m->msg_fd = o->msg_fd;
 	INIT_LIST_HEAD(&m->src_list);
 	INIT_LIST_HEAD(&m->path_list);
 	INIT_LIST_HEAD(&m->chunk_list);
 	lock_init(&m->chunk_lock);
+
 	m->remote = strdup(remote_host);
 	if (!m->remote) {
 		mscp_set_error("failed to allocate memory: %s", strerrno());
 		goto free_out;
 	}
+	m->direction = direction;
+	m->msg_fd = o->msg_fd;
 
 	if (strlen(o->coremask) > 0) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
@@ -297,7 +305,7 @@ int mscp_prepare(struct mscp *m)
 	
 	src_path_is_dir = dst_path_is_dir = dst_path_should_dir = false;
 
-	switch (m->opts->direction) {
+	switch (m->direction) {
 	case MSCP_DIRECTION_L2R:
 		src_sftp = NULL;
 		dst_sftp = m->first;
@@ -307,7 +315,7 @@ int mscp_prepare(struct mscp *m)
 		dst_sftp = NULL;
 		break;
 	default:
-		mscp_set_error("invalid copy direction: %d", m->opts->direction);
+		mscp_set_error("invalid copy direction: %d", m->direction);
 		return -1;
 	}
 
@@ -481,7 +489,7 @@ void *mscp_copy_thread(void *arg)
 	struct mscp *m = t->m;
         struct chunk *c;
 
-        switch (m->opts->direction) {
+        switch (m->direction) {
         case MSCP_DIRECTION_L2R:
                 src_sftp = NULL;
                 dst_sftp = t->sftp;

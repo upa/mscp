@@ -37,8 +37,6 @@
  * @brief	Structure configuring mscp.
  */
 struct mscp_opts {
-	int	direction;	/** copy rirection. `MSCP_DIRECTION_*` */
-
 	int	nr_threads;	/** number of copy threads */
 	int	nr_ahead;	/** number of SFTP commands on-the-fly */
 	size_t	min_chunk_sz;	/** minimum chunk size (default 64MB) */
@@ -99,12 +97,13 @@ struct mscp;
  * @brief Creates a new mscp instance.
  *
  * @param remote_host	remote host for file transer.
+ * @param direction	copy direction, `MSCP_DIRECTION_L2R` or `MSCP_DIRECTION_R2L`
  * @param o		options for configuring mscp.
  * @param s		options for configuring ssh connections.
  *
  * @retrun 		A new mscp instance or NULL on error.
  */
-struct mscp *mscp_init(const char *remote_host,
+struct mscp *mscp_init(const char *remote_host, int direction,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s);
 
 /**

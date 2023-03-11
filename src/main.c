@@ -196,6 +196,7 @@ int main(int argc, char **argv)
 	struct target *t;
 	int pipe_fd[2];
 	int ch, n, i, ret;
+	int direction = 0;
 	char *remote;
 	bool dryrun = false;
 
@@ -312,11 +313,11 @@ int main(int argc, char **argv)
 
 	if (t[0].remote) {
 		/* copy remote to local */
-		o.direction = MSCP_DIRECTION_R2L;
+		direction = MSCP_DIRECTION_R2L;
 		remote = t[0].remote;
 	} else {
 		/* copy local to remote */
-		o.direction = MSCP_DIRECTION_L2R;
+		direction = MSCP_DIRECTION_L2R;
 		remote = t[i - 1].remote;
 	}
 
@@ -329,7 +330,7 @@ int main(int argc, char **argv)
 		o.msg_fd = pipe_fd[1];
 	}
 
-	if ((m = mscp_init(remote, &o, &s)) == NULL) {
+	if ((m = mscp_init(remote, direction, &o, &s)) == NULL) {
 		fprintf(stderr, "mscp_init: %s\n", mscp_get_error());
 		return -1;
 	}
