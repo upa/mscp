@@ -2,6 +2,57 @@
 #include <Python.h>
 #include <mscp.h>
 
+/*
+ * This is a wrapper for python binding of libmscp.  setup.py builds
+ * pymscp.c after libmscp was built, and setup.py installs pymscp
+ * modlue and mscp python module (mscp/mscp.py), which is a warpper
+ * for pymscp.
+ */
+
+#define MAX_MSCP_INSTS	16
+
+/* XXX: cut corners */
+struct mscp *insts[MAX_MSCP_INSTS];
+
+static int add_mscp_inst(struct mscp *m)
+{
+	int n;
+	for (n = 0; n < MAX_MSCP_INSTS; n++) {
+		if (insts[n] == NULL) {
+			insts[n] = m;
+			return 0;
+		}
+	}
+
+	return -1; /* full of mscp instances */
+}
+
+static struct mscp *get_mscp_inst(unsigned long long maddr)
+{
+	int n;
+	for (n = 0; n < MAX_MSCP_INSTS; n++) {
+		if (insts[n] == (void *)maddr)
+			return insts[n];
+	}
+
+	return NULL;
+}
+
+static int release_mscp_inst(struct mscp *m)
+{
+	int n;
+	for (n = 0; n < MAX_MSCP_INSTS; n++) {
+		if (insts[n] == m) {
+			insts[n] = NULL;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+
+/* wrapper functions */
+
 static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 {
 	/*
@@ -11,8 +62,10 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 
 	char *remote;
 	char *keywords[] = {
-		/* mscp_opts */
+		"remote",	/* const char * */
 		"direction",	/* int, MSCP_DIRECTION_L2R or MSCP_DIRECTION_R2L */
+
+		/* mscp_opts */
 		"nr_threads", 	/* int */
 		"nr_ahead",	/* int */
 		"min_chunk_sz",	/* unsigned long */
@@ -36,14 +89,16 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 		"enable_nagle",		/* bool */
 		NULL,
 	};
-	const char *fmt = "siiikkkzii" "zzzzzzzzipp";
-	char *coremask;
-	char *login_name, *port, *identity, *cipher, *hmac, *compress;
-	char *password, *passphrase;
+	const char *fmt = "si" "|iikkkzii" "zzzzzzzzipp";
+	char *coremask = NULL;
+	char *login_name = NULL, *port = NULL, *identity = NULL;
+	char *cipher = NULL, *hmac = NULL, *compress = NULL;
+	char *password = NULL, *passphrase = NULL;
 
-	struct mscp_opts mo;
 	struct mscp_ssh_opts so;
+	struct mscp_opts mo;
 	struct mscp *m;
+	int direction;
 	int ret;
 
 	memset(&mo, 0, sizeof(mo));
@@ -51,7 +106,7 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 	
 	ret = PyArg_ParseTupleAndKeywords(args, kw, fmt, keywords,
 					  &remote,
-					  &mo.direction,
+					  &direction,
 					  &mo.nr_threads,
 					  &mo.nr_ahead,
 					  &mo.min_chunk_sz,
@@ -68,6 +123,7 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 					  &compress,
 					  &password,
 					  &passphrase,
+					  &so.debug_level,
 					  &so.no_hostkey_check,
 					  &so.enable_nagle);
 		
@@ -75,28 +131,34 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 		return NULL;
 
 	if (coremask)
-		strncpy(mo.coremask, coremask, MSCP_MAX_COREMASK_STR);
+		strncpy(mo.coremask, coremask, MSCP_MAX_COREMASK_STR - 1);
 	if (login_name)
-		strncpy(so.login_name, login_name, MSCP_SSH_MAX_LOGIN_NAME);
+		strncpy(so.login_name, login_name, MSCP_SSH_MAX_LOGIN_NAME - 1);
 	if (port)
-		strncpy(so.port, port, MSCP_SSH_MAX_PORT_STR);
+		strncpy(so.port, port, MSCP_SSH_MAX_PORT_STR - 1);
 	if (identity)
-		strncpy(so.identity, identity, MSCP_SSH_MAX_IDENTITY_PATH);
+		strncpy(so.identity, identity, MSCP_SSH_MAX_IDENTITY_PATH - 1);
 	if (cipher)
-		strncpy(so.cipher, cipher, MSCP_SSH_MAX_CIPHER_STR);
+		strncpy(so.cipher, cipher, MSCP_SSH_MAX_CIPHER_STR - 1);
 	if (hmac)
-		strncpy(so.hmac, hmac, MSCP_SSH_MAX_HMAC_STR);
+		strncpy(so.hmac, hmac, MSCP_SSH_MAX_HMAC_STR - 1);
 	if (compress)
-		strncpy(so.compress, compress, MSCP_SSH_MAX_COMP_STR);
+		strncpy(so.compress, compress, MSCP_SSH_MAX_COMP_STR - 1);
 	if (password)
-		strncpy(so.password, password, MSCP_SSH_MAX_PASSWORD);
+		strncpy(so.password, password, MSCP_SSH_MAX_PASSWORD - 1);
 	if (passphrase)
-		strncpy(so.passphrase, passphrase, MSCP_SSH_MAX_PASSPHRASE);
+		strncpy(so.passphrase, passphrase, MSCP_SSH_MAX_PASSPHRASE - 1);
 
 	
-	m = mscp_init(remote, &mo, &so);
+	m = mscp_init(remote, direction, &mo, &so);
 	if (!m)
 		return NULL;
+
+	if (add_mscp_inst(m) < 0) {
+		PyErr_Format(PyExc_RuntimeError, "too many mscp isntances");
+		mscp_free(m);
+		return NULL;
+	}
 
 	return Py_BuildValue("K", (unsigned long long)m);
 }
@@ -110,7 +172,12 @@ static PyObject *wrap_mscp_connect(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_connect(m) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -129,7 +196,12 @@ static PyObject *wrap_mscp_add_src_path(PyObject *self, PyObject *args, PyObject
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ks", keywords, &maddr, &src_path))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_add_src_path(m, src_path) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -148,7 +220,12 @@ static PyObject *wrap_mscp_set_dst_path(PyObject *self, PyObject *args, PyObject
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ks", keywords, &maddr, &dst_path))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_set_dst_path(m, dst_path) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -166,7 +243,12 @@ static PyObject *wrap_mscp_prepare(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_prepare(m) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -184,7 +266,12 @@ static PyObject *wrap_mscp_start(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_start(m) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -202,7 +289,12 @@ static PyObject *wrap_mscp_stop(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	mscp_stop(m);
 
 	return Py_BuildValue("");
@@ -217,7 +309,12 @@ static PyObject *wrap_mscp_join(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	if (mscp_join(m) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
@@ -236,7 +333,12 @@ static PyObject *wrap_mscp_get_stats(PyObject *self, PyObject *args, PyObject *k
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	mscp_get_stats(m, &s);
 
 	return Py_BuildValue("KKd", s.total, s.done, s.finished);
@@ -251,7 +353,12 @@ static PyObject *wrap_mscp_cleanup(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
 	mscp_cleanup(m);
 
 	return Py_BuildValue("");
@@ -266,13 +373,19 @@ static PyObject *wrap_mscp_free(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "K", keywords, &maddr))
 		return NULL;
 
-	m = (void *)maddr;
+	m = get_mscp_inst(maddr);
+	if (!m) {
+		PyErr_Format(PyExc_RuntimeError, "invalid mscp address");
+		return NULL;
+	}
+
+	release_mscp_inst(m);
 	mscp_free(m);
 
 	return Py_BuildValue("");
 }
 
-static PyMethodDef PyMscpMethods[] = {
+static PyMethodDef pymscpMethods[] = {
 	{
 		"mscp_init", (PyCFunction)wrap_mscp_init,
 		METH_VARARGS | METH_KEYWORDS, NULL
@@ -317,15 +430,25 @@ static PyMethodDef PyMscpMethods[] = {
 		"mscp_free", (PyCFunction)wrap_mscp_free,
 		METH_VARARGS | METH_KEYWORDS, NULL
 	},
-
 	{ NULL, NULL, 0, NULL },
 };
 
-static PyModuleDef PyMscpModule = {
-	PyModuleDef_HEAD_INIT, "PyMscp", NULL, -1, PyMscpMethods,
+static PyModuleDef pymscpModule = {
+	PyModuleDef_HEAD_INIT, "pymscp", NULL, -1, pymscpMethods,
 };
 
-PyMODINIT_FUNC PyInit_PyMscp(void) {
-	return PyModule_Create(&PyMscpModule);
+PyMODINIT_FUNC PyInit_pymscp(void) {
+	PyObject *mod = PyModule_Create(&pymscpModule);
+
+	PyModule_AddIntConstant(mod, "LOCAL2REMOTE",	MSCP_DIRECTION_L2R);
+	PyModule_AddIntConstant(mod, "REMOTE2LOCAL",	MSCP_DIRECTION_R2L);
+	PyModule_AddIntConstant(mod, "SEVERITY_NONE",	MSCP_SEVERITY_NONE);
+	PyModule_AddIntConstant(mod, "SEVERITY_ERR",	MSCP_SEVERITY_ERR);
+	PyModule_AddIntConstant(mod, "SEVERITY_WARN",	MSCP_SEVERITY_WARN);
+	PyModule_AddIntConstant(mod, "SEVERITY_NOTICE",	MSCP_SEVERITY_NOTICE);
+	PyModule_AddIntConstant(mod, "SEVERITY_INFO",	MSCP_SEVERITY_INFO);
+	PyModule_AddIntConstant(mod, "SEVERITY_DEBUG",	MSCP_SEVERITY_DEBUG);
+
+	return mod;
 }
 

@@ -1,7 +1,15 @@
-from distutils.core import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 setup(
-    name='pymscp',
+    name='mscp',
+    version = "0.0.1",
+    description = "libmscp python binding",
+    author = "Ryo Nakamura",
+    author_email = "upa@haeena.net",
+    url = "https://github.com/upa/mscp",
+    packages = find_packages("mscp"),
+    package_dir = {"": "mscp"},
+    py_modules = [ "mscp" ],
     ext_modules = [
         Extension(
             'pymscp',

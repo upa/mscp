@@ -3,3 +3,7 @@ html
 compile_commands.json
 CMakeUserPresets.json
 .*.swp
+
+dist
+*.egg-info
+__pycache__
