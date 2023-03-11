@@ -208,16 +208,21 @@ int mscp_join(struct mscp *m);
 void mscp_get_stats(struct mscp *m, struct mscp_stats *s);
 
 /**
- * @brief Cleanup the mscp instance. Before calling mscp_cleanup(), must
- * call mscp_join(). After mscp_cleanup() called, the mscp instance
- * can restart from mscp_connect().
+ * @brief Cleanup the mscp instance. Before calling mscp_cleanup(),
+ * must call mscp_join(). After mscp_cleanup() called, the mscp
+ * instance can restart from mscp_connect(). Note that do not call
+ * mscp_cleanup() before callign mscp_join(). It causes crash (ToDo:
+ * check status of copy threads and return error when they are
+ * running).
  *
  * @param m		mscp instance.
  */
 void mscp_cleanup(struct mscp *m);
 
 /**
- * @brief Release the mscp instance.
+ * @brief Release the mscp instance.  Note that do not call *
+ mscp_free() before calling mscp_join(). It causes crash (ToDo: check
+ * status of copy threads and return error when they are running).
  *
  * @param m		mscp instance.
  */
