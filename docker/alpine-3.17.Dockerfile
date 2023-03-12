@@ -24,8 +24,7 @@ RUN cd ${mscpdir}							\
 		-DBUILD_CONAN=ON -DBUILD_STATIC=ON			\
 	&& make								\
 	&& cp mscp /usr/bin/						\
-	&& cp mscp /mscp/build/mscp_$(cat ${mscpdir}/VERSION)-alpine-3.17-x86_64.static	\
-	&& cp mscp /mscp/build/mscp.linux.x86.static
+	&& cp mscp /mscp/build/mscp_alpine-3.17-x86_64.static
 
 # copy mscp to PKG FILE NAME because this build doesn't use CPACK
 

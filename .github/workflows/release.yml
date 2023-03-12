@@ -24,11 +24,6 @@ jobs:
       - name: install build dependency
         run: sudo ./scripts/install-build-deps.sh
 
-      - name: Set variables
-        run: |
-          VER=$(cat VERSION)
-          echo "VERSION=$VER" >> $GITHUB_ENV
-
       - name: Configure Cmake
         run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
@@ -41,15 +36,19 @@ jobs:
       - name: Retrieve packages from containers
         run: make -C ${{github.workspace}}/build docker-pkg-all
 
+      - name: Copy mscp single binary built inside Alpine
+        run: cp ${{github.workspace}}/build/mscp_alpine-3.17-x86_64.static ${{github.workspace}}/build/mscp.linux.x86.static
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-20.04-x86_64.deb
-            ${{github.workspace}}/build/mscp_${{env.VERSION}}-ubuntu-22.04-x86_64.deb
-            ${{github.workspace}}/build/mscp_${{env.VERSION}}-centos-8-x86_64.rpm
-            ${{github.workspace}}/build/mscp_${{env.VERSION}}-rocky-8.6-x86_64.rpm
-            ${{github.workspace}}/build/mscp_${{env.VERSION}}-apline-3.17-x86_64.static
+            ${{github.workspace}}/build/mscp_ubuntu-20.04-x86_64.deb
+            ${{github.workspace}}/build/mscp_ubuntu-22.04-x86_64.deb
+            ${{github.workspace}}/build/mscp_centos-8-x86_64.rpm
+            ${{github.workspace}}/build/mscp_rocky-8.6-x86_64.rpm
+            ${{github.workspace}}/build/mscp_alpine-3.17-x86_64.static
+            ${{github.workspace}}/build/mscp.linux.x86.static
 
   source-release:
     runs-on: ubuntu-latest
