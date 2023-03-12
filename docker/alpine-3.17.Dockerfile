@@ -21,10 +21,11 @@ RUN cd ${mscpdir}							\
 	&& cmake ..							\
 		-DCMAKE_BUILD_TYPE=Release				\
 		-DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake		\
-		-DBUILD_STATIC=ON -DBUILD_CONAN=ON			\
+		-DBUILD_CONAN=ON -DBUILD_STATIC=ON			\
 	&& make								\
 	&& cp mscp /usr/bin/						\
-	&& cp mscp /mscp/build/mscp_0.0.6-alpine-3.17-x86_64.static
+	&& cp mscp /mscp/build/mscp_$(cat ${mscpdir}/VERSION)-alpine-3.17-x86_64.static	\
+	&& cp mscp /mscp/build/mscp.linux.x86.static
 
 # copy mscp to PKG FILE NAME because this build doesn't use CPACK
 
@@ -33,3 +34,12 @@ RUN ssh-keygen -A
 RUN  mkdir /var/run/sshd        \
         && ssh-keygen -f /root/.ssh/id_rsa -N ""                \
         && mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+
+# install mscp python module
+RUN cd ${mscpdir}	\
+	&& python3 setup.py install --user
+
+# Need Fix: A trick putting libmscp.so to python mscp module dir does not work on alpine,
+# so install libmscp.
+RUN cd ${mscpdir}/build	\
+	&& make install

@@ -6,7 +6,7 @@ COPY . ${mscpdir}
 
 # install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y install \
-	python3 python3-pip openssh openssh-server openssh-clients rpm-build
+	python3 python3-pip python3-devel openssh openssh-server openssh-clients rpm-build
 
 RUN python3 -m pip install pytest
 
@@ -28,4 +28,8 @@ RUN cd ${mscpdir}			\
 	&& make				\
 	&& cpack -G RPM CPackConfig.cmake \
 	&& rpm -iv *.rpm
+
+# install mscp python module
+RUN cd ${mscpdir}	\
+	&& python3 setup.py install --user
 

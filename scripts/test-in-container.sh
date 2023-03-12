@@ -13,5 +13,7 @@ if [ ! -e /var/run/sshd.pid ]; then
 	/usr/sbin/sshd
 fi
 
+ssh-keyscan localhost >> ${HOME}/.ssh/known_hosts
+
 # Run test
 python3 -m pytest ../test -v

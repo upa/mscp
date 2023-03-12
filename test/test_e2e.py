@@ -1,6 +1,9 @@
 
+"""
+test_e2e.py: End-to-End test for mscp executable.
+"""
+
 import pytest
-import hashlib
 import os
 
 from subprocess import check_call, CalledProcessError, PIPE

@@ -10,7 +10,7 @@ RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
 
 # install pytest, and sshd for test
 RUN apt-get install -y --no-install-recommends  \
-        python3 python3-pip openssh-server
+        python3 python3-pip python3-dev openssh-server
 
 RUN python3 -m pip install pytest
 
@@ -33,3 +33,8 @@ RUN cd ${mscpdir}			\
 	&& make				\
 	&& cpack -G DEB CPackConfig.cmake \
 	&& dpkg -i *.deb
+
+# install mscp python module
+RUN cd ${mscpdir}	\
+	&& python3 setup.py install --user
+
