@@ -14,6 +14,7 @@ setup(
     url = "https://github.com/upa/mscp",
     packages = find_packages("mscp"),
     package_dir = {"": "mscp"},
+    data_files = [ ("", ["build/libmscp.so"])],
     py_modules = [ "mscp" ],
     ext_modules = [
         Extension(

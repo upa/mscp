@@ -6,7 +6,7 @@
 #include <mscp.h>
 
 /*
- * This is a wrapper for python binding of libmscp.  setup.py builds
+ * This is a wrapper for python binding of libmscp. setup.py builds
  * pymscp.c after libmscp was built, and setup.py installs pymscp
  * modlue and mscp python module (mscp/mscp.py), which is a warpper
  * for pymscp.

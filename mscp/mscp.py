@@ -1,5 +1,32 @@
 
-import pymscp
+_retry_import_pymscp = False
+
+try:
+    import pymscp
+except ImportError:
+    _retry_import_pymscp = True
+
+if _retry_import_pymscp:
+    """
+    libmscp.so is not installed on system library paths. So retry to
+    import libmscp.so installed on the mscp python module directory.
+    """
+    import os
+    import ctypes
+    mscp_dir = os.path.dirname(__file__)
+    ctypes.cdll.LoadLibrary("{}/libmscp.so".format(mscp_dir))
+    import pymscp
+
+
+# inherit static values from pymscp
+LOCAL2REMOTE    = pymscp.LOCAL2REMOTE
+REMOTE2LOCAL    = pymscp.REMOTE2LOCAL
+SEVERITY_NONE   = pymscp.SEVERITY_NONE
+SEVERITY_ERR    = pymscp.SEVERITY_ERR
+SEVERITY_WARN   = pymscp.SEVERITY_WARN
+SEVERITY_NOTICE = pymscp.SEVERITY_NOTICE
+SEVERITY_INFO   = pymscp.SEVERITY_INFO
+SEVERITY_DEBUG  = pymscp.SEVERITY_DEBUG
 
 _STATE_INIT      = 0
 _STATE_CONNECTED = 1
@@ -27,6 +54,8 @@ class mscp:
         """
         See src/pymscp.c:wrap_mscp_init() to determine keyword arguments.
         """
+        self.remote = remote
+        self.direction = direction
         kwargs["remote"] = remote
         kwargs["direction"] = direction
         self.m = pymscp.mscp_init(**kwargs)
@@ -34,6 +63,12 @@ class mscp:
         self.src_paths = []
         self.dst_path = None
         self.state = _STATE_INIT
+
+    def __str__(self):
+        return "mscp:{}:{}".format(self.remote, self._state2str())
+
+    def __repr__(self):
+        return "<{}>".format(str(self))
 
     def __del__(self):
 
@@ -46,7 +81,7 @@ class mscp:
             self.join()
 
         self.cleanup()
-        self.free()
+        self.release()
 
     def _state2str(self):
         return _state_str[self.state]
@@ -100,16 +135,16 @@ class mscp:
         return pymscp.mscp_get_stats(m = self.m)
 
     def cleanup(self):
-        if self.state != _STATE_JOINED:
+        if self.state == _STATE_RUNNING:
             raise RuntimeError("invalid mscp state: {}".format(self._state2str()))
         pymscp.mscp_cleanup(m = self.m)
         self.state = _STATE_CLEANED
 
-    def free(self):
+    def release(self):
         if self.state != _STATE_CLEANED:
             raise RuntimeError("invalid mscp state: {}".format(self._state2str()))
         pymscp.mscp_free(m = self.m)
-
+        self.state = _STATE_RELEASED
 
     # Simple interface: mscp.copy(src, dst)
     def copy(self, src, dst, nonblock = False):
