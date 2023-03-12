@@ -1,8 +1,13 @@
 from setuptools import setup, Extension, find_packages
+import os
+
+mypackage_root_dir = os.path.dirname(__file__)
+with open(os.path.join(mypackage_root_dir, 'VERSION')) as version_file:
+    version = version_file.read().strip()
 
 setup(
     name='mscp',
-    version = "0.0.1",
+    version = version,
     description = "libmscp python binding",
     author = "Ryo Nakamura",
     author_email = "upa@haeena.net",
