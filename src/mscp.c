@@ -571,6 +571,11 @@ static void free_chunk(struct list_head *list)
 
 void mscp_cleanup(struct mscp *m)
 {
+        if (m->first) {
+                ssh_sftp_close(m->first);
+		m->first = NULL;
+	}
+
 	release_list(&m->src_list, free_src);
 	INIT_LIST_HEAD(&m->src_list);
 

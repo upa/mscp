@@ -44,10 +44,9 @@ class mscp:
             self.stop()
         if self.state == _STATE_STOPPED:
             self.join()
-        if self.state == _STATE_JOINED:
-            self.cleanup()
-        if self.state == _STATE_CLEANED:
-            self.free()
+
+        self.cleanup()
+        self.free()
 
     def _state2str(self):
         return _state_str[self.state]
