@@ -132,7 +132,7 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
                 snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
                          a->dst_path, src_file_path + strlen(a->src_path) + 1);
 
-        mpr_info(a->msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
+        mpr_debug(a->msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
 
         return 0;
 }
