@@ -98,12 +98,12 @@ of libssh. So you can start from cmake with it.
 
 ```console
 $ mscp
-mscp v0.0.5: copy files over multiple ssh connections
+mscp v0.0.7: copy files over multiple ssh connections
 
-Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
+Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
             [-l login_name] [-p port] [-i identity_file]
-            [-c cipher_spec] [-M hmac_spec] source ... target
+            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target
 ```
 
 - Example: copy a 15GB file on memory over a 100Gbps link
@@ -124,43 +124,41 @@ $ mscp -n 5 -m 0x1f -c aes128-gcm@openssh.com /var/ram/test.img 10.0.0.1:/var/ra
 - `-v` option increments verbose output level.
 
 ```console
-$ mscp test 10.0.0.1:
-[======================================] 100%   26B /26B     6.3KB/s  00:00 ETA
+$ mscp test 10.0.0.: 
+[=======================================] 100%   49B /49B   198.8B/s   00:00 ETA
 ```
 
 ```console
 $ mscp -vv test 10.0.0.1:
-number of connections: 7
-connecting to 10.0.0.1 for checking destinations...
-file test/testdir/asdf (local) -> ./test/testdir/asdf (remote) 9B
-file test/testdir/qwer (local) -> ./test/testdir/qwer (remote) 5B
-file test/test1 (local) -> ./test/test1 (remote) 6B
-file test/test2 (local) -> ./test/test2 (remote) 6B
+file: test/test1 -> ./test/test1
+file: test/testdir/asdf -> ./test/testdir/asdf
+file: test/testdir/qwer -> ./test/testdir/qwer
+file: test/test2 -> ./test/test2
 we have only 4 chunk(s). set number of connections to 4
-connecting to 10.0.0.1 for a copy thread...
-connecting to 10.0.0.1 for a copy thread...
-connecting to 10.0.0.1 for a copy thread...
+connecting to localhost for a copy thread...
+connecting to localhost for a copy thread...
+connecting to localhost for a copy thread...
 copy start: test/test1
 copy start: test/test2
-copy done: test/test1
 copy start: test/testdir/asdf
-copy done: test/test2
 copy start: test/testdir/qwer
+copy done: test/test1
+copy done: test/test2
 copy done: test/testdir/qwer
 copy done: test/testdir/asdf
-[======================================] 100%   26B /26B     5.2KB/s  00:00 ETA
+[=======================================] 100%   49B /49B   198.1B/s   00:00 ETA
 ```
 
 - Full usage
 
 ```console
 $ mscp -h
-mscp v0.0.6: copy files over multiple ssh connections
+mscp v0.0.7: copy files over multiple ssh connections
 
-Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
+Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
             [-l login_name] [-p port] [-i identity_file]
-            [-c cipher_spec] [-M hmac_spec] source ... target
+            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target
 
     -n NR_CONNECTIONS  number of connections (default: floor(log(cores)*2)+1)
     -m COREMASK        hex value to specify cores where threads pinned
@@ -172,7 +170,7 @@ Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
 
     -v                 increment verbose output level
     -q                 disable output
-    -D                 dry run
+    -D                 dry run. check copy destinations with -vvv
     -r                 no effect
 
     -l LOGIN_NAME      login name
@@ -180,10 +178,10 @@ Usage: mscp [vqDCHdNh] [-n nr_conns] [-m coremask]
     -i IDENTITY        identity file for public key authentication
     -c CIPHER          cipher spec
     -M HMAC            hmac spec
-    -C                 enable compression on libssh
+    -C COMPRESS        enable compression: yes, no, zlib, zlib@openssh.com
     -H                 disable hostkey check
     -d                 increment ssh debug output level
-    -N                 disable tcp nodelay (default on)
+    -N                 enable Nagle's algorithm (default disabled)
     -h                 print this help
 ```
 
