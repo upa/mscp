@@ -554,5 +554,20 @@ static inline int list_count(struct list_head *head)
 }
 
 
+/**
+ * list_free_f - free items in a list with a function
+ * @head	the heaf for your list.
+ * @f           function that releases an item in the list.
+ */
+static inline void list_free_f(struct list_head *head, void (*f)(struct list_head *))
+{
+	struct list_head *p, *n;
+
+        list_for_each_safe(p, n, head) {
+                list_del(p);
+                f(p);
+        }
+}
+
 #endif
 

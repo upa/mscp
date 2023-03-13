@@ -12,8 +12,201 @@
 #include <path.h>
 #include <message.h>
 
+
+/* util */
+static int get_page_mask(void)
+{
+        long page_sz = sysconf(_SC_PAGESIZE);
+        size_t page_mask = 0;
+        int n;
+
+        for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
+                page_mask <<= 1;
+                page_mask |= 1;
+        }
+
+        return page_mask >> 1;
+}
+
+
+/* chunk pool operations */
+#define CHUNK_POOL_STATE_ADDING 0
+#define CHUNK_POOL_STATE_DONE   1
+
+void chunk_pool_init(struct chunk_pool *cp)
+{
+	memset(cp, 0, sizeof(*cp));
+	INIT_LIST_HEAD(&cp->list);
+	lock_init(&cp->lock);
+	cp->state = CHUNK_POOL_STATE_ADDING;
+}
+
+static void chunk_pool_add(struct chunk_pool *cp, struct chunk *c)
+{
+	LOCK_ACQUIRE_THREAD(&cp->lock);
+	list_add_tail(&c->list, &cp->list);
+	LOCK_RELEASE_THREAD();
+}
+
+void chunk_pool_done(struct chunk_pool *cp)
+{
+	cp->state = CHUNK_POOL_STATE_DONE;
+}
+
+int chunk_pool_size(struct chunk_pool *cp)
+{
+	int n;
+	LOCK_ACQUIRE_THREAD(&cp->lock);
+	n = list_count(&cp->list);
+	LOCK_RELEASE_THREAD();
+	return n;
+}
+
+struct chunk *chunk_pool_pop(struct chunk_pool *cp)
+{
+	struct list_head *first = cp->list.next;
+	struct chunk *c = NULL;
+
+	LOCK_ACQUIRE_THREAD(&cp->lock);
+	if (list_empty(&cp->list)) {
+		if (cp->state == CHUNK_POOL_STATE_ADDING)
+			c = CHUNK_POP_WAIT;
+		else
+			c = NULL; /* no more chunks */
+	} else {
+		c = list_entry(first, struct chunk, list);
+		list_del(first);
+	}
+	LOCK_RELEASE_THREAD();
+
+	/* return CHUNK_POP_WAIT would be very rare case, because it
+	 * means copying over SSH is faster than traversing
+	 * local/remote file paths.
+	 */
+
+	return c;
+}
+
+static void chunk_free(struct list_head *list)
+{
+        struct chunk *c;
+        c = list_entry(list, typeof(*c), list);
+        free(c);
+}
+
+void chunk_pool_release(struct chunk_pool *cp)
+{
+	list_free_f(&cp->list, chunk_free);
+}
+
+/* paths of copy source resoltion */
+static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
+			    struct path_resolve_args *a)
+{
+        char copy[PATH_MAX];
+        char *prefix;
+        int offset;
+
+        strncpy(copy, a->src_path, PATH_MAX - 1);
+        prefix = dirname(copy);
+        if (!prefix) {
+                mscp_set_error("dirname: %s", strerrno());
+                return -1;
+        }
+        if (strlen(prefix) == 1 && prefix[0] == '.')
+                offset = 0;
+        else
+                offset = strlen(prefix) + 1;
+
+        if (!a->src_path_is_dir && !a->dst_path_is_dir) {
+                /* src path is file. dst path is (1) file, or (2) does not exist.
+                 * In the second case, we need to put src under the dst.
+                 */
+                if (a->dst_path_should_dir)
+                        snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
+                                 a->dst_path, a->src_path + offset);
+                else
+                        strncpy(dst_file_path, a->dst_path, PATH_MAX - 1);
+        }
+
+        /* src is file, and dst is dir */
+        if (!a->src_path_is_dir && a->dst_path_is_dir)
+                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
+			 a->dst_path, a->src_path + offset);
+
+        /* both are directory */
+        if (a->src_path_is_dir && a->dst_path_is_dir)
+                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
+			 a->dst_path, src_file_path + offset);
+
+        /* dst path does not exist. change dir name to dst_path */
+        if (a->src_path_is_dir && !a->dst_path_is_dir)
+                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
+                         a->dst_path, src_file_path + strlen(a->src_path) + 1);
+
+        mpr_info(a->msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
+
+        return 0;
+}
+
+/* chunk preparation */
+static struct chunk *alloc_chunk(struct path *p)
+{
+        struct chunk *c;
+
+        if (!(c = malloc(sizeof(*c)))) {
+                mscp_set_error("malloc %s", strerrno());
+                return NULL;
+        }
+        memset(c, 0, sizeof(*c));
+
+        c->p = p;
+        c->off = 0;
+        c->len = 0;
+        refcnt_inc(&p->refcnt);
+        return c;
+}
+
+static int resolve_chunk(struct path *p, struct path_resolve_args *a)
+{
+        struct chunk *c;
+        size_t page_mask;
+        size_t chunk_sz;
+        size_t size;
+
+        page_mask = get_page_mask();
+
+        if (p->size <= a->min_chunk_sz)
+                chunk_sz = p->size;
+        else if (a->max_chunk_sz)
+                chunk_sz = a->max_chunk_sz;
+        else {
+                chunk_sz = (p->size - (p->size % a->nr_conn)) / a->nr_conn;
+                chunk_sz &= ~page_mask; /* align with page_sz */
+                if (chunk_sz <= a->min_chunk_sz)
+                        chunk_sz = a->min_chunk_sz;
+        }
+
+        /* for (size = f->size; size > 0;) does not create a file
+         * (chunk) when file size is 0. This do {} while (size > 0)
+         * creates just open/close a 0-byte file.
+         */
+        size = p->size;
+        do {
+                c = alloc_chunk(p);
+                if (!c)
+                        return -1;
+                c->off = p->size - size;
+                c->len = size < chunk_sz ? size : chunk_sz;
+                size -= c->len;
+                chunk_pool_add(a->cp, c);
+        } while (size > 0);
+
+        return 0;
+}
+
 static int append_path(sftp_session sftp, const char *path, mstat s,
-		       struct list_head *path_list)
+		       struct list_head *path_list, struct path_resolve_args *a)
 {
 	struct path *p;
 
@@ -29,9 +222,22 @@ static int append_path(sftp_session sftp, const char *path, mstat s,
 	p->mode = mstat_mode(s);
 	p->state = FILE_STATE_INIT;
 	lock_init(&p->lock);
+
+	if (resolve_dst_path(p->path, p->dst_path, a) < 0)
+		goto free_out;
+
+	if (resolve_chunk(p, a) < 0)
+		return -1; /* XXX: do not free path becuase chunk(s)
+			    * was added to chunk pool already */
+
 	list_add_tail(&p->list, path_list);
+	*a->total_bytes += p->size;
 
 	return 0;
+
+free_out:
+	free(p);
+	return -1;
 }
 
 static bool check_path_should_skip(const char *path)
@@ -45,7 +251,7 @@ static bool check_path_should_skip(const char *path)
 }
 
 static int walk_path_recursive(sftp_session sftp, const char *path,
-			       struct list_head *path_list)
+			       struct list_head *path_list, struct path_resolve_args *a)
 {
 	char next_path[PATH_MAX];
 	mdirent *e;
@@ -58,7 +264,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 
 	if (mstat_is_regular(s)) {
 		/* this path is regular file. it is to be copied */
-		ret = append_path(sftp, path, s, path_list);
+		ret = append_path(sftp, path, s, path_list, a);
 		mscp_stat_free(s);
 		return ret;
 	}
@@ -85,7 +291,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			return -1;
 		}
 		snprintf(next_path, sizeof(next_path), "%s/%s", path, mdirent_name(e));
-		ret = walk_path_recursive(sftp, next_path, path_list);
+		ret = walk_path_recursive(sftp, next_path, path_list, a);
 		if (ret < 0)
 			return ret;
 	}
@@ -96,75 +302,9 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 }
 
 int walk_src_path(sftp_session src_sftp, const char *src_path,
-		  struct list_head *path_list)
+		  struct list_head *path_list, struct path_resolve_args *a)
 {
-	return walk_path_recursive(src_sftp, src_path, path_list);
-}
-
-static int src2dst_path(int msg_fd, const char *src_path, const char *src_file_path,
-			const char *dst_path, char *dst_file_path, size_t len,
-			bool src_path_is_dir, bool dst_path_is_dir,
-			bool dst_path_should_dir)
-{
-	char copy[PATH_MAX];
-	char *prefix;
-	int offset;
-
-	strncpy(copy, src_path, PATH_MAX - 1);
-	prefix = dirname(copy);
-	if (!prefix) {
-		mscp_set_error("dirname: %s", strerrno());
-		return -1;
-	}
-	if (strlen(prefix) == 1 && prefix[0] == '.')
-		offset = 0;
-	else
-		offset = strlen(prefix) + 1;
-
-	if (!src_path_is_dir && !dst_path_is_dir) {
-		/* src path is file. dst path is (1) file, or (2) does not exist.
-		 * In the second case, we need to put src under the dst.
-		 */
-		if (dst_path_should_dir)
-			snprintf(dst_file_path, len, "%s/%s",
-				 dst_path, src_path + offset);
-		else
-			strncpy(dst_file_path, dst_path, len);
-	}
-
-	/* src is file, and dst is dir */
-	if (!src_path_is_dir && dst_path_is_dir)
-		snprintf(dst_file_path, len, "%s/%s", dst_path, src_path + offset);
-
-	/* both are directory */
-	if (src_path_is_dir && dst_path_is_dir)
-		snprintf(dst_file_path, len, "%s/%s", dst_path, src_file_path + offset);
-
-	/* dst path does not exist. change dir name to dst_path */
-	if (src_path_is_dir && !dst_path_is_dir)
-		snprintf(dst_file_path, len, "%s/%s",
-			 dst_path, src_file_path + strlen(src_path) + 1);
-
-	mpr_info(msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
-
-	return 0;
-}
-
-int resolve_dst_path(int msg_fd, const char *src_path, const char *dst_path,
-		     struct list_head *path_list, bool src_path_is_dir,
-		     bool dst_path_is_dir,  bool dst_path_should_dir)
-{
-	struct path *p;
-
-	list_for_each_entry(p, path_list, list) {
-		if (src2dst_path(msg_fd, src_path, p->path,
-				 dst_path, p->dst_path, PATH_MAX,
-				 src_path_is_dir, dst_path_is_dir,
-				 dst_path_should_dir) < 0)
-			return -1;
-	}
-
-	return 0;
+	return walk_path_recursive(src_sftp, src_path, path_list, a);
 }
 
 void path_dump(struct list_head *path_list)
@@ -177,90 +317,6 @@ void path_dump(struct list_head *path_list)
 	}
 }
 	
-/* chunk preparation */
-
-static struct chunk *alloc_chunk(struct path *p)
-{
-        struct chunk *c;
-
-        if (!(c = malloc(sizeof(*c)))) {
-                mscp_set_error("malloc %s", strerrno());
-                return NULL;
-        }
-        memset(c, 0, sizeof(*c));
-
-        c->p = p;
-        c->off = 0;
-        c->len = 0;
-        refcnt_inc(&p->refcnt);
-        return c;
-}
-
-static int get_page_mask(void)
-{
-        long page_sz = sysconf(_SC_PAGESIZE);
-        size_t page_mask = 0;
-        int n;
-
-        for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
-                page_mask <<= 1;
-                page_mask |= 1;
-        }
-
-        return page_mask >> 1;
-}
-
-int resolve_chunk(struct list_head *path_list, struct list_head *chunk_list,
-		  int nr_conn, int min_chunk_sz, int max_chunk_sz)
-{
-        struct chunk *c;
-        struct path *p;
-        size_t page_mask;
-        size_t chunk_sz;
-        size_t size;
-
-        page_mask = get_page_mask();
-
-        list_for_each_entry(p, path_list, list) {
-                if (p->size <= min_chunk_sz)
-                        chunk_sz = p->size;
-                else if (max_chunk_sz)
-                        chunk_sz = max_chunk_sz;
-                else {
-                        chunk_sz = (p->size - (p->size % nr_conn)) / nr_conn;
-                        chunk_sz &= ~page_mask; /* align with page_sz */
-                        if (chunk_sz <= min_chunk_sz)
-                                chunk_sz = min_chunk_sz;
-                }
-
-                /* for (size = f->size; size > 0;) does not create a
-                 * file (chunk) when file size is 0. This do {} while
-                 * (size > 0) creates just open/close a 0-byte file.
-                 */
-                size = p->size;
-                do {
-                        c = alloc_chunk(p);
-                        if (!c)
-                                return -1;
-                        c->off = p->size - size;
-                        c->len = size < chunk_sz ? size : chunk_sz;
-                        size -= c->len;
-                        list_add_tail(&c->list, chunk_list);
-                } while (size > 0);
-        }
-
-        return 0;
-}
-
-void chunk_dump(struct list_head *chunk_list)
-{
-	struct chunk *c;
-
-	list_for_each_entry(c, chunk_list, list) {
-		printf("chunk: %s 0x%lx-%lx bytes\n",
-		       c->p->path, c->off, c->off + c->len);
-	}
-}
 
 
 /* based on

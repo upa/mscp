@@ -100,10 +100,14 @@ class mscp:
         self.state = STATE_CONNECTED
 
     def add_src_path(self, src_path: str):
+        if type(src_path) != str:
+            raise ValueError("src_path must be str: {}".format(src_path))
         self.src_paths.append(src_path)
         pymscp.mscp_add_src_path(m = self.m, src_path = src_path)
 
     def set_dst_path(self, dst_path: str):
+        if type(dst_path) != str:
+            raise ValueError("dst_path must be str: {}".format(dst_path))
         self.dst_path = dst_path
         pymscp.mscp_set_dst_path(m = self.m, dst_path = dst_path);
 
@@ -112,7 +116,7 @@ class mscp:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         if not self.src_paths:
             raise RuntimeError("src path list is empty")
-        if not self.dst_path:
+        if self.dst_path == None:
             raise RuntimeError("dst path is not set")
 
         pymscp.mscp_prepare(m = self.m)

@@ -29,7 +29,7 @@ struct path {
 #define FILE_STATE_DONE         2
 
 struct chunk {
-	struct list_head	list;	/* mscp->chunk_list */
+	struct list_head	list;	/* chunk_pool->list */
 
 	struct path *p;
 	size_t	off;	/* offset of this chunk on the file on path p */
@@ -37,21 +37,55 @@ struct chunk {
 	size_t	done;	/* copied bytes for this chunk by a thread */
 };
 
+struct chunk_pool {
+        struct list_head        list; /* list of struct chunk */
+        lock                    lock;
+        int                     state;
+};
 
+
+/* initialize chunk pool */
+void chunk_pool_init(struct chunk_pool *cp);
+
+/* acquire a chunk from pool. return value is NULL indicates no more
+ * chunk, GET_CHUNK_WAIT means caller should waits until a chunk is
+ * added, or pointer to chunk.
+ */
+struct chunk *chunk_pool_pop(struct chunk_pool *cp);
+#define CHUNK_POP_WAIT ((void *) -1)
+
+/* set adding chunks to this pool has finished */
+void chunk_pool_done(struct chunk_pool *cp);
+
+/* return number of chunks in the pool */
+int chunk_pool_size(struct chunk_pool *cp);
+
+/* free chunks in the chunk_pool */
+void chunk_pool_release(struct chunk_pool *cp);
+
+
+
+struct path_resolve_args {
+        int     msg_fd;
+	size_t	*total_bytes;
+
+        /* args to resolve src path to dst path */
+        const char      *src_path;
+        const char      *dst_path;
+        bool            src_path_is_dir;
+        bool            dst_path_is_dir;
+        bool            dst_path_should_dir;
+
+        /* args to resolve chunks for a path */
+        struct chunk_pool *cp;
+        int             nr_conn;
+        size_t          min_chunk_sz;
+        size_t          max_chunk_sz;
+};
 
 /* recursivly walk through src_path and fill path_list for each file */
 int walk_src_path(sftp_session src_sftp, const char *src_path,
-		  struct list_head *path_list);
-
-/* fill path->dst_path for all files */
-int resolve_dst_path(int msg_fd, const char *src_path, const char *dst_path,
-		     struct list_head *path_list,
-		     bool src_path_is_dir, bool dst_path_is_dir,
-		     bool dst_path_should_dir);
-
-/* resolve chunks from files in the path_list */
-int resolve_chunk(struct list_head *path_list, struct list_head *chunk_list,
-		  int nr_conn, int min_chunk_sz, int max_chunk_sz);
+		  struct list_head *path_list, struct path_resolve_args *a);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
 int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
@@ -59,8 +93,6 @@ int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session 
 
 /* just print contents. just for debugging */
 void path_dump(struct list_head *path_list);
-void chunk_dump(struct list_head *chunk_list);
-
 
 
 
