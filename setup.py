@@ -1,9 +1,15 @@
 from setuptools import setup, Extension, find_packages
+import sys
 import os
 
 mypackage_root_dir = os.path.dirname(__file__)
 with open(os.path.join(mypackage_root_dir, 'VERSION')) as version_file:
     version = version_file.read().strip()
+
+if sys.platform == "linux":
+    libmscp = "libmscp.so"
+elif sys.platform == "darwin":
+    libmscp = "libmscp.dylib"
 
 setup(
     name='mscp',
@@ -14,7 +20,7 @@ setup(
     url = "https://github.com/upa/mscp",
     packages = find_packages("mscp"),
     package_dir = {"": "mscp"},
-    data_files = [ ("", ["build/libmscp.so"])],
+    data_files = [ ("", ["build/" + libmscp])],
     py_modules = [ "mscp" ],
     ext_modules = [
         Extension(
