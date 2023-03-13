@@ -35,24 +35,24 @@ SEVERITY_NOTICE = pymscp.SEVERITY_NOTICE
 SEVERITY_INFO   = pymscp.SEVERITY_INFO
 SEVERITY_DEBUG  = pymscp.SEVERITY_DEBUG
 
-__STATE_INIT      = 0
-__STATE_CONNECTED = 1
-__STATE_PREPARED  = 2
-__STATE_RUNNING   = 3
-__STATE_STOPPED   = 4
-__STATE_JOINED    = 5
-__STATE_CLEANED   = 6
-__STATE_RELEASED  = 7
+STATE_INIT      = 0
+STATE_CONNECTED = 1
+STATE_PREPARED  = 2
+STATE_RUNNING   = 3
+STATE_STOPPED   = 4
+STATE_JOINED    = 5
+STATE_CLEANED   = 6
+STATE_RELEASED  = 7
 
 _state_str = {
-    __STATE_INIT:      "init",
-    __STATE_CONNECTED: "connected",
-    __STATE_PREPARED:  "prepared",
-    __STATE_RUNNING:   "running",
-    __STATE_STOPPED:   "stopped",
-    __STATE_JOINED:    "joined",
-    __STATE_CLEANED:   "cleaned",
-    __STATE_RELEASED:  "released",
+    STATE_INIT:      "init",
+    STATE_CONNECTED: "connected",
+    STATE_PREPARED:  "prepared",
+    STATE_RUNNING:   "running",
+    STATE_STOPPED:   "stopped",
+    STATE_JOINED:    "joined",
+    STATE_CLEANED:   "cleaned",
+    STATE_RELEASED:  "released",
 }
 
 
@@ -68,7 +68,7 @@ class mscp:
 
         self.src_paths = []
         self.dst_path = None
-        self.state = __STATE_INIT
+        self.state = STATE_INIT
 
     def __str__(self):
         return "mscp:{}:{}".format(self.remote, self.__state2str())
@@ -81,9 +81,9 @@ class mscp:
         if not hasattr(self, "state"):
             return # this instance failed on mscp_init
 
-        if self.state == __STATE_RUNNING:
+        if self.state == STATE_RUNNING:
             self.stop()
-        if self.state == __STATE_STOPPED:
+        if self.state == STATE_STOPPED:
             self.join()
 
         self.cleanup()
@@ -94,10 +94,10 @@ class mscp:
 
 
     def connect(self):
-        if not (self.state == __STATE_INIT or state.state == __STATE_CLEANED):
+        if not (self.state == STATE_INIT or state.state == STATE_CLEANED):
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_connect(m = self.m)
-        self.state = __STATE_CONNECTED
+        self.state = STATE_CONNECTED
 
     def add_src_path(self, src_path: str):
         self.src_paths.append(src_path)
@@ -108,7 +108,7 @@ class mscp:
         pymscp.mscp_set_dst_path(m = self.m, dst_path = dst_path);
 
     def prepare(self):
-        if self.state != __STATE_CONNECTED:
+        if self.state != STATE_CONNECTED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         if not self.src_paths:
             raise RuntimeError("src path list is empty")
@@ -116,45 +116,45 @@ class mscp:
             raise RuntimeError("dst path is not set")
 
         pymscp.mscp_prepare(m = self.m)
-        self.state = __STATE_PREPARED
+        self.state = STATE_PREPARED
 
     def start(self):
-        if self.state != __STATE_PREPARED:
+        if self.state != STATE_PREPARED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
 
         pymscp.mscp_start(m = self.m)
-        self.state = __STATE_RUNNING
+        self.state = STATE_RUNNING
 
     def stop(self):
-        if self.state != __STATE_RUNNING:
+        if self.state != STATE_RUNNING:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_stop(m = self.m)
-        self.state = __STATE_STOPPED
+        self.state = STATE_STOPPED
 
     def join(self):
-        if not (self.state == __STATE_RUNNING or self.state == __STATE_STOPPED):
+        if not (self.state == STATE_RUNNING or self.state == STATE_STOPPED):
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_join(m = self.m)
-        self.state = __STATE_JOINED
+        self.state = STATE_JOINED
 
     def stats(self):
         return pymscp.mscp_get_stats(m = self.m)
 
     def cleanup(self):
-        if self.state == __STATE_RUNNING:
+        if self.state == STATE_RUNNING:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_cleanup(m = self.m)
-        self.state = __STATE_CLEANED
+        self.state = STATE_CLEANED
 
     def release(self):
-        if self.state != __STATE_CLEANED:
+        if self.state != STATE_CLEANED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_free(m = self.m)
-        self.state = __STATE_RELEASED
+        self.state = STATE_RELEASED
 
     # Simple interface: mscp.copy(src, dst)
     def copy(self, src, dst, nonblock = False):
-        if self.state < __STATE_CONNECTED:
+        if self.state < STATE_CONNECTED:
             self.connect()
 
         if type(src) == list:

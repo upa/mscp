@@ -12,7 +12,7 @@
  * for pymscp.
  */
 
-#define MAX_MSCP_INSTS	16
+#define MAX_MSCP_INSTS	64
 
 /* XXX: cut corners */
 struct instance {
