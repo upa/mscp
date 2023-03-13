@@ -294,6 +294,20 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 	return 0;
 }
 
+static int get_page_mask(void)
+{
+        long page_sz = sysconf(_SC_PAGESIZE);
+        size_t page_mask = 0;
+        int n;
+
+        for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
+                page_mask <<= 1;
+                page_mask |= 1;
+        }
+
+        return page_mask >> 1;
+}
+
 static void mscp_stop_copy_thread(struct mscp *m)
 {
 	int n;
@@ -341,10 +355,11 @@ void *mscp_prepare_thread(void *arg)
 		goto err_out;
 	}
 
+	/* initialize path_resolve_args */
 	memset(&a, 0, sizeof(a));
 	a.msg_fd = m->msg_fd;
 	a.total_bytes = &m->total_bytes;
-	a.nr_conn = m->opts->nr_threads;
+
 	if (list_count(&m->src_list) > 1)
 		a.dst_path_should_dir = true;
 
@@ -353,6 +368,12 @@ void *mscp_prepare_thread(void *arg)
 			a.dst_path_is_dir = true;
 		mscp_stat_free(ds);
 	}
+
+	a.cp = &m->cp;
+	a.nr_conn = m->opts->nr_threads;
+	a.min_chunk_sz = m->opts->min_chunk_sz;
+	a.max_chunk_sz = m->opts->max_chunk_sz;
+	a.chunk_align = get_page_mask();
 
 	mpr_info(m->msg_fd, "start to walk source path(s)\n");
 
@@ -364,17 +385,11 @@ void *mscp_prepare_thread(void *arg)
 			goto err_out;
 		}
 
-		/* fill path_resolve_args */
+		/* set path specific args */
 		a.src_path = s->path;
 		a.dst_path = m->dst_path;
 		a.src_path_is_dir = mstat_is_dir(ss);
-
-		a.cp = &m->cp;
-		a.min_chunk_sz = m->opts->min_chunk_sz;
-		a.max_chunk_sz = m->opts->max_chunk_sz;
-
 		mscp_stat_free(ss);
-
 
 		INIT_LIST_HEAD(&tmp);
 		if (walk_src_path(src_sftp, s->path, &tmp, &a) < 0)

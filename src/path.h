@@ -83,6 +83,7 @@ struct path_resolve_args {
         int             nr_conn;
         size_t          min_chunk_sz;
         size_t          max_chunk_sz;
+	size_t		chunk_align;
 };
 
 /* recursivly walk through src_path and fill path_list for each file */

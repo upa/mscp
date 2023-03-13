@@ -13,22 +13,6 @@
 #include <message.h>
 
 
-/* util */
-static int get_page_mask(void)
-{
-        long page_sz = sysconf(_SC_PAGESIZE);
-        size_t page_mask = 0;
-        int n;
-
-        for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
-                page_mask <<= 1;
-                page_mask |= 1;
-        }
-
-        return page_mask >> 1;
-}
-
-
 /* chunk pool operations */
 #define CHUNK_POOL_STATE_FILLING	0
 #define CHUNK_POOL_STATE_FILLED		1
@@ -174,11 +158,8 @@ static struct chunk *alloc_chunk(struct path *p)
 static int resolve_chunk(struct path *p, struct path_resolve_args *a)
 {
         struct chunk *c;
-        size_t page_mask;
         size_t chunk_sz;
         size_t size;
-
-        page_mask = get_page_mask();
 
         if (p->size <= a->min_chunk_sz)
                 chunk_sz = p->size;
@@ -186,7 +167,7 @@ static int resolve_chunk(struct path *p, struct path_resolve_args *a)
                 chunk_sz = a->max_chunk_sz;
         else {
                 chunk_sz = (p->size - (p->size % a->nr_conn)) / a->nr_conn;
-                chunk_sz &= ~page_mask; /* align with page_sz */
+                chunk_sz &= ~a->chunk_align; /* align with page_sz */
                 if (chunk_sz <= a->min_chunk_sz)
                         chunk_sz = a->min_chunk_sz;
         }
