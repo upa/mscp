@@ -39,6 +39,7 @@ struct chunk {
 
 struct chunk_pool {
         struct list_head        list; /* list of struct chunk */
+	size_t			count;
         lock                    lock;
         int                     state;
 };
@@ -54,11 +55,12 @@ void chunk_pool_init(struct chunk_pool *cp);
 struct chunk *chunk_pool_pop(struct chunk_pool *cp);
 #define CHUNK_POP_WAIT ((void *) -1)
 
-/* set adding chunks to this pool has finished */
-void chunk_pool_done(struct chunk_pool *cp);
+/* set and check fillingchunks to this pool has finished */
+void chunk_pool_set_filled(struct chunk_pool *cp);
+bool chunk_pool_is_filled(struct chunk_pool *cp);
 
 /* return number of chunks in the pool */
-int chunk_pool_size(struct chunk_pool *cp);
+size_t chunk_pool_size(struct chunk_pool *cp);
 
 /* free chunks in the chunk_pool */
 void chunk_pool_release(struct chunk_pool *cp);
@@ -166,6 +168,14 @@ static mdirent *mscp_readdir(mdir *d)
         else
                 e.l = readdir(d->l);
         return &e;
+}
+
+static void mscp_dirent_free(mdirent *e)
+{
+	if (e->r) {
+		sftp_attributes_free(e->r);
+		e->r = NULL;
+	}
 }
 
 /* wrap retriving error */

@@ -358,7 +358,7 @@ int main(int argc, char **argv)
 	}
 
 	if (dryrun) {
-		ret = 0;
+		ret = mscp_prepare_join(m);
 		goto out;
 	}
 

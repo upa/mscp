@@ -30,46 +30,50 @@ static int get_page_mask(void)
 
 
 /* chunk pool operations */
-#define CHUNK_POOL_STATE_ADDING 0
-#define CHUNK_POOL_STATE_DONE   1
+#define CHUNK_POOL_STATE_FILLING	0
+#define CHUNK_POOL_STATE_FILLED		1
 
 void chunk_pool_init(struct chunk_pool *cp)
 {
 	memset(cp, 0, sizeof(*cp));
 	INIT_LIST_HEAD(&cp->list);
 	lock_init(&cp->lock);
-	cp->state = CHUNK_POOL_STATE_ADDING;
+	cp->state = CHUNK_POOL_STATE_FILLING;
 }
 
 static void chunk_pool_add(struct chunk_pool *cp, struct chunk *c)
 {
 	LOCK_ACQUIRE_THREAD(&cp->lock);
 	list_add_tail(&c->list, &cp->list);
+	cp->count += 1;
 	LOCK_RELEASE_THREAD();
 }
 
-void chunk_pool_done(struct chunk_pool *cp)
+void chunk_pool_set_filled(struct chunk_pool *cp)
 {
-	cp->state = CHUNK_POOL_STATE_DONE;
+	cp->state = CHUNK_POOL_STATE_FILLED;
 }
 
-int chunk_pool_size(struct chunk_pool *cp)
+bool chunk_pool_is_filled(struct chunk_pool *cp)
 {
-	int n;
-	LOCK_ACQUIRE_THREAD(&cp->lock);
-	n = list_count(&cp->list);
-	LOCK_RELEASE_THREAD();
-	return n;
+	return (cp->state == CHUNK_POOL_STATE_FILLED);
 }
+
+size_t chunk_pool_size(struct chunk_pool *cp)
+{
+	return cp->count;
+}
+
 
 struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 {
-	struct list_head *first = cp->list.next;
+	struct list_head *first;
 	struct chunk *c = NULL;
 
 	LOCK_ACQUIRE_THREAD(&cp->lock);
+	first = cp->list.next;
 	if (list_empty(&cp->list)) {
-		if (cp->state == CHUNK_POOL_STATE_ADDING)
+		if (!chunk_pool_is_filled(cp))
 			c = CHUNK_POP_WAIT;
 		else
 			c = NULL; /* no more chunks */
@@ -283,15 +287,19 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		return -1;
 	
 	for (e = mscp_readdir(d); !mdirent_is_null(e); e = mscp_readdir(d)) {
-		if (check_path_should_skip(mdirent_name(e)))
+		if (check_path_should_skip(mdirent_name(e))) {
+			mscp_dirent_free(e);
 			continue;
+		}
 		
 		if (strlen(path) + 1 + strlen(mdirent_name(e)) > PATH_MAX) {
 			mscp_set_error("too long path: %s/%s", path, mdirent_name(e));
+			mscp_dirent_free(e);
 			return -1;
 		}
 		snprintf(next_path, sizeof(next_path), "%s/%s", path, mdirent_name(e));
 		ret = walk_path_recursive(sftp, next_path, path_list, a);
+		mscp_dirent_free(e);
 		if (ret < 0)
 			return ret;
 	}
@@ -339,10 +347,13 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 
 		mstat s;
 		if (mscp_stat(path, &s, sftp) == 0) {
-			if (mstat_is_dir(s))
+			if (mstat_is_dir(s)) {
+				mscp_stat_free(s);
 				goto next; /* directory exists. go deeper */
-			else
+			} else {
+				mscp_stat_free(s);
 				return -1; /* path exists, but not directory. */
+			}
 		}
 
 		if (mscp_stat_check_err_noent(sftp) == 0) {

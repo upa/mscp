@@ -155,7 +155,7 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path);
 /**
  * @brief Prepare for file transfer. This function checks all source
  * files (recursively), resolve paths on the destination side, and
- * calculate file chunks.
+ * calculate file chunks. This function is non-blocking.
  *
  * @param m	mscp instance.
  *
@@ -163,6 +163,17 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path);
  *              mscp_get_error() can be used to retrieve error message.
  */
 int mscp_prepare(struct mscp *m);
+
+/**
+ * @brief Join prepare thread invoked by mscp_prepare(). mscp_join()
+ * involves this, so that mscp_prepare_join() should be called when
+ * mscp_prepare() is called by mscp_start() is not.
+ *
+ * @param m	mscp instance.
+ * @return	0 on success, < 0 if an error occured.
+ *		mscp_get_error() can be used to retrieve error message.
+ */
+int mscp_prepare_join(struct mscp *m);
 
 /**
  * @brief Start to copy files. mscp_start() returns immediately. You
