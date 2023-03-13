@@ -36,23 +36,30 @@ Differences from `scp` on usage:
 brew install upa/tap/mscp
 ```
 
+- Linux with single binary `mscp` (x86_64 only)
+```console
+wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86.static -O /usr/local/bin/mscp
+chmod 755 /usr/local/bin/mscp
+```
+
+### Package Install
+
 - Ubuntu 22.04
 ```console
-wget https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-ubuntu-22.04-x86_64.deb
-apt-get install -f ./mscp_0.0.6-ubuntu-22.04-x86_64.deb
+wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-22.04-x86_64.deb
+apt-get install -f ./mscp_ubuntu-22.04-x86_64.deb
 ```
 
 - Ubuntu 20.04
 ```console
-wget https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-ubuntu-20.04-x86_64.deb
-apt-get install -f ./mscp_0.0.6-ubuntu-20.04-x86_64.deb
+wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-20.04-x86_64.deb
+apt-get install -f ./mscp_ubuntu-20.04-x86_64.deb
 ```
 
 - Rocky 8.6
 ```console
-yum install https://github.com/upa/mscp/releases/download/v0.0.6/mscp_0.0.6-rocky-8.6-x86_64.rpm
+yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.6-x86_64.rpm
 ```
-
 
 ## Build
 
