@@ -13,7 +13,7 @@
 #include <message.h>
 #include <mscp.h>
 
-struct ssh_connect_flag {
+struct ssh_estab_queue {
 	lock		lock;
 	struct timeval	enter;
 	long		delay;	/* msec */
@@ -32,32 +32,32 @@ static long timeval_sub(struct timeval a, struct timeval b)
 	return sec * 1000000 + usec;
 }
 
-static void ssh_connect_flag_init(struct ssh_connect_flag *f)
+static void ssh_estab_queue_init(struct ssh_estab_queue *q)
 {
-	memset(f, 0, sizeof(f));
-	lock_init(&f->lock);
-	f->delay = 10000; /* To be configurable */
+	memset(q, 0, sizeof(q));
+	lock_init(&q->lock);
+	q->delay = 10000; /* To be configurable */
 }
 
-static void ssh_connect_ready(struct ssh_connect_flag *f)
+static void ssh_estab_queue_ready(struct ssh_estab_queue *q)
 {
 	struct timeval now;
 	long delta;
 
-	LOCK_ACQUIRE_THREAD(&f->lock);
-	if (f->enter.tv_sec == 0 && f->enter.tv_usec == 0) {
+	LOCK_ACQUIRE_THREAD(&q->lock);
+	if (q->enter.tv_sec == 0 && q->enter.tv_usec == 0) {
 		/* I'm the first one. */
 		goto ready;
 	}
 
 	gettimeofday(&now, NULL);
-	delta = timeval_sub(now, f->enter);
-	if (delta <= f->delay) {
+	delta = timeval_sub(now, q->enter);
+	if (delta <= q->delay) {
 		/* wait until enter + delay time */
-		usleep(f->delay - delta);
+		usleep(q->delay - delta);
 	}
 ready:
-	gettimeofday(&f->enter, NULL);
+	gettimeofday(&q->enter, NULL);
 	LOCK_RELEASE_THREAD();
 }
 
@@ -74,7 +74,7 @@ struct mscp {
 	int			*cores;		/* usable cpu cores by COREMASK */
 	int			nr_cores;	/* length of array of cores */
 
-	struct ssh_connect_flag	ssh_flag;
+	struct ssh_estab_queue	ssh_queue;
 
 	sftp_session		first;		/* first sftp session */
 
@@ -270,7 +270,7 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	INIT_LIST_HEAD(&m->src_list);
 	INIT_LIST_HEAD(&m->path_list);
 	chunk_pool_init(&m->cp);
-	ssh_connect_flag_init(&m->ssh_flag);
+	ssh_estab_queue_init(&m->ssh_queue);
 
 	m->remote = strdup(remote_host);
 	if (!m->remote) {
@@ -590,7 +590,7 @@ void *mscp_copy_thread(void *arg)
 		}
         }
 
-	ssh_connect_ready(&m->ssh_flag);
+	ssh_estab_queue_ready(&m->ssh_queue);
 	mpr_notice(m->msg_fd, "connecting to %s for a copy thread...\n", m->remote);
 	t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 	if (!t->sftp) {
