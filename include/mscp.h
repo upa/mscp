@@ -256,15 +256,6 @@ enum {
 };
 
 
-/**
- * @brief Set a file descriptor for receiving messages from mscp.
- * This function has the same effect with setting mscp_opts->msg_fd.
- *
- * @param m	mscp instance.
- * @param fd	fd to which libmscp writes messages.
- */
-void mscp_set_msg_fd(struct mscp *m, int fd);
-
 
 /**
  * @brief Get the recent error message from libmscp. Note that this

@@ -132,7 +132,7 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
                 snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
                          a->dst_path, src_file_path + strlen(a->src_path) + 1);
 
-        mpr_debug(a->msg_fd, "file: %s -> %s\n", src_file_path, dst_file_path);
+        mpr_debug(a->msg_fp, "file: %s -> %s\n", src_file_path, dst_file_path);
 
         return 0;
 }
@@ -359,7 +359,7 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         return 0;
 }
 
-static int prepare_dst_path(int msg_fd, struct path *p, sftp_session dst_sftp)
+static int prepare_dst_path(FILE *msg_fp, struct path *p, sftp_session dst_sftp)
 {
 	int ret = 0;
 
@@ -370,7 +370,7 @@ static int prepare_dst_path(int msg_fd, struct path *p, sftp_session dst_sftp)
 			goto out;
 		}
 		p->state = FILE_STATE_OPENED;
-		mpr_info(msg_fd, "copy start: %s\n", p->path);
+		mpr_info(msg_fp, "copy start: %s\n", p->path);
 	}
 
 out:
@@ -530,7 +530,8 @@ static int _copy_chunk(struct chunk *c, mfh s, mfh d,
 	return -1;
 }
 
-int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
+int copy_chunk(FILE *msg_fp, struct chunk *c,
+	       sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, size_t *counter)
 {
 	mode_t mode;
@@ -540,7 +541,7 @@ int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session 
 
 	assert((src_sftp && !dst_sftp) || (!src_sftp && dst_sftp));
 
-	if (prepare_dst_path(msg_fd, c->p, dst_sftp) < 0)
+	if (prepare_dst_path(msg_fp, c->p, dst_sftp) < 0)
 		return -1;
 
 	/* open src */
@@ -559,11 +560,11 @@ int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session 
 	if (mscp_open_is_failed(d))
 		return -1;
 
-	mpr_debug(msg_fd, "copy chunk start: %s 0x%lx-0x%lx\n",
+	mpr_debug(msg_fp, "copy chunk start: %s 0x%lx-0x%lx\n",
 		  c->p->path, c->off, c->off + c->len);
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
 
-	mpr_debug(msg_fd, "copy chunk done: %s 0x%lx-0x%lx\n",
+	mpr_debug(msg_fp, "copy chunk done: %s 0x%lx-0x%lx\n",
 		  c->p->path, c->off, c->off + c->len);
 
 
@@ -575,7 +576,7 @@ int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session 
 	if (refcnt_dec(&c->p->refcnt) == 0) {
 		c->p->state = FILE_STATE_DONE;
 		mscp_chmod(c->p->dst_path, c->p->mode, dst_sftp);
-		mpr_info(msg_fd, "copy done: %s\n", c->p->path);
+		mpr_info(msg_fp, "copy done: %s\n", c->p->path);
 	}
 
 	return ret;

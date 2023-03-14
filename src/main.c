@@ -69,7 +69,7 @@ char *split_remote_and_path(const char *string, char **remote, char **path)
 	 */
 
 	if (!(s = strdup(string))) {
-		fprintf(stderr, "strdup: %s\n", strerrno());
+		fprintf(stderr, "strdup: %s\n", strerror(errno));
 		return NULL;
 	}
 
@@ -115,7 +115,7 @@ struct target *validate_targets(char **arg, int len)
 	int n;
 
 	if ((t = calloc(len, sizeof(struct target))) == NULL) {
-		fprintf(stderr, "calloc: %s\n", strerrno());
+		fprintf(stderr, "calloc: %s\n", strerror(errno));
 		return NULL;
 	}
 	memset(t, 0, len * sizeof(struct target));
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
 
 	if (!dryrun) {
 		if (pipe(pipe_fd) < 0) {
-			fprintf(stderr, "pipe: %s\n", strerrno());
+			fprintf(stderr, "pipe: %s\n", strerror(errno));
 			return -1;
 		}
 		msg_fd = pipe_fd[0];
@@ -363,12 +363,12 @@ int main(int argc, char **argv)
 	}
 
 	if (pthread_create(&tid_stat, NULL, print_stat_thread, NULL) < 0) {
-		fprintf(stderr, "pthread_create: %s\n", strerrno());
+		fprintf(stderr, "pthread_create: %s\n", strerror(errno));
 		return -1;
 	}
 
 	if (signal(SIGINT, sigint_handler) == SIG_ERR) {
-		fprintf(stderr, "signal: %s\n", strerrno());
+		fprintf(stderr, "signal: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -547,14 +547,14 @@ void *print_stat_thread(void *arg)
 
 	while (true) {
 		if (poll(&pfd, 1, 100) < 0) {
-			fprintf(stderr, "poll: %s\n", strerrno());
+			fprintf(stderr, "poll: %s\n", strerror(errno));
 			return NULL;
 		}
 
 		if (pfd.revents & POLLIN) {
 			memset(buf, 0, sizeof(buf));
 			if (read(msg_fd, buf, sizeof(buf)) < 0) {
-				fprintf(stderr, "read: %s\n", strerrno());
+				fprintf(stderr, "read: %s\n", strerror(errno));
 				return NULL;
 			}
 			print_cli("\r\033[K" "%s", buf);

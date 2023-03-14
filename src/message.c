@@ -4,10 +4,13 @@
 #include <limits.h>
 #include <pthread.h>
 
+#include <util.h>
 #include <message.h>
 
-/* mscp error message buffer */
+/* strerror_r wrapper */
+__thread char thread_strerror[128];
 
+/* mscp error message buffer */
 #define MSCP_ERRMSG_SIZE	(PATH_MAX * 2)
 
 static char errmsg[MSCP_ERRMSG_SIZE];
@@ -30,29 +33,17 @@ const char *mscp_get_error()
 
 /* message print functions */
 
-static int mprint_serverity = MSCP_SEVERITY_WARN;
-static pthread_mutex_t mprint_lock = PTHREAD_MUTEX_INITIALIZER;
+static int mprint_severity = MSCP_SEVERITY_WARN;
 
 void mprint_set_severity(int serverity)
 {
 	if (serverity < 0)
-		mprint_serverity = -1; /* no print */
-	mprint_serverity = serverity;
+		mprint_severity = -1; /* no print */
+	mprint_severity = serverity;
 }
 
-void mprint(int fd, int serverity, const char *fmt, ...)
+int mprint_get_severity()
 {
-	va_list va;
-	int ret;
-
-	if (fd < 0)
-		return;
-
-	if (serverity <= mprint_serverity) {
-		pthread_mutex_lock(&mprint_lock);
-		va_start(va, fmt);
-		vdprintf(fd, fmt, va);
-		va_end(va);
-		pthread_mutex_unlock(&mprint_lock);
-	}
+	return mprint_severity;
 }
+

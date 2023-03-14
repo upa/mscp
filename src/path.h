@@ -68,7 +68,7 @@ void chunk_pool_release(struct chunk_pool *cp);
 
 
 struct path_resolve_args {
-        int     msg_fd;
+        FILE	*msg_fp;
 	size_t	*total_bytes;
 
         /* args to resolve src path to dst path */
@@ -91,7 +91,8 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list, struct path_resolve_args *a);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
-int copy_chunk(int msg_fd, struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
+int copy_chunk(FILE *msg_fp, struct chunk *c,
+	       sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, size_t *counter);
 
 /* just print contents. just for debugging */
