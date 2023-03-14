@@ -71,6 +71,9 @@ class mscp:
         self.state = STATE_INIT
 
     def __str__(self):
+        if not hasattr(self, "state"):
+            # this instance failed on mscp_init
+            return "mscp:{}:init-failed"
         return "mscp:{}:{}".format(self.remote, self.__state2str())
 
     def __repr__(self):

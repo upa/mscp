@@ -194,6 +194,9 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	if (o->max_startups == 0)
 		o->max_startups = DEFAULT_MAX_STARTUPS;
 
+	if (o->msg_fd == 0)
+		o->msg_fd = STDOUT_FILENO;
+
 	return 0;
 }
 

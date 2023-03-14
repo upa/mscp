@@ -175,6 +175,7 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 
 	i->m = mscp_init(remote, direction, &i->mo, &i->so);
 	if (!i->m) {
+		PyErr_Format(PyExc_RuntimeError, "%s", mscp_get_error());
 		free(i);
 		return NULL;
 	}
