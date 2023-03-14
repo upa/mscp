@@ -240,11 +240,14 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 		goto free_out;
 	}
 	m->direction = direction;
-	m->msg_fp = fdopen(o->msg_fd, "a");
-	if (!m->msg_fp) {
-		mscp_set_error("fdopen failed: %s", strerrno());
-		goto free_out;
-	}
+	if (o->msg_fd > -1) {
+		m->msg_fp = fdopen(o->msg_fd, "a");
+		if (!m->msg_fp) {
+			mscp_set_error("fdopen failed: %s", strerrno());
+			goto free_out;
+		}
+	} else
+		m->msg_fp = NULL;
 
 	if (strlen(o->coremask) > 0) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
