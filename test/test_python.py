@@ -103,3 +103,22 @@ def test_login_failed():
     m = mscp.mscp(remote, mscp.LOCAL2REMOTE, port = "65534")
     with pytest.raises(RuntimeError) as e:
         m.connect()
+
+
+param_invalid_kwargs = [
+    { "nr_threads": -1 },
+    { "nr_ahead": -1 },
+    { "min_chunk_sz": 1 },
+    { "max_chunk_sz": 1 },
+    { "coremask": "xxxxx" },
+    { "max_startups": -1 },
+    { "cipher": "invalid" },
+    { "hmac": "invalid"},
+    { "compress": "invalid"},
+]
+
+@pytest.mark.parametrize("kw", param_invalid_kwargs)
+def test_invalid_options(kw):
+    with pytest.raises(RuntimeError) as e:
+        m = mscp.mscp("localhost", mscp.LOCAL2REMOTE, **kw)
+        m.connect()
