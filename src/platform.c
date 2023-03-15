@@ -109,9 +109,8 @@ sem_t *sem_create(int value)
 
 int sem_release(sem_t *sem)
 {
-	int ret = sem_close(sem);
 	free(sem);
-	return ret;
+	return 0;
 }
 
 #endif
