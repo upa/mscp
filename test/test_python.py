@@ -71,6 +71,7 @@ param_kwargs = [
     { "min_chunk_sz": 1 * 1024 * 1024 },
     { "max_chunk_sz": 64 * 1024 * 1024 },
     { "coremask": "0x0f" },
+    { "max_startups": 5 },
     { "severity": mscp.SEVERITY_NONE },
     { "cipher": "aes128-gcm@openssh.com" },
     { "compress": "yes" },

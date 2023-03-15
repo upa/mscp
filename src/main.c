@@ -24,7 +24,7 @@
 void usage(bool print_help) {
 	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target\n"
@@ -36,6 +36,8 @@ void usage(bool print_help) {
 	printf("    -n NR_CONNECTIONS  number of connections "
 	       "(default: floor(log(cores)*2)+1)\n"
 	       "    -m COREMASK        hex value to specify cores where threads pinned\n"
+	       "    -u MAX_STARTUPS    number of concurrent outgoing connections "
+	       "(default: 8)\n"
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
 	       "\n"
@@ -52,7 +54,8 @@ void usage(bool print_help) {
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
-	       "    -C COMPRESS        enable compression: yes, no, zlib, zlib@openssh.com\n"
+	       "    -C COMPRESS        enable compression: "
+	       "yes, no, zlib, zlib@openssh.com\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
 	       "    -N                 enable Nagle's algorithm (default disabled)\n"
@@ -204,7 +207,7 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-	while ((ch = getopt(argc, argv, "n:m:s:S:a:b:vqDrl:p:i:c:M:C:HdNh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:u:s:S:a:b:vqDrl:p:i:c:M:C:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -216,6 +219,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			strncpy(o.coremask, optarg, sizeof(o.coremask));
+			break;
+		case 'u':
+			o.max_startups = atoi(optarg);
 			break;
 		case 's':
 			o.min_chunk_sz = atoi(optarg);

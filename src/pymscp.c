@@ -74,7 +74,7 @@ static int release_instance(struct instance *i)
 
 /* wrapper functions */
 
-static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
+static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 {
 	/*
 	 * Initialize struct mscp with options.  wrap_mscp_init
@@ -89,10 +89,14 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 		/* mscp_opts */
 		"nr_threads", 	/* int */
 		"nr_ahead",	/* int */
+
 		"min_chunk_sz",	/* unsigned long */
 		"max_chunk_sz",	/* unsigned long */
 		"buf_sz",	/* unsigned long */
+
 		"coremask",	/* const char * */
+
+		"max_startups",	/* int */
 		"severity",	/* int, MSCP_SERVERITY_* */
 		"msg_fd",	/* int */
 
@@ -100,17 +104,19 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 		"login_name",	/* const char * */
 		"port",		/* const char * */
 		"identity",	/* const char * */
+
 		"cipher",	/* const char * */
 		"hmac",		/* const char * */
 		"compress",	/* const char * */
 		"password",	/* const char * */
 		"passphrase",	/* const char * */
+
 		"debug_level",	/* int */
 		"no_hostkey_check",	/* bool */
 		"enable_nagle",		/* bool */
 		NULL,
 	};
-	const char *fmt = "si" "|iikkksii" "ssssssssipp";
+	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "sss" "sssss" "ipp";
 	char *coremask = NULL;
 	char *login_name = NULL, *port = NULL, *identity = NULL;
 	char *cipher = NULL, *hmac = NULL, *compress = NULL;
@@ -137,6 +143,7 @@ static PyObject *wrap_mscp_init(PyObject *sef, PyObject *args, PyObject *kw)
 					  &i->mo.max_chunk_sz,
 					  &i->mo.buf_sz,
 					  &coremask,
+					  &i->mo.max_startups,
 					  &i->mo.severity,
 					  &i->mo.msg_fd,
 					  &login_name,

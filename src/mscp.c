@@ -26,7 +26,7 @@ struct mscp {
 	int			*cores;		/* usable cpu cores by COREMASK */
 	int			nr_cores;	/* length of array of cores */
 
-	sem_t			sem;		/* semaphore for conccurent 
+	sem_t			sem;		/* semaphore for concurrent 
 						 * connecting ssh sessions */
 
 	sftp_session		first;		/* first sftp session */
@@ -193,6 +193,10 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 
 	if (o->max_startups == 0)
 		o->max_startups = DEFAULT_MAX_STARTUPS;
+	else if (o->max_startups < 0) {
+		mscp_set_error("invalid max_startups: %d", o->max_startups);
+		return -1;
+	}
 
 	if (o->msg_fd == 0)
 		o->msg_fd = STDOUT_FILENO;
@@ -219,8 +223,9 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 
 	mprint_set_severity(o->severity);
 
-	if (validate_and_set_defaut_params(o) < 0)
-		goto free_out;
+	if (validate_and_set_defaut_params(o) < 0) {
+		return NULL;
+	}
 
 	m = malloc(sizeof(*m));
 	if (!m) {
