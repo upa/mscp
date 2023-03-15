@@ -131,7 +131,7 @@ $ mscp -n 5 -m 0x1f -c aes128-gcm@openssh.com /var/ram/test.img 10.0.0.1:/var/ra
 - `-v` option increments verbose output level.
 
 ```console
-$ mscp test 10.0.0.: 
+$ mscp test 10.0.0.1:
 [=======================================] 100%   49B /49B   198.8B/s   00:00 ETA
 ```
 
