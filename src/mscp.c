@@ -26,7 +26,7 @@ struct mscp {
 	int			*cores;		/* usable cpu cores by COREMASK */
 	int			nr_cores;	/* length of array of cores */
 
-	sem_t			sem;		/* semaphore for concurrent 
+	sem_t			*sem;		/* semaphore for concurrent 
 						 * connecting ssh sessions */
 
 	sftp_session		first;		/* first sftp session */
@@ -204,9 +204,24 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	return 0;
 }
 
+static int random_string(char *buf, size_t size)
+{
+	char chars[] = "abcdefhijklmnopkwxyz1234567890";
+	int n, x;
+
+	for (n = 0; n < size - 1; n++) {
+		x = get_random(sizeof(chars) - 1);
+		buf[n] = chars[x];
+	}
+	buf[size - 1] = '\0';
+
+	return 0;
+}
+
 struct mscp *mscp_init(const char *remote_host, int direction,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s)
 {
+	char sem_name[PSEMNAMLEN] = "mscp-";
 	struct mscp *m;
 	int n;
 
@@ -237,8 +252,13 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	INIT_LIST_HEAD(&m->src_list);
 	INIT_LIST_HEAD(&m->path_list);
 	chunk_pool_init(&m->cp);
-	if (sem_init(&m->sem, 0, o->max_startups) < 0) {
-		mscp_set_error("failed to initialize semaphore: %s", strerrno());
+
+	n = strlen(sem_name);
+	if (random_string(sem_name + n, sizeof(sem_name) - n - 1) < 0)
+		goto free_out;
+
+	if ((m->sem = sem_open(sem_name, O_CREAT, 600, o->max_startups)) == SEM_FAILED) {
+		mscp_set_error("sem_open: %s", strerrno());
 		goto free_out;
 	}
 
@@ -567,7 +587,7 @@ void *mscp_copy_thread(void *arg)
 		}
         }
 
-	if (sem_wait(&m->sem) < 0) {
+	if (sem_wait(m->sem) < 0) {
 		mscp_set_error("sem_wait: %s\n", strerrno());
 		mpr_err(m->msg_fp, "%s", mscp_get_error());
 		goto err_out;
@@ -577,7 +597,7 @@ void *mscp_copy_thread(void *arg)
 		   m->remote, t->id);
 	t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 
-	if (sem_post(&m->sem) < 0) {
+	if (sem_post(m->sem) < 0) {
 		mscp_set_error("sem_post: %s\n", strerrno());
 		mpr_err(m->msg_fp, "%s", mscp_get_error());
 		goto err_out;
@@ -688,6 +708,7 @@ void mscp_free(struct mscp *m)
 		free(m->remote);
 	if (m->cores)
 		free(m->cores);
+	sem_close(m->sem);
 	free(m);
 }
 

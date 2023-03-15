@@ -1,4 +1,5 @@
 #ifdef __APPLE__
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #elif linux
@@ -32,6 +33,11 @@ int set_thread_affinity(pthread_t tid, int core)
 	return 0;
 }
 
+int get_random(int max)
+{
+	return arc4random() % max;
+}
+
 #endif
 
 #ifdef linux
@@ -55,6 +61,11 @@ int set_thread_affinity(pthread_t tid, int core)
 		mscp_set_error("failed to set thread/cpu affinity for core %d: %s",
 			       core, strerrno());
 	return ret;
+}
+
+int get_random(int max)
+{
+	return random() % max;
 }
 #endif
 
