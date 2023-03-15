@@ -204,24 +204,9 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	return 0;
 }
 
-static int random_string(char *buf, size_t size)
-{
-	char chars[] = "abcdefhijklmnopkwxyz1234567890";
-	int n, x;
-
-	for (n = 0; n < size - 1; n++) {
-		x = get_random(sizeof(chars) - 1);
-		buf[n] = chars[x];
-	}
-	buf[size - 1] = '\0';
-
-	return 0;
-}
-
 struct mscp *mscp_init(const char *remote_host, int direction,
 		       struct mscp_opts *o, struct mscp_ssh_opts *s)
 {
-	char sem_name[PSEMNAMLEN] = "mscp-";
 	struct mscp *m;
 	int n;
 
@@ -253,12 +238,8 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	INIT_LIST_HEAD(&m->path_list);
 	chunk_pool_init(&m->cp);
 
-	n = strlen(sem_name);
-	if (random_string(sem_name + n, sizeof(sem_name) - n - 1) < 0)
-		goto free_out;
-
-	if ((m->sem = sem_open(sem_name, O_CREAT, 600, o->max_startups)) == SEM_FAILED) {
-		mscp_set_error("sem_open: %s", strerrno());
+	if ((m->sem = sem_create(o->max_startups)) == NULL) {
+		mscp_set_error("sem_create: %s", strerrno());
 		goto free_out;
 	}
 
@@ -708,7 +689,8 @@ void mscp_free(struct mscp *m)
 		free(m->remote);
 	if (m->cores)
 		free(m->cores);
-	sem_close(m->sem);
+
+	sem_release(m->sem);
 	free(m);
 }
 

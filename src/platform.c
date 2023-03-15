@@ -1,18 +1,19 @@
 #ifdef __APPLE__
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #elif linux
 #define _GNU_SOURCE
 #include <sched.h>
+#include <stdlib.h>
 #else
 #error unsupported platform
 #endif
 
-#include <stdlib.h>
-
 #include <util.h>
 #include <platform.h>
 #include <message.h>
+
 
 #ifdef __APPLE__
 int nr_cpus()
@@ -34,9 +35,38 @@ int set_thread_affinity(pthread_t tid, int core)
 	return 0;
 }
 
-int get_random(int max)
+
+static void random_string(char *buf, size_t size)
 {
-	return arc4random() % max;
+        char chars[] = "abcdefhijklmnopkwxyz1234567890";
+        int n, x;
+
+        for (n = 0; n < size - 1; n++) {
+                x = arc4random(sizeof(chars) - 1);
+                buf[n] = chars[x];
+        }
+        buf[size - 1] = '\0';
+
+        return 0;
+}
+
+sem_t *sem_create(int value)
+{
+	char sem_name[PSEMNAMLEN] = "mscp-";
+	sem_t *sem;
+	int n;
+
+        n = strlen(sem_name);
+        random_string(sem_name + n, sizeof(sem_name) - n - 1);
+        if ((sem = sem_open(sem_name, O_CREAT, 600, value)) == SEM_FAILED)
+	    return NULL;
+
+	return sem;
+}
+
+int sem_release(sem_t *sem)
+{
+	return sem_close(sem);
 }
 
 #endif
@@ -64,9 +94,27 @@ int set_thread_affinity(pthread_t tid, int core)
 	return ret;
 }
 
-int get_random(int max)
+sem_t *sem_create(int value)
 {
-	return random() % max;
+	sem_t *sem;
+
+	if ((sem = malloc(sizeof(*sem))) == NULL)
+		return NULL;
+
+	if (sem_init(sem, 0, value) < 0) {
+		free(sem);
+		return sem;
+	}
+
+	return sem;
 }
+
+int sem_release(sem_t *sem)
+{
+	int ret = sem_close(sem);
+	free(sem);
+	return ret;
+}
+
 #endif
 
