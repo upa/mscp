@@ -449,8 +449,11 @@ int mscp_scan(struct mscp *m)
 		return -1;
 	}
 
-	/* wait until preparation is end or over nr_threads chunks are
-	 * filled */
+	/* need scan finished or over nr_threads chunks to determine
+	 * actual number of threads (and connections). If the number
+	 * of chunks are smaller than nr_threads, we adjust nr_threads
+	 * to the number of chunks.
+	 */
 	while (!chunk_pool_is_filled(&m->cp) &&
 	       chunk_pool_size(&m->cp) < m->opts->nr_threads)
 		usleep(100);
