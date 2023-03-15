@@ -1,5 +1,4 @@
 #ifdef __APPLE__
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #elif linux
@@ -8,6 +7,8 @@
 #else
 #error unsupported platform
 #endif
+
+#include <stdlib.h>
 
 #include <util.h>
 #include <platform.h>
