@@ -462,6 +462,7 @@ int mscp_prepare_join(struct mscp *m)
 {
 	if (m->tid_prepare) {
 		pthread_join(m->tid_prepare, NULL);
+		m->tid_prepare = 0;
 		return m->ret_prepare;
 	}
 	return 0;
