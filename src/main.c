@@ -358,13 +358,13 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (mscp_prepare(m) < 0) {
-		fprintf(stderr, "mscp_prepare: %s\n", mscp_get_error());
+	if (mscp_scan(m) < 0) {
+		fprintf(stderr, "mscp_scan: %s\n", mscp_get_error());
 		return -1;
 	}
 
 	if (dryrun) {
-		ret = mscp_prepare_join(m);
+		ret = mscp_scan_join(m);
 		goto out;
 	}
 

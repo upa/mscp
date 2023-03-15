@@ -36,8 +36,8 @@ struct mscp {
 	struct list_head	path_list;
 	struct chunk_pool	cp;
 
-	pthread_t		tid_prepare;	/* tid for prepare thread */
-	int			ret_prepare;	/* return code from prepare thread */
+	pthread_t		tid_scan;	/* tid for scan thread */
+	int			ret_scan;	/* return code from scan thread */
 
 	size_t			total_bytes;	/* total bytes to be transferred */
 	struct mscp_thread	*threads;
@@ -345,19 +345,19 @@ static void mscp_stop_copy_thread(struct mscp *m)
         }
 }
 
-static void mscp_stop_prepare_thread(struct mscp *m)
+static void mscp_stop_scan_thread(struct mscp *m)
 {
-	if (m->tid_prepare)
-		pthread_cancel(m->tid_prepare);
+	if (m->tid_scan)
+		pthread_cancel(m->tid_scan);
 }
 
 void mscp_stop(struct mscp *m)
 {
-	mscp_stop_prepare_thread(m);
+	mscp_stop_scan_thread(m);
 	mscp_stop_copy_thread(m);
 }
 
-void *mscp_prepare_thread(void *arg)
+void *mscp_scan_thread(void *arg)
 {
 	struct mscp *m = arg;
 	sftp_session src_sftp = NULL, dst_sftp = NULL;
@@ -367,7 +367,7 @@ void *mscp_prepare_thread(void *arg)
 	struct src *s;
 	mstat ss, ds;
 	
-	m->ret_prepare = 0;
+	m->ret_scan = 0;
 
 	switch (m->direction) {
 	case MSCP_DIRECTION_L2R:
@@ -430,21 +430,21 @@ void *mscp_prepare_thread(void *arg)
 
 	mpr_info(m->msg_fp, "walk source path(s) done\n");
 
-	m->ret_prepare = 0;
+	m->ret_scan = 0;
 	return NULL;
 
 err_out:
-	m->ret_prepare = -1;
+	m->ret_scan = -1;
 	mscp_stop_copy_thread(m);
 	return NULL;
 }
 
-int mscp_prepare(struct mscp *m)
+int mscp_scan(struct mscp *m)
 {
-	int ret = pthread_create(&m->tid_prepare, NULL, mscp_prepare_thread, m);
+	int ret = pthread_create(&m->tid_scan, NULL, mscp_scan_thread, m);
 	if (ret < 0) {
 		mscp_set_error("pthread_create_error: %d", ret);
-		m->tid_prepare = 0;
+		m->tid_scan = 0;
 		mscp_stop(m);
 		return -1;
 	}
@@ -458,12 +458,12 @@ int mscp_prepare(struct mscp *m)
 	return 0;
 }
 
-int mscp_prepare_join(struct mscp *m)
+int mscp_scan_join(struct mscp *m)
 {
-	if (m->tid_prepare) {
-		pthread_join(m->tid_prepare, NULL);
-		m->tid_prepare = 0;
-		return m->ret_prepare;
+	if (m->tid_scan) {
+		pthread_join(m->tid_scan, NULL);
+		m->tid_scan = 0;
+		return m->ret_scan;
 	}
 	return 0;
 }
@@ -482,7 +482,7 @@ int mscp_start(struct mscp *m)
 		m->opts->nr_threads = n;
 	}
 
-	/* prepare thread instances */
+	/* scan thread instances */
 	m->threads = calloc(m->opts->nr_threads, sizeof(struct mscp_thread));
 	memset(m->threads, 0, m->opts->nr_threads * sizeof(struct mscp_thread));
 	for (n = 0; n < m->opts->nr_threads; n++) {
@@ -509,8 +509,8 @@ int mscp_join(struct mscp *m)
 {
 	int n, ret = 0;
 
-	/* waiting for prepare thread joins... */
-	ret = mscp_prepare_join(m);
+	/* waiting for scan thread joins... */
+	ret = mscp_scan_join(m);
 
         /* waiting for copy threads join... */
         for (n = 0; n < m->opts->nr_threads; n++) {

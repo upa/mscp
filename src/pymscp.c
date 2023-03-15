@@ -268,7 +268,7 @@ static PyObject *wrap_mscp_set_dst_path(PyObject *self, PyObject *args, PyObject
 	return Py_BuildValue("");
 }
 
-static PyObject *wrap_mscp_prepare(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *wrap_mscp_scan(PyObject *self, PyObject *args, PyObject *kw)
 {
 	char *keywords[] = { "m", NULL };
 	unsigned long long addr;
@@ -283,7 +283,7 @@ static PyObject *wrap_mscp_prepare(PyObject *self, PyObject *args, PyObject *kw)
 		return NULL;
 	}
 
-	if (mscp_prepare(m) < 0) {
+	if (mscp_scan(m) < 0) {
 		PyErr_Format(PyExc_RuntimeError, mscp_get_error());
 		return NULL;
 	}
@@ -437,7 +437,7 @@ static PyMethodDef pymscpMethods[] = {
 		METH_VARARGS | METH_KEYWORDS, NULL
 	},
 	{
-		"mscp_prepare", (PyCFunction)wrap_mscp_prepare,
+		"mscp_scan", (PyCFunction)wrap_mscp_scan,
 		METH_VARARGS | METH_KEYWORDS, NULL
 	},
 	{

@@ -18,7 +18,7 @@
  * 2. connect to remote host with mscp_connect()
  * 3. add path to source files with mscp_add_src_path()
  * 4. set path to destination with mscp_set_dst_path()
- * 5. finish preparation with mscp_prepare()
+ * 5. start to scan source files with mscp_scan()
  * 6. start copy with mscp_start()
  * 7. wait for copy finished with mscp_join()
  * 8. cleanup mscp instance with mscp_cleanup() and mscp_free()
@@ -110,7 +110,7 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 /**
  * @brief Connect the first SSH connection. mscp_connect connects to
  * remote host and initialize a SFTP session over the
- * connection. mscp_prepare() and mscp_start() require mscp_connect()
+ * connection. mscp_scan() and mscp_start() require mscp_connect()
  * beforehand.
  *
  * @param m	mscp instance.
@@ -150,31 +150,31 @@ int mscp_add_src_path(struct mscp *m, const char *src_path);
  */
 int mscp_set_dst_path(struct mscp *m, const char *dst_path);
 
-/* check source files, resolve destination file paths for all source
- * files, and prepare chunks for all files. */
+/* scan source files, resolve destination file paths for all source
+ * files, and calculate chunks for all files. */
 
 /**
- * @brief Prepare for file transfer. This function checks all source
- * files (recursively), resolve paths on the destination side, and
- * calculate file chunks. This function is non-blocking.
+ * @brief Scan source paths and prepare. This function checks all
+ * source files (recursively), resolve paths on the destination side,
+ * and calculate file chunks. This function is non-blocking.
  *
  * @param m	mscp instance.
  *
  * @return 	0 on success, < 0 if an error occured.
  *              mscp_get_error() can be used to retrieve error message.
  */
-int mscp_prepare(struct mscp *m);
+int mscp_scan(struct mscp *m);
 
 /**
- * @brief Join prepare thread invoked by mscp_prepare(). mscp_join()
- * involves this, so that mscp_prepare_join() should be called when
- * mscp_prepare() is called by mscp_start() is not.
+ * @brief Join scna thread invoked by mscp_scan(). mscp_join()
+ * involves this, so that mscp_scan_join() should be called when
+ * mscp_scan() is called by mscp_start() is not.
  *
  * @param m	mscp instance.
  * @return	0 on success, < 0 if an error occured.
  *		mscp_get_error() can be used to retrieve error message.
  */
-int mscp_prepare_join(struct mscp *m);
+int mscp_scan_join(struct mscp *m);
 
 /**
  * @brief Start to copy files. mscp_start() returns immediately. You

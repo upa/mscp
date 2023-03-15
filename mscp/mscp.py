@@ -37,7 +37,7 @@ SEVERITY_DEBUG  = pymscp.SEVERITY_DEBUG
 
 STATE_INIT      = 0
 STATE_CONNECTED = 1
-STATE_PREPARED  = 2
+STATE_SCANNED  = 2
 STATE_RUNNING   = 3
 STATE_STOPPED   = 4
 STATE_JOINED    = 5
@@ -47,7 +47,7 @@ STATE_RELEASED  = 7
 _state_str = {
     STATE_INIT:      "init",
     STATE_CONNECTED: "connected",
-    STATE_PREPARED:  "prepared",
+    STATE_SCANNED:  "scanned",
     STATE_RUNNING:   "running",
     STATE_STOPPED:   "stopped",
     STATE_JOINED:    "joined",
@@ -114,7 +114,7 @@ class mscp:
         self.dst_path = dst_path
         pymscp.mscp_set_dst_path(m = self.m, dst_path = dst_path);
 
-    def prepare(self):
+    def scan(self):
         if self.state != STATE_CONNECTED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         if not self.src_paths:
@@ -122,11 +122,11 @@ class mscp:
         if self.dst_path == None:
             raise RuntimeError("dst path is not set")
 
-        pymscp.mscp_prepare(m = self.m)
-        self.state = STATE_PREPARED
+        pymscp.mscp_scan(m = self.m)
+        self.state = STATE_SCANNED
 
     def start(self):
-        if self.state != STATE_PREPARED:
+        if self.state != STATE_SCANNED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
 
         pymscp.mscp_start(m = self.m)
@@ -174,7 +174,7 @@ class mscp:
 
         self.set_dst_path(dst)
         
-        self.prepare()
+        self.scan()
         self.start()
         if nonblock:
             return
