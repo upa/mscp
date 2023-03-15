@@ -16,6 +16,9 @@ class File():
         self.content = content
         self.perm = perm
 
+    def __repr__(self):
+        return "<file:{} {}-bytes>".format(self.path, self.size)
+
     def __str__(self):
         return self.path
 
