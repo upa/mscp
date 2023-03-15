@@ -38,21 +38,19 @@ int set_thread_affinity(pthread_t tid, int core)
 
 static void random_string(char *buf, size_t size)
 {
-        char chars[] = "abcdefhijklmnopkwxyz1234567890";
+        char chars[] = "abcdefhijklmnopqrstuvwxyz1234567890";
         int n, x;
 
         for (n = 0; n < size - 1; n++) {
-                x = arc4random(sizeof(chars) - 1);
+                x = arc4random() % (sizeof(chars) - 1);
                 buf[n] = chars[x];
         }
         buf[size - 1] = '\0';
-
-        return 0;
 }
 
 sem_t *sem_create(int value)
 {
-	char sem_name[PSEMNAMLEN] = "mscp-";
+	char sem_name[30] = "mscp-";
 	sem_t *sem;
 	int n;
 
