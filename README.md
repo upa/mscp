@@ -36,14 +36,6 @@ Differences from `scp` on usage:
 brew install upa/tap/mscp
 ```
 
-- Linux with single binary `mscp` (x86_64 only)
-```console
-wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86.static -O /usr/local/bin/mscp
-chmod 755 /usr/local/bin/mscp
-```
-
-### Package Install
-
 - Ubuntu 22.04
 ```console
 wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-22.04-x86_64.deb
@@ -60,6 +52,13 @@ apt-get install -f ./mscp_ubuntu-20.04-x86_64.deb
 ```console
 yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.6-x86_64.rpm
 ```
+
+- Linux with single binary `mscp` (x86_64 only)
+```console
+wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86.static -O /usr/local/bin/mscp
+chmod 755 /usr/local/bin/mscp
+```
+
 
 ## Build
 
@@ -105,9 +104,9 @@ of libssh. So you can start from cmake with it.
 
 ```console
 $ mscp
-mscp v0.0.7: copy files over multiple ssh connections
+mscp v0.0.8: copy files over multiple ssh connections
 
-Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]
+Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
             [-l login_name] [-p port] [-i identity_file]
             [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target
@@ -160,15 +159,16 @@ copy done: test/testdir/asdf
 
 ```console
 $ mscp -h
-mscp v0.0.7: copy files over multiple ssh connections
+mscp v0.0.8: copy files over multiple ssh connections
 
-Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]
+Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
             [-l login_name] [-p port] [-i identity_file]
             [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target
 
     -n NR_CONNECTIONS  number of connections (default: floor(log(cores)*2)+1)
     -m COREMASK        hex value to specify cores where threads pinned
+    -u MAX_STARTUPS    number of concurrent outgoing connections (default: 8)
     -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)
     -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)
 
