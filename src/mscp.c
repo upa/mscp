@@ -427,16 +427,14 @@ void *mscp_scan_thread(void *arg)
 		list_splice_tail(&tmp, m->path_list.prev);
 	}
 
-	chunk_pool_set_filled(&m->cp);
-
 	mpr_info(m->msg_fp, "walk source path(s) done\n");
-
+	chunk_pool_set_filled(&m->cp);
 	m->ret_scan = 0;
 	return NULL;
 
 err_out:
+	chunk_pool_set_filled(&m->cp);
 	m->ret_scan = -1;
-	mscp_stop_copy_thread(m);
 	return NULL;
 }
 

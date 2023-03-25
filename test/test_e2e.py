@@ -61,6 +61,11 @@ def test_single_copy(mscp, src_prefix, dst_prefix, src, dst):
     src.cleanup()
     dst.cleanup()
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_failed_to_copy_nonexistent_file(mscp, src_prefix, dst_prefix):
+    src = "nonexistent_src"
+    dst = "nonexistent_dst"
+    run2ng([mscp, "-H", src_prefix + src, dst_prefix + dst])
 
 param_double_copy = [
     (File("src1", size = 1024 * 1024), File("src2", size = 1024 * 1024),
