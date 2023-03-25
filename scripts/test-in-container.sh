@@ -11,6 +11,7 @@ set -x
 # Run sshd
 if [ ! -e /var/run/sshd.pid ]; then
 	/usr/sbin/sshd
+	sleep 1
 fi
 
 ssh-keyscan localhost >> ${HOME}/.ssh/known_hosts

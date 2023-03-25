@@ -101,7 +101,7 @@ sem_t *sem_create(int value)
 
 	if (sem_init(sem, 0, value) < 0) {
 		free(sem);
-		return sem;
+		return NULL;
 	}
 
 	return sem;

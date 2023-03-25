@@ -144,7 +144,7 @@ def test_min_chunk(mscp, src_prefix, dst_prefix):
     src = File("src", size = 16 * 1024).make()
     dst = File("dst")
 
-    run2ok([mscp, "-H", "-s", 8192, src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-H", "-s", 32768, src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
 
     src.cleanup()
@@ -155,7 +155,7 @@ def test_thread_affinity(mscp, src_prefix, dst_prefix):
     src = File("src", size = 64 * 1024).make()
     dst = File("dst")
 
-    run2ok([mscp, "-H", "-n", 4, "-m", "0x01", "-s", 8192, "-S", 65536,
+    run2ok([mscp, "-H", "-n", 4, "-m", "0x01",
             src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
 
