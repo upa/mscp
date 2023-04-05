@@ -431,7 +431,7 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
         if (diff == 0)
                 snprintf(buf, sizeof(buf), "--:-- ETA");
 	else if (final) {
-		snprintf(buf, sizeof(buf), "%02d:%02d   ",
+		snprintf(buf, sizeof(buf), "%02d:%02d    ",
 			 (int)(floor(elapsed / 60)), (int)round(elapsed) % 60);
 	} else {
                 eta = remain / (diff / elapsed);
