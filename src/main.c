@@ -421,7 +421,8 @@ double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
         return (double)diff / calculate_timedelta(b, a);
 }
 
-char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a)
+char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a,
+		    bool final)
 {
         static char buf[16];
         double elapsed = calculate_timedelta(b, a);
@@ -429,7 +430,10 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
 
         if (diff == 0)
                 snprintf(buf, sizeof(buf), "--:-- ETA");
-        else {
+	else if (final) {
+		snprintf(buf, sizeof(buf), "%02d:%02d   ",
+			 (int)(floor(elapsed / 60)), (int)round(elapsed) % 60);
+	} else {
                 eta = remain / (diff / elapsed);
                 snprintf(buf, sizeof(buf), "%02d:%02d ETA",
                          (int)floor(eta / 60), (int)round(eta) % 60);
@@ -474,7 +478,7 @@ void print_progress_bar(double percent, char *suffix)
 }
 
 void print_progress(struct timeval *b, struct timeval *a,
-		    size_t total, size_t last, size_t done)
+		    size_t total, size_t last, size_t done, bool final)
 {
         char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
         char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
@@ -509,7 +513,8 @@ void print_progress(struct timeval *b, struct timeval *a,
 
         snprintf(suffix, sizeof(suffix), "%4lu%s/%lu%s %6.1f%s  %s",
                  done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
-                 bps, bps_units[bps_u], calculate_eta(total - done, done - last, b, a));
+                 bps, bps_units[bps_u],
+		 calculate_eta(total - done, done - last, b, a, final));
 
         print_progress_bar(percent, suffix);
 }
@@ -533,7 +538,7 @@ void print_stat_thread_cleanup(void *arg)
 	x.done = s.done;
 
 	/* print progress from the beginning */
-	print_progress(&x.start, &x.after, x.total, 0, x.done);
+	print_progress(&x.start, &x.after, x.total, 0, x.done, true);
 	print_cli("\n"); /* final output */
 }
 
@@ -572,7 +577,8 @@ void *print_stat_thread(void *arg)
 			x.total = s.total;
 			x.done = s.done;
 
-			print_progress(&x.before, &x.after, x.total, x.last, x.done);
+			print_progress(&x.before, &x.after, x.total, x.last, x.done,
+				       false);
 			x.before = x.after;
 			x.last = x.done;
 		}
