@@ -104,6 +104,12 @@ def test_login_failed():
     with pytest.raises(RuntimeError) as e:
         m.connect()
 
+def test_get_stat_before_copy_start():
+    m = mscp.mscp("localhost", mscp.LOCAL2REMOTE)
+    m.connect()
+    (total, done, finished) = m.stats()
+    assert total == 0 and done == 0
+
 
 param_invalid_kwargs = [
     { "nr_threads": -1 },

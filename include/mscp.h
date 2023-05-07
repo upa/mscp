@@ -184,7 +184,7 @@ int mscp_scan_join(struct mscp *m);
  *
  * @param m	mscp instance.
  *
- * @return 	0 on success, < 0 if an error occured.
+ * @return 	number of threads on success, < 0 if an error occured.
  *              mscp_get_error() can be used to retrieve error message.
  *
  * @see		mscp_join()

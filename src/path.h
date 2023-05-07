@@ -201,11 +201,16 @@ static int mscp_stat(const char *path, mstat *s, sftp_session sftp)
 
         if (sftp) {
                 s->r = sftp_stat(sftp, path);
-                if (!s->r)
+                if (!s->r) {
+			mscp_set_error("sftp_stat: %s %s",
+				       sftp_get_ssh_error(sftp), path);
                         return -1;
+		}
         } else {
-                if (stat(path, &s->l) < 0)
+                if (stat(path, &s->l) < 0) {
+			mscp_set_error("stat: %s %s", strerrno(), path);
                         return -1;
+		}
         }
 
         return 0;

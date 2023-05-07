@@ -27,10 +27,10 @@ void chunk_pool_init(struct chunk_pool *cp)
 
 static void chunk_pool_add(struct chunk_pool *cp, struct chunk *c)
 {
-	LOCK_ACQUIRE_THREAD(&cp->lock);
+	LOCK_ACQUIRE(&cp->lock);
 	list_add_tail(&c->list, &cp->list);
 	cp->count += 1;
-	LOCK_RELEASE_THREAD();
+	LOCK_RELEASE();
 }
 
 void chunk_pool_set_filled(struct chunk_pool *cp)
@@ -54,7 +54,7 @@ struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 	struct list_head *first;
 	struct chunk *c = NULL;
 
-	LOCK_ACQUIRE_THREAD(&cp->lock);
+	LOCK_ACQUIRE(&cp->lock);
 	first = cp->list.next;
 	if (list_empty(&cp->list)) {
 		if (!chunk_pool_is_filled(cp))
@@ -65,7 +65,7 @@ struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 		c = list_entry(first, struct chunk, list);
 		list_del(first);
 	}
-	LOCK_RELEASE_THREAD();
+	LOCK_RELEASE();
 
 	/* return CHUNK_POP_WAIT would be very rare case, because it
 	 * means copying over SSH is faster than traversing
@@ -363,7 +363,7 @@ static int prepare_dst_path(FILE *msg_fp, struct path *p, sftp_session dst_sftp)
 {
 	int ret = 0;
 
-	LOCK_ACQUIRE_THREAD(&p->lock);
+	LOCK_ACQUIRE(&p->lock);
 	if (p->state == FILE_STATE_INIT) {
 		if (touch_dst_path(p, dst_sftp) < 0) {
 			ret = -1;
@@ -374,7 +374,7 @@ static int prepare_dst_path(FILE *msg_fp, struct path *p, sftp_session dst_sftp)
 	}
 
 out:
-	LOCK_RELEASE_THREAD();
+	LOCK_RELEASE();
 	return ret;
 }
 
