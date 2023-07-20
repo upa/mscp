@@ -48,9 +48,14 @@ wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-20.04-x86_
 apt-get install -f ./mscp_ubuntu-20.04-x86_64.deb
 ```
 
-- Rocky 8.6
+- Rocky 8.8
 ```console
-yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.6-x86_64.rpm
+yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.8-x86_64.rpm
+```
+
+- Alma 8.8
+```console
+yum install https://github.com/upa/mscp/releases/latest/download/mscp_almalinux-8.8-x86_64.rpm
 ```
 
 - Linux with single binary `mscp` (x86_64 only)
@@ -67,7 +72,7 @@ patch introduces asynchronous SFTP Write, which is derived from
 https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
 async](https://archive.libssh.org/libssh/2020-06/0000004.html)).
 
-Currently macOS and Linux (Ubuntu, Rocky, Alma) are supported.
+Currently macOS and Linux (Ubuntu, Rocky and Alma) are supported.
 
 ```console
 # clone this repository
