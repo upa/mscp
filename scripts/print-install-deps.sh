@@ -14,10 +14,10 @@ case $release in
 	ubuntu-22.04*)
 		echo "libc6 (>= 2.33), libgssapi-krb5-2 (>= 1.17), libssl3 (>= 3.0.0~~alpha1), zlib1g (>= 1:1.1.4)"
 		;;
-	centos* | rhel* | rocky*)
+	centos* | rhel* | rocky* | almalinux*)
 		echo "glibc crypto-policies krb5-libs openssl-libs libcom_err"
 		;;
 	*)
-		echo "unsupported install dependency: $release"
+		echo "$(basename $0): unsupported install dependency: $release"
 		exit 1
 esac

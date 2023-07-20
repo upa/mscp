@@ -19,7 +19,7 @@ case $platform in
 		apt-get install -y \
 			gcc make cmake zlib1g-dev libssl-dev libkrb5-dev
 		;;
-	Linux-centos* | Linux-rhel* | Linux-rocky*)
+	Linux-centos* | Linux-rhel* | Linux-rocky* | Linux-almalinux)
 		yum install -y \
 			gcc make cmake zlib-devel openssl-devel rpm-build
 		;;

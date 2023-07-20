@@ -45,8 +45,8 @@ jobs:
           files: |
             ${{github.workspace}}/build/mscp_ubuntu-20.04-x86_64.deb
             ${{github.workspace}}/build/mscp_ubuntu-22.04-x86_64.deb
-            ${{github.workspace}}/build/mscp_centos-8-x86_64.rpm
-            ${{github.workspace}}/build/mscp_rocky-8.6-x86_64.rpm
+            ${{github.workspace}}/build/mscp_rocky-8.8-x86_64.rpm
+            ${{github.workspace}}/build/mscp_almalinux-8.8-x86_64.rpm
             ${{github.workspace}}/build/mscp_alpine-3.17-x86_64.static
             ${{github.workspace}}/build/mscp.linux.x86.static
 

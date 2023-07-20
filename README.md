@@ -67,7 +67,7 @@ patch introduces asynchronous SFTP Write, which is derived from
 https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
 async](https://archive.libssh.org/libssh/2020-06/0000004.html)).
 
-Currently macOS and Linux (Ubuntu, CentOS, Rocky) are supported.
+Currently macOS and Linux (Ubuntu, Rocky, Alma) are supported.
 
 ```console
 # clone this repository

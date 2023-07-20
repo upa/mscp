@@ -1,10 +1,6 @@
 FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG mscpdir="/mscp"
-
-COPY . ${mscpdir}
-
 RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates
 
@@ -20,6 +16,9 @@ RUN  mkdir /var/run/sshd        \
         && ssh-keygen -f /root/.ssh/id_rsa -N ""                \
         && mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
 
+ARG mscpdir="/mscp"
+
+COPY . ${mscpdir}
 
 # install build dependency
 RUN ${mscpdir}/scripts/install-build-deps.sh

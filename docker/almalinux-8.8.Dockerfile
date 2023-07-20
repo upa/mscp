@@ -1,8 +1,4 @@
-FROM rockylinux:8.6
-
-ARG mscpdir="/mscp"
-
-COPY . ${mscpdir}
+FROM almalinux:8.8
 
 # install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y install \
@@ -16,6 +12,11 @@ RUN  mkdir /var/run/sshd        \
 	&& ssh-keygen -A	\
         && ssh-keygen -f /root/.ssh/id_rsa -N ""                \
         && mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+
+
+ARG mscpdir="/mscp"
+
+COPY . ${mscpdir}
 
 # install build dependency
 RUN ${mscpdir}/scripts/install-build-deps.sh

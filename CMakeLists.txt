@@ -121,9 +121,8 @@ enable_testing()
 
 
 # CPACK Rules
-set(CPACK_SET_DESTDIR		true)
-set(CPACK_PROJECT_NAME		${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION	${PROJECT_VERSION})
+#set(CPACK_SET_DESTDIR		true)
+set(CPACK_PACKAGE_NAME		${PROJECT_NAME})
 set(CPACK_PACKAGE_CONTACT	"Ryo Nakamura <upa@haeena.net>")
 set(CPACK_PACKAGE_DESCRIPTION
 	"mscp, copy files over multiple ssh connections")
@@ -153,6 +152,7 @@ if(UNIX AND NOT APPLE) # on linux
 	set(CPACK_RPM_PACKAGE_REQUIRES		${DIST_DEP})
 	set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
 	set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
+	set(CPACK_RPM_PACKAGE_LICENSE		"GPLv3")
 endif() # on linux
 
 include(CPack)
@@ -162,9 +162,9 @@ include(CPack)
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
-list(APPEND DIST_NAMES	ubuntu	ubuntu	centos	rocky	alpine)
-list(APPEND DIST_VERS	20.04	22.04	8	8.6	3.17)
-list(APPEND DIST_PKGS	deb	deb	rpm	rpm	static)
+list(APPEND DIST_NAMES	ubuntu	ubuntu	rocky	almalinux	alpine)
+list(APPEND DIST_VERS	20.04	22.04	8.8	8.8		3.17)
+list(APPEND DIST_PKGS	deb	deb	rpm	rpm		static)
 
 list(LENGTH DIST_NAMES _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
