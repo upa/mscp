@@ -50,3 +50,4 @@ int mscp_chmod(const char *path, mode_t mode, sftp_session sftp);
 
 /* remote glob */
 int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp);
+void mscp_globfree(glob_t *pglob);

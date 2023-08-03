@@ -128,7 +128,7 @@ struct dirent *mscp_readdir(MDIR *md)
 		}
 
 		memset(&tls_dirent, 0, sizeof(tls_dirent));
-		strlcpy(tls_dirent.d_name, attr->name, sizeof(tls_dirent.d_name));
+		strncpy(tls_dirent.d_name, attr->name, sizeof(tls_dirent.d_name) - 1);
 		tls_dirent.d_ino = inum++;
 		if (!inum)
 			inum = 1;
@@ -306,28 +306,54 @@ int mscp_chmod(const char *path, mode_t mode, sftp_session sftp)
 	return ret;
 }
 
-static int errfunc(const char *epath, int err)
-{
-	printf("errfunc for path %s\n", epath);
-	return 0;
-}
-
 int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 {
 	int ret;
 	if (sftp) {
+#ifndef GLOB_ALTDIRFUNC
+#define GLOB_NOALTDIRMAGIC INT_MAX
+		/* musl does not implement GLOB_ALTDIRFUNC */
+		pglob->gl_pathc = 1;
+		pglob->gl_pathv = malloc(sizeof(char *));
+		pglob->gl_pathv[0] = strdup(pattern);
+		pglob->gl_offs = GLOB_NOALTDIRMAGIC;
+		return 0;
+#else
+		flags |= GLOB_ALTDIRFUNC;
+		set_tls_sftp_session(sftp);
+#ifdef __APPLE__
 		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
 		pglob->gl_readdir = (struct dirent *(*)(void *))mscp_readdir;
 		pglob->gl_closedir = (void (*)(void *))mscp_closedir;
 		pglob->gl_lstat = mscp_lstat_wrapped;
 		pglob->gl_stat = mscp_stat_wrapped;
-		flags |= GLOB_ALTDIRFUNC;
-		set_tls_sftp_session(sftp);
+#elif linux
+		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
+		pglob->gl_readdir = (void *(*)(void *))mscp_readdir;
+		pglob->gl_closedir = (void (*)(void *))mscp_closedir;
+		pglob->gl_lstat = (int (*)(const char *, void *))mscp_lstat_wrapped;
+		pglob->gl_stat = (int (*)(const char *, void *))mscp_stat_wrapped;
+#else
+#error unsupported platform
+#endif
+#endif
 	}
 
-	ret =  glob(pattern, flags, errfunc, pglob);
+	ret = glob(pattern, flags, NULL, pglob);
 
 	if (sftp)
 		set_tls_sftp_session(NULL);
 	return ret;
+}
+
+void mscp_globfree(glob_t *pglob)
+{
+#ifndef GLOB_ALTDIRFUNC
+	if (pglob->gl_offs == GLOB_NOALTDIRMAGIC) {
+		free(pglob->gl_pathv[0]);
+		free(pglob->gl_pathv);
+		return;
+	}
+#endif
+	globfree(pglob);
 }

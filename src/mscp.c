@@ -446,7 +446,7 @@ void *mscp_scan_thread(void *arg)
 
 			list_splice_tail(&tmp, m->path_list.prev);
 		}
-		globfree(&pglob);
+		mscp_globfree(&pglob);
 	}
 
 	mpr_info(m->msg_fp, "walk source path(s) done\n");
