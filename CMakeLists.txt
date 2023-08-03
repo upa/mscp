@@ -185,6 +185,12 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMAND
 		docker build -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
 
+	add_custom_target(docker-build-${DOCKER_INDEX}-no-cache
+		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
+		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+		COMMAND
+		docker build --no-cache -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
+
 	add_custom_target(docker-test-${DOCKER_INDEX}
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -198,11 +204,13 @@ foreach(x RANGE ${DIST_LISTLEN})
 		docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DOCKER_IMAGE}
 		cp /mscp/build/${PKG_FILE_NAME} /out/)
 
-	list(APPEND DOCKER_BUILDS	docker-build-${DOCKER_INDEX})
-	list(APPEND DOCKER_TESTS	docker-test-${DOCKER_INDEX})
-	list(APPEND DOCKER_PKGS		docker-pkg-${DOCKER_INDEX})
+	list(APPEND DOCKER_BUILDS		docker-build-${DOCKER_INDEX})
+	list(APPEND DOCKER_BUILDS_NO_CACHE	docker-build-${DOCKER_INDEX}-no-cache)
+	list(APPEND DOCKER_TESTS		docker-test-${DOCKER_INDEX})
+	list(APPEND DOCKER_PKGS			docker-pkg-${DOCKER_INDEX})
 endforeach()
 
-add_custom_target(docker-build-all	DEPENDS ${DOCKER_BUILDS})
-add_custom_target(docker-test-all	DEPENDS ${DOCKER_TESTS})
-add_custom_target(docker-pkg-all	DEPENDS ${DOCKER_PKGS})
+add_custom_target(docker-build-all		DEPENDS ${DOCKER_BUILDS})
+add_custom_target(docker-build-all-no-cache	DEPENDS ${DOCKER_BUILDS_NO_CACHE})
+add_custom_target(docker-test-all		DEPENDS ${DOCKER_TESTS})
+add_custom_target(docker-pkg-all		DEPENDS ${DOCKER_PKGS})
