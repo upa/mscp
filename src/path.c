@@ -7,6 +7,7 @@
 
 #include <ssh.h>
 #include <util.h>
+#include <fileops.h>
 #include <list.h>
 #include <atomic.h>
 #include <path.h>
@@ -190,7 +191,7 @@ static int resolve_chunk(struct path *p, struct path_resolve_args *a)
         return 0;
 }
 
-static int append_path(sftp_session sftp, const char *path, mstat s,
+static int append_path(sftp_session sftp, const char *path, struct stat st,
 		       struct list_head *path_list, struct path_resolve_args *a)
 {
 	struct path *p;
@@ -203,8 +204,8 @@ static int append_path(sftp_session sftp, const char *path, mstat s,
 	memset(p, 0, sizeof(*p));
 	INIT_LIST_HEAD(&p->list);
 	strncpy(p->path, path, PATH_MAX - 1);
-	p->size = mstat_size(s);
-	p->mode = mstat_mode(s);
+	p->size = st.st_size;
+	p->mode = st.st_mode;
 	p->state = FILE_STATE_INIT;
 	lock_init(&p->lock);
 
@@ -239,48 +240,36 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			       struct list_head *path_list, struct path_resolve_args *a)
 {
 	char next_path[PATH_MAX];
-	mdirent *e;
-	mdir *d;
-	mstat s;
+	struct dirent *e;
+	struct stat st;
+	MDIR *d;
 	int ret;
 
-	if (mscp_stat(path, &s, sftp) < 0)
+	if (mscp_stat(path, &st, sftp) < 0)
 		return -1;
 
-	if (mstat_is_regular(s)) {
+	if (S_ISREG(st.st_mode)) {
 		/* this path is regular file. it is to be copied */
-		ret = append_path(sftp, path, s, path_list, a);
-		mscp_stat_free(s);
-		return ret;
+		return append_path(sftp, path, st, path_list, a);
 	}
 
-	if (!mstat_is_dir(s)) {
-		/* not regular file and not directory, skip it. */
-		mscp_stat_free(s);
-		return 0; 
-	}
-
-	mscp_stat_free(s);
-
+	if (!S_ISDIR(st.st_mode))
+		return 0; /* not a regular file and not a directory, skip it. */
 
 	/* ok, this path is directory. walk it. */
 	if (!(d = mscp_opendir(path, sftp)))
 		return -1;
 	
-	for (e = mscp_readdir(d); !mdirent_is_null(e); e = mscp_readdir(d)) {
-		if (check_path_should_skip(mdirent_name(e))) {
-			mscp_dirent_free(e);
+	for (e = mscp_readdir(d); e; e = mscp_readdir(d)) {
+		if (check_path_should_skip(e->d_name))
 			continue;
-		}
 		
-		if (strlen(path) + 1 + strlen(mdirent_name(e)) > PATH_MAX) {
-			mscp_set_error("too long path: %s/%s", path, mdirent_name(e));
-			mscp_dirent_free(e);
+		if (strlen(path) + 1 + strlen(e->d_name) > PATH_MAX) {
+			mscp_set_error("too long path: %s/%s", path, e->d_name);
 			return -1;
 		}
-		snprintf(next_path, sizeof(next_path), "%s/%s", path, mdirent_name(e));
+		snprintf(next_path, sizeof(next_path), "%s/%s", path, e->d_name);
 		ret = walk_path_recursive(sftp, next_path, path_list, a);
-		mscp_dirent_free(e);
 		if (ret < 0)
 			return ret;
 	}
@@ -314,10 +303,11 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 {
         /* XXX: should reflect the permission of the original directory? */
         mode_t mode =  S_IRWXU | S_IRWXG | S_IRWXO;
+	struct stat st;
         char path[PATH_MAX];
         char *needle;
         int ret;
-	mfh h;
+	mf *f;
 
         strncpy(path, p->dst_path, sizeof(path));
 
@@ -326,22 +316,17 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         for (needle = strchr(path + 1, '/'); needle; needle = strchr(needle + 1, '/')) {
                 *needle = '\0';
 
-		mstat s;
-		if (mscp_stat(path, &s, sftp) == 0) {
-			if (mstat_is_dir(s)) {
-				mscp_stat_free(s);
+		if (mscp_stat(path, &st, sftp) == 0) {
+			if (S_ISDIR(st.st_mode))
 				goto next; /* directory exists. go deeper */
-			} else {
-				mscp_stat_free(s);
+			else
 				return -1; /* path exists, but not directory. */
-			}
 		}
 
-		if (mscp_stat_check_err_noent(sftp) == 0) {
+		if (errno == ENOENT) {
 			/* no file on the path. create directory. */
 			if (mscp_mkdir(path, mode, sftp) < 0) {
-				mscp_set_error("mkdir %s: %s", path,
-					       mscp_strerror(sftp));
+				mscp_set_error("mscp_mkdir %s: %s", path, strerrno());
 				return -1;
 			}
 		}
@@ -350,11 +335,13 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         }
 
         /* open file with O_TRUNC to set file size 0 */
-	h = mscp_open(p->dst_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR, 0, sftp);
-	if (mscp_open_is_failed(h))
+	f = mscp_open(p->dst_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR, sftp);
+	if (!f) {
+		mscp_set_error("mscp_open %s: %s\n", p->dst_path, strerrno());
 		return -1;
+	}
 
-	mscp_close(h);
+	mscp_close(f);
 
         return 0;
 }
@@ -518,16 +505,16 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
         return 0;
 }
 
-static int _copy_chunk(struct chunk *c, mfh s, mfh d,
+static int _copy_chunk(struct chunk *c, mf *s, mf *d,
 		       int nr_ahead, int buf_sz, size_t *counter)
 {
-	if (s.fd > 0 && d.sf) /* local to remote copy */
-		return copy_chunk_l2r(c, s.fd, d.sf, nr_ahead, buf_sz, counter);
-	else if (s.sf && d.fd > 0)  /* remote to local copy */
-		return copy_chunk_r2l(c, s.sf, d.fd, nr_ahead, buf_sz, counter);
+	if (s->local && d->remote) /* local to remote copy */
+		return copy_chunk_l2r(c, s->local, d->remote, nr_ahead, buf_sz, counter);
+	else if (s->remote && d->local)  /* remote to local copy */
+		return copy_chunk_r2l(c, s->remote, d->local, nr_ahead, buf_sz, counter);
 
-	assert(true); /* not reached */
-	return -1;
+	assert(false);
+	return -1; /* not reached */
 }
 
 int copy_chunk(FILE *msg_fp, struct chunk *c,
@@ -536,7 +523,7 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 {
 	mode_t mode;
 	int flags;
-	mfh s, d;
+	mf *s, *d;
 	int ret;
 
 	assert((src_sftp && !dst_sftp) || (!src_sftp && dst_sftp));
@@ -547,21 +534,33 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 	/* open src */
         flags = O_RDONLY;
         mode = S_IRUSR;
-	s = mscp_open(c->p->path, flags, mode, c->off, src_sftp);
-	if (mscp_open_is_failed(s)) {
-		mscp_close(d);
+	s = mscp_open(c->p->path, flags, mode, src_sftp);
+	if (!s) {
+		mscp_set_error("mscp_open: %s: %s", c->p->path, strerrno());
+		return -1;
+	}
+	if (mscp_lseek(s, c->off) < 0) {
+		mscp_set_error("mscp_lseek: %s: %s", c->p->path, strerrno());
 		return -1;
 	}
 
 	/* open dst */
         flags = O_WRONLY;
         mode = S_IRUSR|S_IWUSR;
-	d = mscp_open(c->p->dst_path, flags, mode, c->off, dst_sftp);
-	if (mscp_open_is_failed(d))
+	d = mscp_open(c->p->dst_path, flags, mode, dst_sftp);
+	if (!d) {
+		mscp_close(s);
+		mscp_set_error("mscp_open: %s: %s", c->p->dst_path, strerrno());
 		return -1;
+	}
+	if (mscp_lseek(d, c->off) < 0) {
+		mscp_set_error("mscp_lseek: %s: %s", c->p->dst_path, strerrno());
+		return -1;
+	}
 
 	mpr_debug(msg_fp, "copy chunk start: %s 0x%lx-0x%lx\n",
 		  c->p->path, c->off, c->off + c->len);
+
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
 
 	mpr_debug(msg_fp, "copy chunk done: %s 0x%lx-0x%lx\n",

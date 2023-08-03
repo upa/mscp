@@ -9,6 +9,7 @@
 #include <util.h>       
 #include <ssh.h>                
 #include <path.h>
+#include <fileops.h>
 #include <atomic.h>             
 #include <platform.h>
 #include <message.h>
@@ -376,7 +377,7 @@ void *mscp_scan_thread(void *arg)
 	struct list_head tmp;
 	struct path *p;
 	struct src *s;
-	mstat ss, ds;
+	struct stat ss, ds;
 	
 	m->ret_scan = 0;
 
@@ -403,9 +404,8 @@ void *mscp_scan_thread(void *arg)
 		a.dst_path_should_dir = true;
 
 	if (mscp_stat(m->dst_path, &ds, dst_sftp) == 0) {
-		if (mstat_is_dir(ds))
+		if (S_ISDIR(ds.st_mode))
 			a.dst_path_is_dir = true;
-		mscp_stat_free(ds);
 	}
 
 	a.cp = &m->cp;
@@ -419,16 +419,14 @@ void *mscp_scan_thread(void *arg)
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
 		if (mscp_stat(s->path, &ss, src_sftp) < 0) {
-			mscp_set_error("stat: %s", mscp_strerror(src_sftp));
-			mscp_stat_free(ss);
+			mscp_set_error("stat: %s", strerrno());
 			goto err_out;
 		}
 
 		/* set path specific args */
 		a.src_path = s->path;
 		a.dst_path = m->dst_path;
-		a.src_path_is_dir = mstat_is_dir(ss);
-		mscp_stat_free(ss);
+		a.src_path_is_dir = S_ISDIR(ss.st_mode);
 
 		INIT_LIST_HEAD(&tmp);
 		if (walk_src_path(src_sftp, s->path, &tmp, &a) < 0)
@@ -647,8 +645,8 @@ void *mscp_copy_thread(void *arg)
         pthread_cleanup_pop(1);
 
         if (t->ret < 0)
-                mscp_set_error("copy failed: chunk %s 0x%010lx-0x%010lx",
-			       c->p->path, c->off, c->off + c->len);
+		mpr_err(m->msg_fp, "copy failed: chunk %s 0x%010lx-0x%010lx\n",
+			c->p->path, c->off, c->off + c->len);
 
         return NULL;
 

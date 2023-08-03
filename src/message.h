@@ -2,6 +2,7 @@
 #define _MESSAGE_H_
 
 #include <libgen.h>
+#include <stdio.h>
 
 #include <mscp.h>
 

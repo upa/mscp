@@ -62,7 +62,7 @@ if(BUILD_CONAN)
 	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
 endif()
 
-set(LIBMSCP_SRC src/mscp.c src/ssh.c src/path.c src/platform.c src/message.c)
+set(LIBMSCP_SRC src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c)
 
 # libmscp.so
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
