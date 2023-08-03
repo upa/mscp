@@ -21,8 +21,7 @@ https://user-images.githubusercontent.com/184632/206889149-7cc6178a-6f0f-41e6-85
 
 Differences from `scp` on usage:
 
-- remote glob on remote shell expansion is not supported.
-- remote to remote copy is not supported.
+- Remote-to-remote copy is not supported.
 - `-r` option is not needed to transfer directories.
 - and any other differences I have not implemented and noticed.
 
