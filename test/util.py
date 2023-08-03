@@ -22,7 +22,10 @@ class File():
     def __str__(self):
         return self.path
 
-    def make(self):
+    def make(self, size = None):
+        if size:
+            self.size = size
+
         d = os.path.dirname(self.path)
         if d:
             os.makedirs(d, exist_ok = True)

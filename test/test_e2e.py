@@ -150,6 +150,33 @@ def test_min_chunk(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup()
 
+
+param_glob_copy = [
+    (
+        "src*", "dstx",
+        [ File("src1"), File("src2"), File("src3") ],
+        [ File("dstx/src1"), File("dstx/src2"), File("dstx/src3") ],
+    ),
+    (
+        "src*", "dstx",
+        [ File("src1/s1"), File("src2/s2"), File("src3/s3") ],
+        [ File("dstx/s1"), File("dstx/s2"), File("dstx/s3") ],
+    )
+]
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("src_glob_path, dst_path, srcs, dsts", param_glob_copy)
+def test_glob_src_path(mscp, src_prefix, dst_prefix,
+                       src_glob_path, dst_path, srcs, dsts):
+    for src in srcs:
+        src.make(size = 1024 * 1024)
+
+    run2ok([mscp, "-H", "-vvv", src_prefix + src_glob_path, dst_prefix + dst_path])
+    for src, dst in zip(srcs, dsts):
+        assert check_same_md5sum(src, dst)
+        src.cleanup()
+        dst.cleanup()
+
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_thread_affinity(mscp, src_prefix, dst_prefix):
     src = File("src", size = 64 * 1024).make()

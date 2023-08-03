@@ -378,6 +378,8 @@ void *mscp_scan_thread(void *arg)
 	struct path *p;
 	struct src *s;
 	struct stat ss, ds;
+	glob_t pglob;
+	int n;
 	
 	m->ret_scan = 0;
 
@@ -418,21 +420,33 @@ void *mscp_scan_thread(void *arg)
 
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
-		if (mscp_stat(s->path, &ss, src_sftp) < 0) {
-			mscp_set_error("stat: %s", strerrno());
+		memset(&pglob, 0, sizeof(pglob));
+		if (mscp_glob(s->path, GLOB_NOCHECK, &pglob, src_sftp) < 0) {
+			mscp_set_error("mscp_glob: %s", strerrno());
 			goto err_out;
 		}
 
-		/* set path specific args */
-		a.src_path = s->path;
-		a.dst_path = m->dst_path;
-		a.src_path_is_dir = S_ISDIR(ss.st_mode);
+		for (n = 0; n < pglob.gl_pathc; n++) {
+			if (mscp_stat(pglob.gl_pathv[n], &ss, src_sftp) < 0) {
+				mscp_set_error("stat: %s %s", s->path, strerrno());
+				goto err_out;
+			}
 
-		INIT_LIST_HEAD(&tmp);
-		if (walk_src_path(src_sftp, s->path, &tmp, &a) < 0)
-			goto err_out;
+			if (!a.dst_path_should_dir && pglob.gl_pathc > 1)
+				a.dst_path_should_dir = true; /* we have over 1 src */
 
-		list_splice_tail(&tmp, m->path_list.prev);
+			/* set path specific args */
+			a.src_path = pglob.gl_pathv[n];
+			a.dst_path = m->dst_path;
+			a.src_path_is_dir = S_ISDIR(ss.st_mode);
+
+			INIT_LIST_HEAD(&tmp);
+			if (walk_src_path(src_sftp, pglob.gl_pathv[n], &tmp, &a) < 0)
+				goto err_out;
+
+			list_splice_tail(&tmp, m->path_list.prev);
+		}
+		globfree(&pglob);
 	}
 
 	mpr_info(m->msg_fp, "walk source path(s) done\n");

@@ -1,6 +1,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <glob.h>
 
 #include <ssh.h>
 
@@ -10,17 +11,18 @@ void set_tls_sftp_session(sftp_session sftp);
  mscp_lstat_wrapped(). This _wrapped() functions exist for
  sftp_glob() */
 
+/* directory operations */
+
 struct mdir_struct {
 	DIR *local;
 	sftp_dir remote;
 };
 typedef struct mdir_struct MDIR;
 
-/* directory operations */
-MDIR *mscp_opendir(const char *path, sftp_session sftp);
 
+MDIR *mscp_opendir(const char *path, sftp_session sftp);
 MDIR *mscp_opendir_wrapped(const char *path);
-int mscp_closedir(MDIR *md);
+void mscp_closedir(MDIR *md);
 struct dirent *mscp_readdir(MDIR *md);
 
 int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp);
@@ -45,3 +47,6 @@ mf *mscp_open(const char *path, int flags, mode_t mode, sftp_session sftp);
 void mscp_close(mf *f);
 int mscp_lseek(mf *f, size_t off);
 int mscp_chmod(const char *path, mode_t mode, sftp_session sftp);
+
+/* remote glob */
+int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp);

@@ -97,18 +97,15 @@ MDIR *mscp_opendir_wrapped(const char *path)
 	return mscp_opendir(path, tls_sftp);
 }
 
-int mscp_closedir(MDIR *md)
+void mscp_closedir(MDIR *md)
 {
 	int ret;
-	if (md->remote) {
-		ret = sftp_closedir(md->remote);
-		if (ret < 0)
-			sftp_err_to_errno(md->remote->sftp);
-	} else
-		ret = closedir(md->local);
+	if (md->remote)
+		sftp_closedir(md->remote);
+	else
+		closedir(md->local);
 
 	free(md);
-	return ret;
 }
 
 
@@ -306,5 +303,31 @@ int mscp_chmod(const char *path, mode_t mode, sftp_session sftp)
 	} else
 		ret = chmod(path, mode);
 
+	return ret;
+}
+
+static int errfunc(const char *epath, int err)
+{
+	printf("errfunc for path %s\n", epath);
+	return 0;
+}
+
+int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
+{
+	int ret;
+	if (sftp) {
+		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
+		pglob->gl_readdir = (struct dirent *(*)(void *))mscp_readdir;
+		pglob->gl_closedir = (void (*)(void *))mscp_closedir;
+		pglob->gl_lstat = mscp_lstat_wrapped;
+		pglob->gl_stat = mscp_stat_wrapped;
+		flags |= GLOB_ALTDIRFUNC;
+		set_tls_sftp_session(sftp);
+	}
+
+	ret =  glob(pattern, flags, errfunc, pglob);
+
+	if (sftp)
+		set_tls_sftp_session(NULL);
 	return ret;
 }
