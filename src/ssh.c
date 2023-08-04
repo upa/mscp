@@ -73,6 +73,12 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 	}
 
+	if (is_specified(opts->config) &&
+	    ssh_options_parse_config(ssh, opts->config) < 0) {
+		mscp_set_error("failed to parse ssh_config: %s", opts->config);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -149,13 +155,13 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 	cb.userdata = opts;
 	ssh_set_callbacks(ssh, &cb);
 
-	if (ssh_set_opts(ssh, opts) != 0)
-		goto free_out;
-
 	if (ssh_options_set(ssh, SSH_OPTIONS_HOST, sshdst) != SSH_OK) {
 		mscp_set_error("failed to set destination host");
 		goto free_out;
 	}
+
+	if (ssh_set_opts(ssh, opts) != 0)
+		goto free_out;
 
 	if (ssh_connect(ssh) != SSH_OK) {
 		mscp_set_error("failed to connect ssh server: %s", ssh_get_error(ssh));

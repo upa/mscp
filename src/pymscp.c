@@ -103,6 +103,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		/*  mscp_ssh_opts */
 		"login_name",	/* const char * */
 		"port",		/* const char * */
+		"config",	/* const char * */
 		"identity",	/* const char * */
 
 		"cipher",	/* const char * */
@@ -116,9 +117,9 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		"enable_nagle",		/* bool */
 		NULL,
 	};
-	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "sss" "sssss" "ipp";
+	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "ssss" "sssss" "ipp";
 	char *coremask = NULL;
-	char *login_name = NULL, *port = NULL, *identity = NULL;
+	char *login_name = NULL, *port = NULL, *config = NULL, *identity = NULL;
 	char *cipher = NULL, *hmac = NULL, *compress = NULL;
 	char *password = NULL, *passphrase = NULL;
 
@@ -148,6 +149,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 					  &i->mo.msg_fd,
 					  &login_name,
 					  &port,
+					  &config,
 					  &identity,
 					  &cipher,
 					  &hmac,
@@ -167,6 +169,8 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		strncpy(i->so.login_name, login_name, MSCP_SSH_MAX_LOGIN_NAME - 1);
 	if (port)
 		strncpy(i->so.port, port, MSCP_SSH_MAX_PORT_STR - 1);
+	if (config)
+		strncpy(i->so.config, config, PATH_MAX - 1);
 	if (identity)
 		strncpy(i->so.identity, identity, MSCP_SSH_MAX_IDENTITY_PATH - 1);
 	if (cipher)

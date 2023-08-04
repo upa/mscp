@@ -67,6 +67,7 @@ struct mscp_ssh_opts {
 	/* ssh options */
 	char	login_name[MSCP_SSH_MAX_LOGIN_NAME];	/** ssh username */
 	char	port[MSCP_SSH_MAX_PORT_STR];		/** ssh port */
+	char	config[PATH_MAX];	/** path to ssh_config, default ~/.ssh/config*/
 	char	identity[MSCP_SSH_MAX_IDENTITY_PATH];	/** path to private key */
 	char	cipher[MSCP_SSH_MAX_CIPHER_STR];	/** cipher spec */
 	char	hmac[MSCP_SSH_MAX_HMAC_STR];		/** hmacp spec */

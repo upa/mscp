@@ -26,7 +26,7 @@ void usage(bool print_help) {
 	       "\n"
 	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
-	       "            [-l login_name] [-p port] [-i identity_file]\n"
+	       "            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target\n"
 	       "\n");
 
@@ -51,6 +51,8 @@ void usage(bool print_help) {
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -p PORT            port number\n"
+	       "    -F CONFIG          path to user ssh config (default ~/.ssh/config)\n"
+	       "                       if set to 'none', no config files will be read.\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
@@ -207,7 +209,7 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-	while ((ch = getopt(argc, argv, "n:m:u:s:S:a:b:vqDrl:p:i:c:M:C:HdNh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:u:s:S:a:b:vqDrl:p:i:F:c:M:C:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -260,6 +262,9 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			strncpy(s.port, optarg, MSCP_SSH_MAX_PORT_STR);
+			break;
+		case 'F':
+			strncpy(s.config, optarg, PATH_MAX - 1);
 			break;
 		case 'i':
 			if (strlen(optarg) > MSCP_SSH_MAX_IDENTITY_PATH - 1) {
