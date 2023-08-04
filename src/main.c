@@ -46,7 +46,6 @@ void usage(bool print_help) {
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -p PORT            port number\n"
 	       "    -F CONFIG          path to user ssh config (default ~/.ssh/config)\n"
-	       "                       if set to 'none', no config files will be read.\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
