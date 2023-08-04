@@ -11,18 +11,12 @@
 #include <pthread.h>
 
 #include <mscp.h>
+#include <mscp_version.h>
 #include <util.h>
 
 
-#ifndef _VERSION /* passed through cmake */
-#define VERSION "(unknown)"
-#else
-#define VERSION _VERSION
-#endif
-
-
 void usage(bool print_help) {
-	printf("mscp v" VERSION ": copy files over multiple ssh connections\n"
+	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
 	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"

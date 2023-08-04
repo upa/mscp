@@ -6,6 +6,26 @@ project(mscp
 	VERSION ${MSCP_VERSION}
 	LANGUAGES C)
 
+
+find_package(Git)
+if (Git_FOUND)
+	# based on https://github.com/nocnokneo/cmake-git-versioning-example
+	execute_process(
+		COMMAND	${GIT_EXECUTABLE} describe --tags --dirty --match "v*"
+		OUTPUT_VARIABLE	GIT_DESCRIBE_VERSION
+		RESULT_VARIABLE	GIT_DESCRIBE_ERROR_CODE
+		OUTPUT_STRIP_TRAILING_WHITESPACE)
+	if(NOT GIT_DESCRIBE_ERROR_CODE)
+		set(MSCP_BUILD_VERSION ${GIT_DESCRIBE_VERSION})
+	endif()
+endif()
+
+if (NOT MSCP_BUILD_VERSION)
+	message(STATUS "Failed to determine version via Git. Use VERSION file instead.")
+	set(MSCP_BUILD_VERSION v${MSCP_VERSION})
+endif()
+
+
 include(GNUInstallDirs)
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
@@ -62,9 +82,16 @@ if(BUILD_CONAN)
 	list(APPEND MSCP_LINK_LIBS OpenSSL::Crypto)
 endif()
 
-set(LIBMSCP_SRC src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c)
+
+# generate version header file
+configure_file(
+	${mscp_SOURCE_DIR}/include/mscp_version.h.in
+	${mscp_SOURCE_DIR}/include/mscp_version.h)
+
 
 # libmscp.so
+set(LIBMSCP_SRC
+	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c)
 add_library(mscp-shared SHARED ${LIBMSCP_SRC})
 target_include_directories(mscp-shared
 	PUBLIC	$<BUILD_INTERFACE:${mscp_SOURCE_DIR}/include>
@@ -104,7 +131,6 @@ if (BUILD_STATIC)
 	target_link_options(mscp PRIVATE -static)
 endif()
 target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
-target_compile_definitions(mscp PUBLIC _VERSION="${PROJECT_VERSION}")
 
 
 install(TARGETS mscp RUNTIME DESTINATION bin)

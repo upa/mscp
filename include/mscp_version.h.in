@@ -1,0 +1,7 @@
+#ifndef _MSCP_VERSION_H_
+#define _MSCP_VERSION_H_
+
+#define MSCP_VERSION		"@MSCP_VERSION@"
+#define MSCP_BUILD_VERSION	"@MSCP_BUILD_VERSION@"
+
+#endif /* _MSCP_VERSION_H_ */
