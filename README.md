@@ -163,11 +163,11 @@ copy done: test/testdir/asdf
 
 ```console
 $ mscp -h
-mscp v0.0.9: copy files over multiple ssh connections
+mscp v0.0.9-11-g5802679: copy files over multiple ssh connections
 
 Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
-            [-l login_name] [-p port] [-i identity_file]
+            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]
             [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target
 
     -n NR_CONNECTIONS  number of connections (default: floor(log(cores)*2)+1)
@@ -186,6 +186,7 @@ Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]
 
     -l LOGIN_NAME      login name
     -p PORT            port number
+    -F CONFIG          path to user ssh config (default ~/.ssh/config)
     -i IDENTITY        identity file for public key authentication
     -c CIPHER          cipher spec
     -M HMAC            hmac spec
