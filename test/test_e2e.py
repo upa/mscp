@@ -237,3 +237,41 @@ def test_compression(mscp, src_prefix, dst_prefix, compress):
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
+
+
+testhost = "mscptestlocalhost"
+testhost_prefix = "{}:{}/".format(testhost, os.getcwd()) # use current dir
+param_testhost_prefix = [
+    ("", testhost_prefix), (testhost_prefix, "")
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_testhost_prefix)
+def test_config_ok(mscp, src_prefix, dst_prefix):
+    config = "/tmp/mscp_test_ssh_config"
+    with open(config, "w") as f:
+        f.write("host {}\n".format(testhost))
+        f.write("    hostname localhost\n")
+
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst", size = 1024 * 1024 * 2).make()
+    run2ok([mscp, "-H", "-vvv", "-F", config,
+            src_prefix + src.path, dst_prefix + "dst"])
+
+    os.remove(config)
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_testhost_prefix)
+def test_config_ng(mscp, src_prefix, dst_prefix):
+    config = "/tmp/mscp_test_ssh_config"
+    with open(config, "w") as f:
+        f.write("\n") # use empty ssh_config
+
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst", size = 1024 * 1024 * 2).make()
+    run2ng([mscp, "-H", "-vvv", "-F", config,
+            src_prefix + src.path, dst_prefix + "dst"])
+
+    os.remove(config)
+    src.cleanup()
+    dst.cleanup()
