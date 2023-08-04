@@ -163,7 +163,7 @@ copy done: test/testdir/asdf
 
 ```console
 $ mscp -h
-mscp v0.0.8: copy files over multiple ssh connections
+mscp v0.0.9: copy files over multiple ssh connections
 
 Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]
             [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]
