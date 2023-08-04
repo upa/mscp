@@ -293,15 +293,24 @@ int mscp_lseek(mf *f, size_t off)
 	return ret;
 }
 
-int mscp_chmod(const char *path, mode_t mode, sftp_session sftp)
+int mscp_setstat(const char *path, mode_t mode, size_t size, sftp_session sftp)
 {
 	int ret;
 
 	if (sftp) {
-		ret = sftp_chmod(sftp, path, mode);
+		struct sftp_attributes_struct attr;
+		memset(&attr, 0, sizeof(attr));
+		attr.permissions = mode;
+		attr.size = size;
+		attr.flags = (SSH_FILEXFER_ATTR_PERMISSIONS|SSH_FILEXFER_ATTR_SIZE);
+		ret = sftp_setstat(sftp, path, &attr);
 		sftp_err_to_errno(sftp);
-	} else
-		ret = chmod(path, mode);
+	} else {
+		if ((ret = chmod(path, mode)) < 0)
+			return ret;
+		if ((ret = truncate(path, size)) < 0)
+			return ret;
+	}
 
 	return ret;
 }

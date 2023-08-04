@@ -334,8 +334,9 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
                 *needle = '/';
         }
 
-        /* open file with O_TRUNC to set file size 0 */
-	f = mscp_open(p->dst_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR, sftp);
+	/* Do not set O_TRUNC here. Instead, do mscp_setstat() at the
+	 * end. see https://bugzilla.mindrot.org/show_bug.cgi?id=3431 */
+	f = mscp_open(p->dst_path, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR, sftp);
 	if (!f) {
 		mscp_set_error("mscp_open %s: %s\n", p->dst_path, strerrno());
 		return -1;
@@ -574,7 +575,9 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 
 	if (refcnt_dec(&c->p->refcnt) == 0) {
 		c->p->state = FILE_STATE_DONE;
-		mscp_chmod(c->p->dst_path, c->p->mode, dst_sftp);
+		if (mscp_setstat(c->p->dst_path, c->p->mode, c->p->size, dst_sftp) < 0)
+			mpr_err(msg_fp, "failed to chmod and truncate %s: %s\n",
+				c->p->path, strerrno());
 		mpr_info(msg_fp, "copy done: %s\n", c->p->path);
 	}
 

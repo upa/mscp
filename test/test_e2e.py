@@ -227,6 +227,15 @@ def test_override_dst_having_larger_size(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup()
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
+    f = File("srcanddst", size = 1024 * 1024 * 128).make()
+    md5_before = f.md5sum()
+    run2ok([mscp, "-H", "-vvv", src_prefix + f.path, dst_prefix + f.path])
+    md5_after = f.md5sum()
+    assert md5_before == md5_after
+    f.cleanup()
+
 compressions = ["yes", "no", "none"]
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("compress", compressions)

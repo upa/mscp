@@ -46,7 +46,11 @@ typedef struct mf_struct mf;
 mf *mscp_open(const char *path, int flags, mode_t mode, sftp_session sftp);
 void mscp_close(mf *f);
 int mscp_lseek(mf *f, size_t off);
-int mscp_chmod(const char *path, mode_t mode, sftp_session sftp);
+
+/* mscp_setstat() involves chmod and truncate. It executes both at
+ * once via a single SFTP command (sftp_setstat()).
+ */
+int mscp_setstat(const char *path, mode_t mode, size_t size, sftp_session sftp);
 
 /* remote glob */
 int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp);
