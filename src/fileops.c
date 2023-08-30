@@ -72,8 +72,8 @@ MDIR *mscp_opendir(const char *path, sftp_session sftp)
 		return NULL;
 	memset(md, 0, sizeof(*md));
 
-	if (tls_sftp) {
-		md->remote = sftp_opendir(tls_sftp, path);
+	if (sftp) {
+		md->remote = sftp_opendir(sftp, path);
 		sftp_err_to_errno(sftp);
 		if (!md->remote) {
 			goto free_out;
@@ -146,8 +146,6 @@ int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp)
 
 	if (sftp) {
 		ret = sftp_mkdir(sftp, path, mode);
-		fprintf(stderr, "after sftp_mkdir(%s), sftp_get_error is %d\n",
-			path, sftp_get_error(sftp));
 		sftp_err_to_errno(sftp);
 	} else
 		ret = mkdir(path, mode);

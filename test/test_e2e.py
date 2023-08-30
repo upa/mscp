@@ -11,11 +11,15 @@ from util import File, check_same_md5sum
 
 
 def run2ok(args):
-    check_call(list(map(str, args)))
+    cmd = list(map(str, args))
+    print("cmd: {}".format(" ".join(cmd)))
+    check_call(cmd)
 
 def run2ng(args):
+    cmd = list(map(str, args))
+    print("cmd: {}".format(" ".join(cmd)))
     with pytest.raises(CalledProcessError) as e:
-        check_call(list(map(str, args)))
+        check_call(cmd)
 
 
 """ usage test """
@@ -126,6 +130,23 @@ def test_dir_copy(mscp, src_prefix, dst_prefix, src_dir, dst_dir, src, dst, twic
         sf.cleanup()
         df.cleanup()
         tf.cleanup()
+
+
+param_dir_copy_single = [
+    ("src_dir", "dst_dir",
+     File("src_dir/t1", size = 1024 * 1024),
+     File("dst_dir/src_dir/t1"),
+     )
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("src_dir, dst_dir, src, dst", param_dir_copy_single)
+def test_dir_copy_single(mscp, src_prefix, dst_prefix, src_dir, dst_dir, src, dst):
+    src.make()
+    os.mkdir(dst_dir)
+    run2ok(["mscp", "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_override_single_file(mscp, src_prefix, dst_prefix):
