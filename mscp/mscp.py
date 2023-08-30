@@ -37,7 +37,7 @@ SEVERITY_DEBUG  = pymscp.SEVERITY_DEBUG
 
 STATE_INIT      = 0
 STATE_CONNECTED = 1
-STATE_SCANNED  = 2
+STATE_SCANNED   = 2
 STATE_RUNNING   = 3
 STATE_STOPPED   = 4
 STATE_JOINED    = 5
@@ -47,7 +47,7 @@ STATE_RELEASED  = 7
 _state_str = {
     STATE_INIT:      "init",
     STATE_CONNECTED: "connected",
-    STATE_SCANNED:  "scanned",
+    STATE_SCANNED:   "scanned",
     STATE_RUNNING:   "running",
     STATE_STOPPED:   "stopped",
     STATE_JOINED:    "joined",

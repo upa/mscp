@@ -379,7 +379,7 @@ static PyObject *wrap_mscp_get_stats(PyObject *self, PyObject *args, PyObject *k
 
 	mscp_get_stats(m, &s);
 
-	return Py_BuildValue("KKd", s.total, s.done, s.finished);
+	return Py_BuildValue("KKO", s.total, s.done, PyBool_FromLong(s.finished));
 }
 
 static PyObject *wrap_mscp_cleanup(PyObject *self, PyObject *args, PyObject *kw)
