@@ -11,6 +11,9 @@ if sys.platform == "linux":
 elif sys.platform == "darwin":
     libmscp = "libmscp.dylib"
 
+data_dir = sys.prefix + "/lib"
+libmscp = "build/" + libmscp
+
 setup(
     name='mscp',
     version = version,
@@ -20,7 +23,7 @@ setup(
     url = "https://github.com/upa/mscp",
     packages = find_packages("mscp"),
     package_dir = {"": "mscp"},
-    data_files = [ ("", ["build/" + libmscp])],
+    data_files = [ (data_dir, [libmscp])],
     py_modules = [ "mscp" ],
     ext_modules = [
         Extension(
