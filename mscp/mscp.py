@@ -115,6 +115,8 @@ class mscp:
         pymscp.mscp_set_dst_path(m = self.m, dst_path = dst_path);
 
     def scan(self):
+        if self.state == STATE_SCANNED:
+            return
         if self.state != STATE_CONNECTED:
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         if not self.src_paths:
@@ -139,6 +141,8 @@ class mscp:
         self.state = STATE_STOPPED
 
     def join(self):
+        if self.state == STATE_JOINED:
+            return
         if not (self.state == STATE_RUNNING or self.state == STATE_STOPPED):
             raise RuntimeError("invalid mscp state: {}".format(self.__state2str()))
         pymscp.mscp_join(m = self.m)
