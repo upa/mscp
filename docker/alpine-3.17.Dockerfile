@@ -39,7 +39,3 @@ RUN cd ${mscpdir}							\
 RUN cd ${mscpdir}	\
 	&& python3 setup.py install --user
 
-# Need Fix: A trick putting libmscp.so to python mscp module dir does not work on alpine,
-# so install libmscp.
-RUN cd ${mscpdir}/build	\
-	&& make install
