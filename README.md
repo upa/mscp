@@ -15,7 +15,8 @@ standard `sshd` supporting the SFTP subsystem (e.g. openssh-server),
 and you need to be able to ssh to the hosts as usual. `mscp` does not
 require anything else.
 
-https://user-images.githubusercontent.com/184632/206889149-7cc6178a-6f0f-41e6-855c-d25e15a9abc5.mp4
+
+https://github.com/upa/mscp/assets/184632/19230f57-be7f-4ef0-98dd-cb4c460f570d
 
 --------------------------------------------------------------------
 
