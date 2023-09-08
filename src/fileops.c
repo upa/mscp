@@ -278,9 +278,9 @@ void mscp_close(mf *f)
 	free(f);
 }
 
-int mscp_lseek(mf *f, size_t off)
+off_t mscp_lseek(mf *f, off_t off)
 {
-	int ret;
+	off_t ret;
 
 	if (f->remote) {
 		ret = sftp_seek64(f->remote, off);
