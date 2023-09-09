@@ -144,7 +144,7 @@ param_dir_copy_single = [
 def test_dir_copy_single(mscp, src_prefix, dst_prefix, src_dir, dst_dir, src, dst):
     src.make()
     os.mkdir(dst_dir)
-    run2ok(["mscp", "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
+    run2ok([mscp, "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -279,7 +279,7 @@ def test_ccalgo(mscp, src_prefix, dst_prefix):
         run = run2ng
     elif platform.system() == "Linux":
         # Linux supports TCP_CONGESTION
-        with open("/proc/sys/net/ipv4/tcp_allowed_congestion_control", r) as f:
+        with open("/proc/sys/net/ipv4/tcp_allowed_congestion_control", "r") as f:
             algo = f.read().strip().split().pop()
         run = run2ok
     run([mscp, "-H", "-vvv", "-g", algo, src_prefix + src.path, dst_prefix + "dst"])
