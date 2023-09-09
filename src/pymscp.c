@@ -109,6 +109,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		"cipher",	/* const char * */
 		"hmac",		/* const char * */
 		"compress",	/* const char * */
+		"ccalgo",       /* const char * */
 		"password",	/* const char * */
 		"passphrase",	/* const char * */
 
@@ -117,10 +118,10 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		"enable_nagle",		/* bool */
 		NULL,
 	};
-	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "ssss" "sssss" "ipp";
+	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "ssss" "ssssss" "ipp";
 	char *coremask = NULL;
 	char *login_name = NULL, *port = NULL, *config = NULL, *identity = NULL;
-	char *cipher = NULL, *hmac = NULL, *compress = NULL;
+	char *cipher = NULL, *hmac = NULL, *compress = NULL, *ccalgo = NULL;
 	char *password = NULL, *passphrase = NULL;
 
 	struct instance *i;
@@ -154,6 +155,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 					  &cipher,
 					  &hmac,
 					  &compress,
+					  &ccalgo,
 					  &password,
 					  &passphrase,
 					  &i->so.debug_level,
@@ -179,6 +181,8 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		strncpy(i->so.hmac, hmac, MSCP_SSH_MAX_HMAC_STR - 1);
 	if (compress)
 		strncpy(i->so.compress, compress, MSCP_SSH_MAX_COMP_STR - 1);
+	if (ccalgo)
+		strncpy(i->so.ccalgo, ccalgo, MSCP_SSH_MAX_CCALGO_STR - 1);
 	if (password)
 		strncpy(i->so.password, password, MSCP_SSH_MAX_PASSWORD - 1);
 	if (passphrase)

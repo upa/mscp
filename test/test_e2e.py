@@ -3,6 +3,7 @@
 test_e2e.py: End-to-End test for mscp executable.
 """
 
+import platform
 import pytest
 import os
 
@@ -267,6 +268,21 @@ def test_compression(mscp, src_prefix, dst_prefix, compress):
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_ccalgo(mscp, src_prefix, dst_prefix):
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst").make()
+    if platform.system() == "Darwin":
+        # Darwin does not support TCP_CONGESTION
+        algo = "cubic"
+        run = run2ng
+    elif platform.system() == "Linux":
+        # Linux supports TCP_CONGESTION
+        with open("/proc/sys/net/ipv4/tcp_allowed_congestion_control", r) as f:
+            algo = f.read().strip().split().pop()
+        run = run2ok
+    run([mscp, "-H", "-vvv", "-g", algo, src_prefix + src.path, dst_prefix + "dst"])
 
 
 testhost = "mscptestlocalhost"

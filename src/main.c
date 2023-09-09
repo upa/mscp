@@ -21,7 +21,8 @@ void usage(bool print_help) {
 	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]\n"
-	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] source ... target\n"
+	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
+	       "            source ... target\n"
 	       "\n");
 
 	if (!print_help)
@@ -51,6 +52,7 @@ void usage(bool print_help) {
 	       "    -M HMAC            hmac spec\n"
 	       "    -C COMPRESS        enable compression: "
 	       "yes, no, zlib, zlib@openssh.com\n"
+	       "    -g CONGESTION      specify TCP congestion control algorithm\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
 	       "    -N                 enable Nagle's algorithm (default disabled)\n"
@@ -202,7 +204,8 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-	while ((ch = getopt(argc, argv, "n:m:u:s:S:a:b:vqDrl:p:i:F:c:M:C:HdNh")) != -1) {
+	while ((ch = getopt(argc, argv,
+			    "n:m:u:s:S:a:b:vqDrl:p:i:F:c:M:C:g:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -286,6 +289,13 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			strncpy(s.compress, optarg, MSCP_SSH_MAX_COMP_STR);
+			break;
+		case 'g':
+			if (strlen(optarg) > MSCP_SSH_MAX_CCALGO_STR - 1) {
+				fprintf(stderr, "long ccalgo string: %s\n", optarg);
+				return -1;
+			}
+			strncpy(s.ccalgo, optarg, MSCP_SSH_MAX_CCALGO_STR);
 			break;
 		case 'H':
 			s.no_hostkey_check = true;

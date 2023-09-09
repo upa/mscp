@@ -56,6 +56,7 @@ struct mscp_opts {
 #define MSCP_SSH_MAX_CIPHER_STR		32
 #define MSCP_SSH_MAX_HMAC_STR		32
 #define MSCP_SSH_MAX_COMP_STR		32 /* yes, no, zlib, zlib@openssh.com, none */
+#define MSCP_SSH_MAX_CCALGO_STR		16
 #define MSCP_SSH_MAX_PASSWORD		128
 #define MSCP_SSH_MAX_PASSPHRASE		128
 
@@ -72,6 +73,7 @@ struct mscp_ssh_opts {
 	char	cipher[MSCP_SSH_MAX_CIPHER_STR];	/** cipher spec */
 	char	hmac[MSCP_SSH_MAX_HMAC_STR];		/** hmacp spec */
 	char	compress[MSCP_SSH_MAX_COMP_STR];	/** yes, no, zlib@openssh.com */
+	char	ccalgo[MSCP_SSH_MAX_CCALGO_STR];	/** TCP cc algorithm */
 
 	char	password[MSCP_SSH_MAX_PASSWORD];	/** password auth passowrd */
 	char	passphrase[MSCP_SSH_MAX_PASSPHRASE];	/** passphrase for private key */

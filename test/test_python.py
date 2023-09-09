@@ -121,6 +121,7 @@ param_invalid_kwargs = [
     { "cipher": "invalid" },
     { "hmac": "invalid"},
     { "compress": "invalid"},
+    { "ccalgo": "invalid"},
 ]
 
 @pytest.mark.parametrize("kw", param_invalid_kwargs)

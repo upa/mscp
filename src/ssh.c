@@ -64,6 +64,12 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return -1;
 	}
 
+	if (is_specified(opts->ccalgo) &&
+	    ssh_options_set(ssh, SSH_OPTIONS_CCALGO, opts->ccalgo) < 0) {
+		mscp_set_error("failed to set cclago");
+		return -1;
+	}
+
 	/* if NOT specified to enable Nagle's algorithm, disable it (set TCP_NODELAY) */
 	if (!opts->enable_nagle) {
 		int v = 1;
