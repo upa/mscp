@@ -608,7 +608,7 @@ void *mscp_copy_thread(void *arg)
 		goto err_out;
 	}
 
-	mpr_notice(m->msg_fp, "connecting to %s for a copy thread[%d]...\n",
+	mpr_notice(m->msg_fp, "connecting to %s for copy thread:%d...\n",
 		   m->remote, t->id);
 	t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 
@@ -619,7 +619,7 @@ void *mscp_copy_thread(void *arg)
 	}
 
 	if (!t->sftp) {
-		mpr_err(m->msg_fp, "copy thread[%d]: %s\n", t->id, mscp_get_error());
+		mpr_err(m->msg_fp, "copy thread:%d: %s\n", t->id, mscp_get_error());
 		goto err_out;
 	}
 
