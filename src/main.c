@@ -492,7 +492,7 @@ void print_progress(struct timeval *b, struct timeval *a,
         char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
         char suffix[128];
         int bps_u, byte_tu, byte_du;
-        size_t total_round, done_round;
+        double total_round, done_round;
         int percent;
         double bps;
 
@@ -515,11 +515,11 @@ void print_progress(struct timeval *b, struct timeval *a,
         percent = floor(((double)(done) / (double)total) * 100);
 
         done_round = done;
-        for (byte_du = 0; done_round > 1000 && byte_du < array_size(byte_units) - 1;
+        for (byte_du = 0; done_round > 1024 && byte_du < array_size(byte_units) - 1;
              byte_du++)
                 done_round /= 1024;
 
-        snprintf(suffix, sizeof(suffix), "%4lu%s/%lu%s %6.1f%s  %s",
+        snprintf(suffix, sizeof(suffix), "%4.1lf%s/%.1lf%s %6.1f%s  %s",
                  done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
                  bps, bps_units[bps_u],
 		 calculate_eta(total - done, done - last, b, a, final));
