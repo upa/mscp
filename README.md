@@ -26,7 +26,8 @@ Differences from `scp` on usage:
 - `-r` option is not needed to transfer directories.
 - and any other differences I have not implemented and noticed.
 
-
+Paper:
+- Ryo Nakamura and Yohei Kuga. 2023. Multi-threaded scp: Easy and Fast File Transfer over SSH. In Practice and Experience in Advanced Research Computing (PEARC '23). Association for Computing Machinery, New York, NY, USA, 320–323. https://doi.org/10.1145/3569951.3597582
 
 ## Install
 
