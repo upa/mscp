@@ -536,17 +536,42 @@ struct xfer_stat {
 };
 struct xfer_stat x;
 
-void print_stat_thread_cleanup(void *arg)
+void print_stat(bool final)
 {
+	struct pollfd pfd = { .fd = msg_fd, .events = POLLIN };
 	struct mscp_stats s;
+	char buf[8192];
+	int timeout;
+
+	if (poll(&pfd, 1, !final ? 100 : 0) < 0) {
+		fprintf(stderr, "poll: %s\n", strerror(errno));
+		return;
+	}
+
+	if (pfd.revents & POLLIN) {
+		memset(buf, 0, sizeof(buf));
+		if (read(msg_fd, buf, sizeof(buf)) < 0) {
+			fprintf(stderr, "read: %s\n", strerror(errno));
+			return;
+		}
+		print_cli("\r\033[K" "%s", buf);
+	}
 
 	gettimeofday(&x.after, NULL);
-	mscp_get_stats(m, &s);
-	x.total = s.total;
-	x.done = s.done;
+	if (calculate_timedelta(&x.before, &x.after) > 1 || final) {
+		mscp_get_stats(m, &s);
+		x.total = s.total;
+		x.done = s.done;
+		print_progress(!final ? &x.before : &x.start, &x.after,
+			       x.total, !final ? x.last : 0, x.done, final);
+		x.before = x.after;
+		x.last = x.done;
+	}
+}
 
-	/* print progress from the beginning */
-	print_progress(&x.start, &x.after, x.total, 0, x.done, true);
+void print_stat_thread_cleanup(void *arg)
+{
+	print_stat(true);
 	print_cli("\n"); /* final output */
 }
 
@@ -565,31 +590,7 @@ void *print_stat_thread(void *arg)
         pthread_cleanup_push(print_stat_thread_cleanup, NULL);
 
 	while (true) {
-		if (poll(&pfd, 1, 100) < 0) {
-			fprintf(stderr, "poll: %s\n", strerror(errno));
-			return NULL;
-		}
-
-		if (pfd.revents & POLLIN) {
-			memset(buf, 0, sizeof(buf));
-			if (read(msg_fd, buf, sizeof(buf)) < 0) {
-				fprintf(stderr, "read: %s\n", strerror(errno));
-				return NULL;
-			}
-			print_cli("\r\033[K" "%s", buf);
-		}
-
-		gettimeofday(&x.after, NULL);
-		if (calculate_timedelta(&x.before, &x.after) > 1) {
-			mscp_get_stats(m, &s);
-			x.total = s.total;
-			x.done = s.done;
-
-			print_progress(&x.before, &x.after, x.total, x.last, x.done,
-				       false);
-			x.before = x.after;
-			x.last = x.done;
-		}
+		print_stat(false);
 	}
 
 	pthread_cleanup_pop(1);

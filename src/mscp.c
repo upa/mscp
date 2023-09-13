@@ -554,6 +554,8 @@ int mscp_start(struct mscp *m)
 int mscp_join(struct mscp *m)
 {
 	struct mscp_thread *t;
+	struct path *p;
+	size_t done = 0, nr_copied = 0, nr_tobe_copied = 0;
 	int n, ret = 0;
 
 	/* waiting for scan thread joins... */
@@ -563,6 +565,7 @@ int mscp_join(struct mscp *m)
 	RWLOCK_READ_ACQUIRE(&m->thread_rwlock);
 	list_for_each_entry(t, &m->thread_list, list) {
 		pthread_join(t->tid, NULL);
+		done += t->done;
 		if (t->ret < 0)
 			ret = t->ret;
 		if (t->sftp) {
@@ -576,6 +579,17 @@ int mscp_join(struct mscp *m)
                 ssh_sftp_close(m->first);
 		m->first = NULL;
 	}
+
+	/* count up number of transferred files */
+	list_for_each_entry(p, &m->path_list, list) {
+		nr_tobe_copied++;
+		if (p->state == FILE_STATE_DONE) {
+			nr_copied++;
+		}
+	}
+
+	mpr_notice(m->msg_fp, "%lu/%lu bytes copied for %lu/%lu files\n",
+		   done, m->total_bytes, nr_copied, nr_tobe_copied);
 
 	return ret;
 }
