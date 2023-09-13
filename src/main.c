@@ -427,23 +427,43 @@ double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
         return (double)diff / calculate_timedelta(b, a);
 }
 
+
 char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a,
 		    bool final)
 {
         static char buf[16];
-        double elapsed = calculate_timedelta(b, a);
-        double eta;
 
-        if (diff == 0)
+#define bps_window_size 16
+	static double bps_window[bps_window_size];
+	static size_t sum, idx, count;
+        double elapsed = calculate_timedelta(b, a);
+	double bps = diff / elapsed;
+	double avg, eta;
+
+	/* early return when diff == 0 (stalled) or final output */
+        if (diff == 0) {
                 snprintf(buf, sizeof(buf), "--:-- ETA");
-	else if (final) {
+		return buf;
+	}
+	if (final) {
 		snprintf(buf, sizeof(buf), "%02d:%02d    ",
 			 (int)(floor(elapsed / 60)), (int)round(elapsed) % 60);
-	} else {
-                eta = remain / (diff / elapsed);
-                snprintf(buf, sizeof(buf), "%02d:%02d ETA",
-                         (int)floor(eta / 60), (int)round(eta) % 60);
-        }
+		return buf;
+	}
+
+	/* drop the old bps value and add the recent one */
+	sum -= bps_window[idx];
+	bps_window[idx] = bps;
+	sum += bps_window[idx];
+	idx = (idx + 1) % bps_window_size;
+	count++;
+
+	/* calcuate ETA from avg of recent bps values */
+	avg = sum / min(count, bps_window_size);
+	eta = remain / avg;
+	snprintf(buf, sizeof(buf), "%02d:%02d ETA",
+		 (int)floor(eta / 60), (int)round(eta) % 60);
+
         return buf;
 }
 
