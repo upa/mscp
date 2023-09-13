@@ -173,8 +173,6 @@ pthread_t tid_stat = 0;
 
 void sigint_handler(int sig)
 {
-	if (tid_stat)
-		pthread_cancel(tid_stat);
 	mscp_stop(m);
 }
 
