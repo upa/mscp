@@ -5,6 +5,7 @@ test_e2e.py: End-to-End test for mscp executable.
 
 import platform
 import pytest
+import getpass
 import os
 
 from subprocess import check_call, CalledProcessError, PIPE
@@ -89,6 +90,47 @@ def test_double_copy(mscp, src_prefix, dst_prefix, s1, s2, d1, d2):
     s2.cleanup()
     d1.cleanup()
     d2.cleanup()
+
+
+remote_v6_prefix = "[::1]:{}/".format(os.getcwd())
+param_remote_v6_prefix = [
+    ("", remote_v6_prefix), (remote_v6_prefix, "")
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_v6_prefix)
+@pytest.mark.parametrize("s1, s2, d1, d2", param_double_copy)
+def test_double_copy_with_ipv6_notation(mscp, src_prefix, dst_prefix, s1, s2, d1, d2):
+    s1.make()
+    s2.make()
+    run2ok([mscp, "-H", "-vvv",
+            src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
+    assert check_same_md5sum(s1, d1)
+    assert check_same_md5sum(s2, d2)
+    s1.cleanup()
+    s2.cleanup()
+    d1.cleanup()
+    d2.cleanup()
+
+
+remote_user_v6_prefix = "{}@[::1]:{}/".format(getpass.getuser(), os.getcwd())
+param_remote_user_v6_prefix = [
+    ("", remote_user_v6_prefix), (remote_user_v6_prefix, "")
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_user_v6_prefix)
+@pytest.mark.parametrize("s1, s2, d1, d2", param_double_copy)
+def test_double_copy_with_user_and_ipv6_notation(mscp, src_prefix, dst_prefix,
+                                                 s1, s2, d1, d2):
+    s1.make()
+    s2.make()
+    run2ok([mscp, "-H", "-vvv",
+            src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
+    assert check_same_md5sum(s1, d1)
+    assert check_same_md5sum(s2, d2)
+    s1.cleanup()
+    s2.cleanup()
+    d1.cleanup()
+    d2.cleanup()
+
+
 
 param_dir_copy = [
     ( "src_dir", "dst_dir",

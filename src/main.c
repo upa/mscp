@@ -60,58 +60,113 @@ void usage(bool print_help) {
 	       "\n");
 }
 
-char *split_remote_and_path(const char *string, char **remote, char **path)
+char *strip_brackets(char *s)
 {
-	char *s, *p;
-
-	/* split user@host:path into user@host, and path.
-	 * return value is strdup()ed memory (for free()).
-	 */
-
-	if (!(s = strdup(string))) {
-		fprintf(stderr, "strdup: %s\n", strerror(errno));
-		return NULL;
+	if (s[0] == '[' && s[strlen(s) - 1] == ']') {
+		s[strlen(s) - 1] = '\0';
+		return s + 1;
 	}
-
-	if ((p = strchr(s, ':'))) {
-		if (p == s || ((p > s) && *(p - 1) == '\\')) {
-			/* first byte is colon, or escaped colon. no user@host here  */
-			goto no_remote;
-		} else {
-			/* we found ':', so this is remote:path notation. split it */
-			*p = '\0';
-			*remote = s;
-			*path = p + 1;
-			return s;
-		}
-	}
-
-no_remote:
-	*remote = NULL;
-	*path = s;
 	return s;
 }
 
+char *split_user_host_path(const char *s, char **userp, char **hostp, char **pathp)
+{
+	char *tmp, *cp, *user = NULL, *host = NULL, *path = NULL;
+	bool inbrackets = false;
+
+	if (!(tmp = strdup(s))) {
+		fprintf(stderr, "stdrup: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	user = NULL;
+	host = NULL;
+	path = tmp;
+	for (cp = tmp; *cp; cp++) {
+		if (*cp == '@' && (cp > tmp) && *(cp - 1) != '\\' && user == NULL) {
+			/* cp is non-escaped '@', so this '@' is the
+			 * delimitater between username and host. */
+			*cp = '\0';
+			user = tmp;
+			host = cp + 1;
+		}
+		if (*cp == '[')
+			inbrackets = true;
+		if (*cp == ']')
+			inbrackets = false;
+		if (*cp == ':' && (cp > tmp) && *(cp - 1) != '\\') {
+			if (!inbrackets) {
+				/* cp is non-escaped ':' and not in
+				 * brackets for IPv6 address
+				 * notation. So, this ':' is the
+				 * delimitater between host and
+				 * path. */
+				*cp = '\0';
+				host = host == NULL ? tmp : host;
+				path = cp + 1;
+				break;
+			}
+		}
+	}
+	*userp = user;
+	*hostp = host ? strip_brackets(host) : NULL;
+	*pathp = path;
+	return tmp;
+}
+
 struct target {
-	char *remote;
+	char *copy;
+	char *user;
+	char *host;
 	char *path;
 };
+
+int compare_remote(struct target *a, struct target *b)
+{
+	/* return 0 if a and b have the identical user@host, otherwise 1 */
+	int alen, blen;
+
+	if (a->user) {
+		if (!b->user)
+			return 1;
+		alen = strlen(a->user);
+		blen = strlen(b->user);
+		if (alen != blen)
+			return 1;
+		if (strncmp(a->user, b->user, alen) != 0)
+			return 1;
+	} else if (b->user)
+		return 1;
+
+	if (a->host) {
+		if (!b->host)
+			return 1;
+		alen = strlen(a->host);
+		blen = strlen(b->host);
+		if (alen != blen)
+			return 1;
+		if (strncmp(a->host, b->host, alen) != 0)
+			return 1;
+	} else if (b->host)
+		return 1;
+
+	return 0;
+}
 
 struct target *validate_targets(char **arg, int len)
 {
 	/* arg is array of source ... destination.
 	 * There are two cases:
 	 *
-	 * 1. remote:path remote:path ... path, remote to local copy
-	 * 2. path path ... remote:path, local to remote copy.
+	 * 1. user@host:path host:path ... path, remote to local copy
+	 * 2. path path ... host:path, local to remote copy.
 	 *
-	 * This function split (remote:)path args into struct target,
+	 * This function split user@remote:path args into struct target,
 	 * and validate all remotes are identical (mscp does not support
 	 * remote to remote copy).
 	 */
 
-	struct target *t;
-	char *r;
+	struct target *t, *t0;
 	int n;
 
 	if ((t = calloc(len, sizeof(struct target))) == NULL) {
@@ -122,33 +177,28 @@ struct target *validate_targets(char **arg, int len)
 
 	/* split remote:path into remote and path */
 	for (n = 0; n < len; n++) {
-		if (split_remote_and_path(arg[n], &t[n].remote, &t[n].path) == NULL)
+		t[n].copy = split_user_host_path(arg[n], &t[n].user,
+					      &t[n].host, &t[n].path);
+		if (!t[n].copy)
 			goto free_target_out;
 	}
 
-	/* check all remote are identical. t[len - 1] is destination,
+	/* check all user@host are identical. t[len - 1] is destination,
 	 * so we need to check t[0] to t[len - 2] having the identical
-	 * remote */
-	r = t[0].remote;
+	 * remote notation */
+	t0 = &t[0];
 	for (n = 1; n < len - 1; n++) {
-		if (!r && t[n].remote) {
+		if (compare_remote(t0, &t[n]) != 0)
 			goto invalid_remotes;
-		}
-		if (r) {
-			if (!t[n].remote ||
-			    strlen(r) != strlen(t[n].remote) ||
-			    strcmp(r, t[n].remote) != 0)
-				goto invalid_remotes;
-		}
 	}
 
 	/* check inconsistent remote position in args */
-	if (t[0].remote == NULL && t[len - 1].remote == NULL) {
+	if (t[0].host == NULL && t[len - 1].host == NULL) {
 		fprintf(stderr, "no remote host given\n");
 		goto free_split_out;
 	}
 
-	if (t[0].remote != NULL && t[len - 1].remote != NULL) {
+	if (t[0].host != NULL && t[len - 1].host != NULL) {
 		fprintf(stderr, "no local path given\n");
 		goto free_split_out;
 	}
@@ -156,11 +206,11 @@ struct target *validate_targets(char **arg, int len)
 	return t;
 
 invalid_remotes:
-	fprintf(stderr, "specified remote host invalid\n");
+	fprintf(stderr, "invalid remote host notation\n");
 
 free_split_out:
 	for (n = 0; n < len; n++)
-		t[n].remote ? free(t[n].remote) : free(t[n].path);
+		if (t[n].copy) free(t[n].copy);
 
 free_target_out:
 	free(t);
@@ -323,14 +373,19 @@ int main(int argc, char **argv)
 	if ((t = validate_targets(argv + optind, i)) == NULL)
 		return -1;
 
-	if (t[0].remote) {
+	if (t[0].host) {
 		/* copy remote to local */
 		direction = MSCP_DIRECTION_R2L;
-		remote = t[0].remote;
+		remote = t[0].host;
+		if (t[0].user != NULL && s.login_name[0] == '\0')
+			strncpy(s.login_name, t[0].user, MSCP_SSH_MAX_LOGIN_NAME - 1);
 	} else {
 		/* copy local to remote */
 		direction = MSCP_DIRECTION_L2R;
-		remote = t[i - 1].remote;
+		remote = t[i - 1].host;
+		if (t[i - 1].user != NULL && s.login_name[0] == '\0')
+			strncpy(s.login_name, t[i - 1].user,
+				MSCP_SSH_MAX_LOGIN_NAME - 1);
 	}
 
 	if (!dryrun) {
