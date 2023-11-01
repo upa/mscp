@@ -221,7 +221,8 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMAND
-		docker run --init --rm ${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
+		docker run --init --rm --sysctl net.ipv6.conf.all.disable_ipv6=0
+		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
 	add_custom_target(docker-pkg-${DOCKER_INDEX}
 		COMMENT "Retrieve mscp package from ${DOCKER_IMAGE} container"
