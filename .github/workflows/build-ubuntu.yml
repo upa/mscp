@@ -23,7 +23,9 @@ jobs:
         submodules: true
 
     - name: install build dependency
-      run: sudo ./scripts/install-build-deps.sh
+      run: |
+        sudo apt-get update
+        sudo ./scripts/install-build-deps.sh
 
     - name: patch to libssh
       run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
