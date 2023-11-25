@@ -301,6 +301,14 @@ def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     f.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("src, dst", param_single_copy)
+def test_set_port(mscp, src_prefix, dst_prefix, src, dst):
+    src.make()
+    run2ng([mscp, "-H", "-vvv", "-p", 21, src_prefix + src.path, dst_prefix + dst.path])
+    run2ng([mscp, "-H", "-vvv", "-P", 21, src_prefix + src.path, dst_prefix + dst.path])
+    src.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_set_conn_interval(mscp, src_prefix, dst_prefix):
     srcs = []
     dsts = []

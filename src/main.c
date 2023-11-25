@@ -47,7 +47,7 @@ void usage(bool print_help) {
 	       "    -r                 no effect\n"
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
-	       "    -p PORT            port number\n"
+	       "    -p/-P PORT         port number\n"
 	       "    -F CONFIG          path to user ssh config (default ~/.ssh/config)\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 	o.severity = MSCP_SEVERITY_WARN;
 
 	while ((ch = getopt(argc, argv,
-			    "n:m:u:I:s:S:a:b:vqDrl:p:i:F:c:M:C:g:HdNh")) != -1) {
+			    "n:m:u:I:s:S:a:b:vqDrl:P:p:i:F:c:M:C:g:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -305,6 +305,8 @@ int main(int argc, char **argv)
 			}
 			strncpy(s.login_name, optarg, MSCP_SSH_MAX_LOGIN_NAME - 1);
 			break;
+		case 'P':
+			/* fallthough for compatibility with scp */
 		case 'p':
 			if (strlen(optarg) > MSCP_SSH_MAX_PORT_STR - 1) {
 				fprintf(stderr, "long port string: %s\n", optarg);
