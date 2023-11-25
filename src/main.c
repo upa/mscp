@@ -18,7 +18,8 @@
 void usage(bool print_help) {
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
+	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]\n"
+	       "            [-u max_startups] [-I interval]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
@@ -31,11 +32,12 @@ void usage(bool print_help) {
 	printf("    -n NR_CONNECTIONS  number of connections "
 	       "(default: floor(log(cores)*2)+1)\n"
 	       "    -m COREMASK        hex value to specify cores where threads pinned\n"
-	       "    -u MAX_STARTUPS    number of concurrent outgoing connections "
+	       "    -u MAX_STARTUPS    number of concurrent SSH connection attempts "
 	       "(default: 8)\n"
+	       "    -I INTERVAL        interval between SSH connection attempts (default: 0)\n"
+	       "\n"
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
-	       "\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
 	       "\n"
@@ -253,7 +255,7 @@ int main(int argc, char **argv)
 	o.severity = MSCP_SEVERITY_WARN;
 
 	while ((ch = getopt(argc, argv,
-			    "n:m:u:s:S:a:b:vqDrl:p:i:F:c:M:C:g:HdNh")) != -1) {
+			    "n:m:u:I:s:S:a:b:vqDrl:p:i:F:c:M:C:g:HdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -268,6 +270,9 @@ int main(int argc, char **argv)
 			break;
 		case 'u':
 			o.max_startups = atoi(optarg);
+			break;
+		case 'I':
+			o.interval = atoi(optarg);
 			break;
 		case 's':
 			o.min_chunk_sz = atoi(optarg);

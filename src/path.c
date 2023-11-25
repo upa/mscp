@@ -49,6 +49,10 @@ size_t chunk_pool_size(struct chunk_pool *cp)
 	return cp->count;
 }
 
+bool chunk_pool_is_empty(struct chunk_pool *cp)
+{
+	return list_empty(&cp->list);
+}
 
 struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 {
@@ -68,7 +72,7 @@ struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 	}
 	LOCK_RELEASE();
 
-	/* return CHUNK_POP_WAIT would be very rare case, because it
+	/* return CHUNK_POP_WAIT would be a rare case, because it
 	 * means copying over SSH is faster than traversing
 	 * local/remote file paths.
 	 */

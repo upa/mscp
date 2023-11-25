@@ -43,7 +43,8 @@ struct mscp_opts {
 	size_t	max_chunk_sz;	/** maximum chunk size (default file size/nr_threads) */
 	size_t	buf_sz;		/** buffer size, default 16k. */
 	char	coremask[MSCP_MAX_COREMASK_STR]; /** hex to specifiy usable cpu cores */
-	int	max_startups;	/* sshd MaxStartups concurrent connections */
+	int	max_startups;	/** sshd MaxStartups concurrent connections */
+	int     interval;	/** interval between SSH connection attempts */
 
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
 	int	msg_fd;		/** fd to output message. default STDOUT (0),

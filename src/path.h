@@ -62,6 +62,9 @@ bool chunk_pool_is_filled(struct chunk_pool *cp);
 /* return number of chunks in the pool */
 size_t chunk_pool_size(struct chunk_pool *cp);
 
+/* return true if chunk pool is empty (all chunks are already poped) */
+bool chunk_pool_is_empty(struct chunk_pool *cp);
+
 /* free chunks in the chunk_pool */
 void chunk_pool_release(struct chunk_pool *cp);
 

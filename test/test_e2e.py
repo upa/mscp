@@ -300,6 +300,20 @@ def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     assert md5_before == md5_after
     f.cleanup()
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_set_conn_interval(mscp, src_prefix, dst_prefix):
+    srcs = []
+    dsts = []
+    for x in range(500):
+        srcs.append(File("src/file{}".format(x), size = 128).make())
+        dsts.append(File("dst/file{}".format(x)))
+    run2ok([mscp, "-H", "-vvv", "-I", 1, src_prefix + "src", dst_prefix + "dst"])
+
+    for src, dst in zip(srcs, dsts):
+        assert check_same_md5sum(src, dst)
+        src.cleanup()
+        dst.cleanup()
+
 compressions = ["yes", "no", "none"]
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("compress", compressions)

@@ -97,6 +97,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		"coremask",	/* const char * */
 
 		"max_startups",	/* int */
+		"interval",	/* int */
 		"severity",	/* int, MSCP_SERVERITY_* */
 		"msg_fd",	/* int */
 
@@ -118,7 +119,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 		"enable_nagle",		/* bool */
 		NULL,
 	};
-	const char *fmt = "si" "|" "ii" "kkk" "s" "iii" "ssss" "ssssss" "ipp";
+	const char *fmt = "si" "|" "ii" "kkk" "s" "iiii" "ssss" "ssssss" "ipp";
 	char *coremask = NULL;
 	char *login_name = NULL, *port = NULL, *config = NULL, *identity = NULL;
 	char *cipher = NULL, *hmac = NULL, *compress = NULL, *ccalgo = NULL;
@@ -146,6 +147,7 @@ static PyObject *wrap_mscp_init(PyObject *self, PyObject *args, PyObject *kw)
 					  &i->mo.buf_sz,
 					  &coremask,
 					  &i->mo.max_startups,
+					  &i->mo.interval,
 					  &i->mo.severity,
 					  &i->mo.msg_fd,
 					  &login_name,
