@@ -10,8 +10,8 @@ Standards-Version: 4.5.0.3
 Package: mscp
 Architecture: linux-any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: mscp is a fast file transfer tool that copies files over
- multiple ssh (SFTP) connections. Multiple threads and connections in
- mscp transfer (1) multiple files simultaneously and (2) a large file
- in parallel. It would shorten the waiting time for transferring a lot
- of/large files over networks.
+Description: mscp, fast file transfer over multiple SSH connections
+ mscp transfers files over multiple SSH connections. Multiple threads
+ and connections in mscp transfer (1) multiple files simultaneously
+ and (2) a large file in parallel. It would shorten the waiting time
+ for transferring a lot of/large files over networks.
