@@ -1,0 +1,11 @@
+
+/.debhelper/
+/*/
+!/tests/
+!/source
+
+/*.log
+/*.substvars
+/*.debhelper
+/files
+/mscp

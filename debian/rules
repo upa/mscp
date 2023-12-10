@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DINSTALL_EXECUTABLE_ONLY=ON
+
+override_dh_auto_test:
+
+

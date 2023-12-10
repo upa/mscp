@@ -1,0 +1,5 @@
+mscp (0.1.2) UNRELEASED; urgency=medium
+
+  * Initial release for debian packaging
+
+ -- Ryo Nakamura <upa@haeena.net>  Sun, 10 Dec 2023 21:51:49 +0900

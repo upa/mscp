@@ -1,0 +1,12 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/upa/mscp
+Upstream-Name: mscp
+Upstream-Contact: Ryo Nakamura <upa@haeena.net>
+
+Files: *
+Copyright: Ryo Nakamura
+License: GPL-3
+
+Files: src/list.h
+Copyright: kazutomo@mcs.anl.gov
+License: GPL
