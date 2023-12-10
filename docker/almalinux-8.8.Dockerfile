@@ -32,5 +32,6 @@ RUN cd ${mscpdir}			\
 
 # install mscp python module
 RUN cd ${mscpdir}	\
-	&& python3 pysetup.py install --user
+	&& python3 pysetup.py install --user \
+	&& ldconfig
 
