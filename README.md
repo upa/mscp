@@ -37,16 +37,10 @@ Paper:
 brew install upa/tap/mscp
 ```
 
-- Ubuntu 22.04
+- Ubuntu
 ```console
-wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-22.04-x86_64.deb
-apt-get install -f ./mscp_ubuntu-22.04-x86_64.deb
-```
-
-- Ubuntu 20.04
-```console
-wget https://github.com/upa/mscp/releases/latest/download/mscp_ubuntu-20.04-x86_64.deb
-apt-get install -f ./mscp_ubuntu-20.04-x86_64.deb
+sudo add-apt-repository ppa:upaa/mscp
+sudo apt-get install mscp
 ```
 
 - Rocky 8.8
@@ -59,7 +53,7 @@ yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.8-
 yum install https://github.com/upa/mscp/releases/latest/download/mscp_almalinux-8.8-x86_64.rpm
 ```
 
-- Linux with single binary `mscp` (x86_64 only)
+- Linux with single binary `mscp` (x86_64 only, and not optimal performance)
 ```console
 wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86.static -O /usr/local/bin/mscp
 chmod 755 /usr/local/bin/mscp
