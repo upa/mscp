@@ -18,7 +18,7 @@ jobs:
           submodules: true
 
       - name: patch to libssh
-        run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
+        run: patch -d libssh -p1 < patch/libssh-0.10.6.patch
 
       # TODO: just building docker does not require packages. fix CMakeLists
       - name: install build dependency
@@ -58,7 +58,7 @@ jobs:
           submodules: true
 
       - name: patch to libssh
-        run: patch -d libssh -p1 < patch/libssh-0.10.4.patch
+        run: patch -d libssh -p1 < patch/libssh-0.10.6.patch
 
       - name: Set variables
         run: |

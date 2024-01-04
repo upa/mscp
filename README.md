@@ -76,7 +76,7 @@ cd mscp
 
 # prepare patched libssh
 git submodule update --init
-patch -d libssh -p1 < patch/libssh-0.10.4.patch
+patch -d libssh -p1 < patch/libssh-0.10.6.patch
 
 # install build dependency
 bash ./scripts/install-build-deps.sh
