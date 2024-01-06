@@ -48,7 +48,7 @@ jobs:
         sudo ./scripts/install-build-deps.sh
 
     - name: patch to libssh
-      run: patch -d libssh -p1 < patch/libssh-0.10.6.patch
+      run: patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
