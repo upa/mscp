@@ -240,7 +240,7 @@ static bool check_path_should_skip(const char *path)
         return false; 
 }
 
-static int walk_path_recursive(sftp_session sftp, const char *path,
+static int walk_path_recursive(FILE *msg_fp, sftp_session sftp, const char *path,
 			       struct list_head *path_list, struct path_resolve_args *a)
 {
 	char next_path[PATH_MAX];
@@ -249,7 +249,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	MDIR *d;
 	int ret;
 
-	if (mscp_stat(path, &st, sftp) < 0)
+	if (mscp_lstat(path, &st, sftp) < 0)
 		return -1;
 
 	if (S_ISREG(st.st_mode)) {
@@ -257,8 +257,12 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		return append_path(sftp, path, st, path_list, a);
 	}
 
-	if (!S_ISDIR(st.st_mode))
-		return 0; /* not a regular file and not a directory, skip it. */
+	if (!S_ISDIR(st.st_mode)) {
+		/* this is not a regular file and not a directory,
+		 * e.g., symlink, chardev, and socket. skip it. */
+		mpr_info(msg_fp, "skip non-regular file: %s\n", path);
+		return 0;
+	}
 
 	/* ok, this path is directory. walk it. */
 	if (!(d = mscp_opendir(path, sftp)))
@@ -273,7 +277,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			return -1;
 		}
 		snprintf(next_path, sizeof(next_path), "%s/%s", path, e->d_name);
-		ret = walk_path_recursive(sftp, next_path, path_list, a);
+		ret = walk_path_recursive(msg_fp, sftp, next_path, path_list, a);
 		if (ret < 0)
 			return ret;
 	}
@@ -283,10 +287,10 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	return 0;
 }
 
-int walk_src_path(sftp_session src_sftp, const char *src_path,
+int walk_src_path(FILE *msg_fp, sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list, struct path_resolve_args *a)
 {
-	return walk_path_recursive(src_sftp, src_path, path_list, a);
+	return walk_path_recursive(msg_fp, src_sftp, src_path, path_list, a);
 }
 
 void path_dump(struct list_head *path_list)

@@ -430,7 +430,7 @@ void *mscp_scan_thread(void *arg)
 		}
 
 		for (n = 0; n < pglob.gl_pathc; n++) {
-			if (mscp_stat(pglob.gl_pathv[n], &ss, src_sftp) < 0) {
+			if (mscp_lstat(pglob.gl_pathv[n], &ss, src_sftp) < 0) {
 				mscp_set_error("stat: %s %s", s->path, strerrno());
 				goto err_out;
 			}
@@ -444,7 +444,8 @@ void *mscp_scan_thread(void *arg)
 			a.src_path_is_dir = S_ISDIR(ss.st_mode);
 
 			INIT_LIST_HEAD(&tmp);
-			if (walk_src_path(src_sftp, pglob.gl_pathv[n], &tmp, &a) < 0)
+			if (walk_src_path(m->msg_fp,
+					  src_sftp, pglob.gl_pathv[n], &tmp, &a) < 0)
 				goto err_out;
 
 			list_splice_tail(&tmp, m->path_list.prev);

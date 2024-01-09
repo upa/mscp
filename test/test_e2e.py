@@ -7,6 +7,7 @@ import platform
 import pytest
 import getpass
 import os
+import shutil
 
 from subprocess import check_call, CalledProcessError, PIPE
 from util import File, check_same_md5sum
@@ -299,6 +300,40 @@ def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     md5_after = f.md5sum()
     assert md5_before == md5_after
     f.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dont_copy_symlink_dir1(mscp, src_prefix, dst_prefix):
+    srcfile = File("src/dir1/dir2/test", size = 1024 * 1024).make()
+    os.symlink("../../dir1", "src/dir1/dir2/dir1-link")
+    run2ok([mscp, "-H", "-vvv", src_prefix + "src", dst_prefix + "dst"])
+    assert os.path.exists("dst/dir1/dir2/test")
+    assert not os.path.exists("dst/dir1/dir2/dir1-link")
+    shutil.rmtree("src")
+    shutil.rmtree("dst")
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dont_copy_symlink_dir2(mscp, src_prefix, dst_prefix):
+    symlink = "link-to-src"
+    srcfile = File("src/dir1/dir2/test", size = 1024 * 1024).make()
+    os.symlink("src", symlink)
+    run2ok([mscp, "-H", "-vvv", src_prefix + symlink, dst_prefix + "dst"])
+    assert not os.path.exists("dst")
+    os.remove(symlink)
+    shutil.rmtree("src")
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dst_is_symlink_dir(mscp, src_prefix, dst_prefix):
+    symlink = "link-to-dst"
+    dstdir = "dst"
+    os.mkdir(dstdir)
+    os.symlink(dstdir, symlink)
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("link-to-dst/src")
+    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + symlink])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    os.remove(symlink)
+    shutil.rmtree("dst")
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("src, dst", param_single_copy)

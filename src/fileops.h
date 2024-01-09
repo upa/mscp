@@ -29,10 +29,7 @@ int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp);
 
 /* stat operations */
 int mscp_stat(const char *path, struct stat *st, sftp_session sftp);
-int mscp_stat_wrapped(const char *path, struct stat *st);
-
 int mscp_lstat(const char *path, struct stat *st, sftp_session sftp);
-int mscp_lstat_wrapped(const char *path, struct stat *st);
 
 
 /* file operations */

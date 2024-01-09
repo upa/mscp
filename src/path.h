@@ -90,7 +90,7 @@ struct path_resolve_args {
 };
 
 /* recursivly walk through src_path and fill path_list for each file */
-int walk_src_path(sftp_session src_sftp, const char *src_path,
+int walk_src_path(FILE *msg_fp, sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list, struct path_resolve_args *a);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
