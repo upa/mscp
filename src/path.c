@@ -13,7 +13,6 @@
 #include <path.h>
 #include <message.h>
 
-
 /* chunk pool operations */
 #define CHUNK_POOL_STATE_FILLING	0
 #define CHUNK_POOL_STATE_FILLED		1
@@ -96,11 +95,12 @@ void chunk_pool_release(struct chunk_pool *cp)
 static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
 			    struct path_resolve_args *a)
 {
-        char copy[PATH_MAX];
+        char copy[PATH_MAX + 1];
         char *prefix;
         int offset;
+	int ret;
 
-        strncpy(copy, a->src_path, PATH_MAX - 1);
+        strncpy(copy, a->src_path, PATH_MAX);
         prefix = dirname(copy);
         if (!prefix) {
                 mscp_set_error("dirname: %s", strerrno());
@@ -116,26 +116,31 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
                  * In the second case, we need to put src under the dst.
                  */
                 if (a->dst_path_should_dir)
-                        snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
-                                 a->dst_path, a->src_path + offset);
+                        ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
+				       a->dst_path, a->src_path + offset);
                 else
-                        strncpy(dst_file_path, a->dst_path, PATH_MAX - 1);
+                        ret = snprintf(dst_file_path, PATH_MAX, "%s", a->dst_path);
         }
 
         /* src is file, and dst is dir */
         if (!a->src_path_is_dir && a->dst_path_is_dir)
-                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
-			 a->dst_path, a->src_path + offset);
+                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
+			       a->dst_path, a->src_path + offset);
 
         /* both are directory */
         if (a->src_path_is_dir && a->dst_path_is_dir)
-                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
-			 a->dst_path, src_file_path + offset);
+                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
+			       a->dst_path, src_file_path + offset);
 
         /* dst path does not exist. change dir name to dst_path */
         if (a->src_path_is_dir && !a->dst_path_is_dir)
-                snprintf(dst_file_path, PATH_MAX - 1, "%s/%s",
-                         a->dst_path, src_file_path + strlen(a->src_path) + 1);
+                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
+			       a->dst_path, src_file_path + strlen(a->src_path) + 1);
+
+	if (ret >= PATH_MAX) {
+		mpr_warn(a->msg_fp, "Too long path: %s\n", dst_file_path);
+		return -1;
+	}
 
         mpr_debug(a->msg_fp, "file: %s -> %s\n", src_file_path, dst_file_path);
 
@@ -243,14 +248,16 @@ static bool check_path_should_skip(const char *path)
 static int walk_path_recursive(sftp_session sftp, const char *path,
 			       struct list_head *path_list, struct path_resolve_args *a)
 {
-	char next_path[PATH_MAX];
+	char next_path[PATH_MAX + 1];
 	struct dirent *e;
 	struct stat st;
 	MDIR *d;
 	int ret;
 
-	if (mscp_stat(path, &st, sftp) < 0)
+	if (mscp_stat(path, &st, sftp) < 0) {
+		mpr_warn(a->msg_fp, "%s: %s\n",  strerrno(), path);
 		return -1;
+	}
 
 	if (S_ISREG(st.st_mode)) {
 		/* this path is regular file. it is to be copied */
@@ -260,22 +267,25 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	if (!S_ISDIR(st.st_mode))
 		return 0; /* not a regular file and not a directory, skip it. */
 
-	/* ok, this path is directory. walk it. */
-	if (!(d = mscp_opendir(path, sftp)))
+	/* ok, this path is a directory. walk through it. */
+	if (!(d = mscp_opendir(path, sftp))) {
+		mpr_warn(a->msg_fp, "%s: %s\n", strerrno(), path);
 		return -1;
+	}
 	
 	for (e = mscp_readdir(d); e; e = mscp_readdir(d)) {
 		if (check_path_should_skip(e->d_name))
 			continue;
 		
-		if (strlen(path) + 1 + strlen(e->d_name) > PATH_MAX) {
-			mscp_set_error("too long path: %s/%s", path, e->d_name);
-			return -1;
+		ret = snprintf(next_path, PATH_MAX, "%s/%s", path, e->d_name);
+		if (ret >= PATH_MAX) {
+			mpr_warn(a->msg_fp, "Too long path: %s/%s\n", path, e->d_name);
+			continue;
 		}
-		snprintf(next_path, sizeof(next_path), "%s/%s", path, e->d_name);
-		ret = walk_path_recursive(sftp, next_path, path_list, a);
-		if (ret < 0)
-			return ret;
+
+		walk_path_recursive(sftp, next_path, path_list, a);
+		/* do not stop even when walk_path_recursive returns
+		 * -1 due to an unreadable file. go to a next file. */
 	}
 
 	mscp_closedir(d);
