@@ -106,10 +106,18 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
                 mscp_set_error("dirname: %s", strerrno());
                 return -1;
         }
-        if (strlen(prefix) == 1 && prefix[0] == '.')
-                offset = 0;
-        else
-                offset = strlen(prefix) + 1;
+
+	offset = strlen(prefix) + 1;
+	if (strlen(prefix) == 1) { /* corner cases */
+		switch (prefix[0]) {
+		case '.':
+			offset = 0;
+			break;
+		case '/':
+			offset = 1;
+			break;
+		}
+	}
 
         if (!a->src_path_is_dir && !a->dst_path_is_dir) {
                 /* src path is file. dst path is (1) file, or (2) does not exist.

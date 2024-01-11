@@ -216,7 +216,7 @@ def test_copy_file_under_root_to_dir(mscp, src_prefix, dst_prefix):
             dst_prefix + os.path.dirname(dst.path)])
     assert check_same_md5sum(src, dst)
     src.cleanup()
-    dst.cleanup()
+    dst.cleanup(preserve_dir = True)
 
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)

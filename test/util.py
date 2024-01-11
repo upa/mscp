@@ -46,8 +46,10 @@ class File():
         with open(self.path, "wb") as f:
             f.write(os.urandom(self.size))
 
-    def cleanup(self):
+    def cleanup(self, preserve_dir = False):
         os.remove(self.path)
+        if preserve_dir:
+            return
         tmp = os.path.dirname(self.path)
         while tmp and not tmp in [".", "/"]:
             if len(os.listdir(tmp)) == 0:
