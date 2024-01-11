@@ -203,6 +203,22 @@ def test_override_single_file(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup()
 
+absolute_remote_prefix = "localhost:"
+param_absolute_remote_prefix = [
+    ("", absolute_remote_prefix), (absolute_remote_prefix, "")
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_absolute_remote_prefix)
+def test_copy_file_under_root_to_dir(mscp, src_prefix, dst_prefix):
+    src = File("/mscp-test-src", size = 1024).make()
+    dst = File("/tmp/mscp-test-src")
+
+    run2ok([mscp, "-H", "-vvv", src_prefix + src.path,
+            dst_prefix + os.path.dirname(dst.path)])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_min_chunk(mscp, src_prefix, dst_prefix):
     src = File("src", size = 16 * 1024).make()
