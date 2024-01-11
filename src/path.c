@@ -92,10 +92,9 @@ void chunk_pool_release(struct chunk_pool *cp)
 }
 
 /* paths of copy source resoltion */
-static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
-			    struct path_resolve_args *a)
+static char *resolve_dst_path(const char *src_file_path, struct path_resolve_args *a)
 {
-        char copy[PATH_MAX + 1];
+        char copy[PATH_MAX + 1], dst_file_path[PATH_MAX + 1];
         char *prefix;
         int offset;
 	int ret;
@@ -104,7 +103,7 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
         prefix = dirname(copy);
         if (!prefix) {
                 mscp_set_error("dirname: %s", strerrno());
-                return -1;
+                return NULL;
         }
 
 	offset = strlen(prefix) + 1;
@@ -147,12 +146,12 @@ static int resolve_dst_path(const char *src_file_path, char *dst_file_path,
 
 	if (ret >= PATH_MAX) {
 		mpr_warn(a->msg_fp, "Too long path: %s\n", dst_file_path);
-		return -1;
+		return NULL;
 	}
 
         mpr_debug(a->msg_fp, "file: %s -> %s\n", src_file_path, dst_file_path);
 
-        return 0;
+        return strndup(dst_file_path, PATH_MAX);
 }
 
 /* chunk preparation */
@@ -208,6 +207,15 @@ static int resolve_chunk(struct path *p, struct path_resolve_args *a)
         return 0;
 }
 
+void free_path(struct path *p)
+{
+	if (p->path)
+		free(p->path);
+	if (p->dst_path)
+		free(p->dst_path);
+	free(p);
+}
+
 static int append_path(sftp_session sftp, const char *path, struct stat st,
 		       struct list_head *path_list, struct path_resolve_args *a)
 {
@@ -220,13 +228,16 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 
 	memset(p, 0, sizeof(*p));
 	INIT_LIST_HEAD(&p->list);
-	strncpy(p->path, path, PATH_MAX - 1);
+	p->path = strndup(path, PATH_MAX);
+	if (!p->path)
+		goto free_out;
 	p->size = st.st_size;
 	p->mode = st.st_mode;
 	p->state = FILE_STATE_INIT;
 	lock_init(&p->lock);
 
-	if (resolve_dst_path(p->path, p->dst_path, a) < 0)
+	p->dst_path = resolve_dst_path(p->path, a);
+	if (!p->dst_path)
 		goto free_out;
 
 	if (resolve_chunk(p, a) < 0)
@@ -239,7 +250,7 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 	return 0;
 
 free_out:
-	free(p);
+	free_path(p);
 	return -1;
 }
 

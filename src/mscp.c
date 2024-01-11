@@ -714,7 +714,7 @@ out:
 
 /* cleanup-related functions */
 
-static void free_src(struct list_head *list)
+static void list_free_src(struct list_head *list)
 {
 	struct src *s;
 	s = list_entry(list, typeof(*s), list);
@@ -722,21 +722,14 @@ static void free_src(struct list_head *list)
 	free(s);
 }
 
-static void free_path(struct list_head *list)
+static void list_free_path(struct list_head *list)
 {
 	struct path *p;
 	p = list_entry(list, typeof(*p), list);
-	free(p);
+	free_path(p);
 }
 
-static void free_chunk(struct list_head *list)
-{
-	struct chunk *c;
-	c = list_entry(list, typeof(*c), list);
-	free(c);
-}
-
-static void free_thread(struct list_head *list)
+static void list_free_thread(struct list_head *list)
 {
 	struct mscp_thread *t;
 	t = list_entry(list, typeof(*t), list);
@@ -750,17 +743,17 @@ void mscp_cleanup(struct mscp *m)
 		m->first = NULL;
 	}
 
-	list_free_f(&m->src_list, free_src);
+	list_free_f(&m->src_list, list_free_src);
 	INIT_LIST_HEAD(&m->src_list);
 
-	list_free_f(&m->path_list, free_path);
+	list_free_f(&m->path_list, list_free_path);
 	INIT_LIST_HEAD(&m->path_list);
 
 	chunk_pool_release(&m->cp);
 	chunk_pool_init(&m->cp);
 
 	RWLOCK_WRITE_ACQUIRE(&m->thread_rwlock);
-	list_free_f(&m->thread_list, free_thread);
+	list_free_f(&m->thread_list, list_free_thread);
 	RWLOCK_RELEASE();
 }
 

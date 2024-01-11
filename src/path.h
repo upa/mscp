@@ -14,11 +14,11 @@
 struct path {
 	struct list_head	list;	/* mscp->path_list */
 
-	char	path[PATH_MAX];		/* file path */
-	size_t	size;			/* size of file on this path */
-	mode_t	mode;			/* permission */
+	char	*path;		/* file path */
+	size_t	size;		/* size of file on this path */
+	mode_t	mode;		/* permission */
 
-	char	dst_path[PATH_MAX];	/* copy dst path */
+	char	*dst_path;	/* copy dst path */
 
 	int	state;
 	lock	lock;
@@ -92,6 +92,9 @@ struct path_resolve_args {
 /* recursivly walk through src_path and fill path_list for each file */
 int walk_src_path(sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list, struct path_resolve_args *a);
+
+/* free struct path */
+void free_path(struct path *p);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
 int copy_chunk(FILE *msg_fp, struct chunk *c,
