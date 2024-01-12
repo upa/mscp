@@ -1,4 +1,4 @@
-mscp (0.2.2) UNRELEASED; urgency=medium
+mscp (0.2.2-1~jammy) jammy; urgency=medium
 
   * bump cmake_minimum_version on libssh (#32)
   * fix quiet mode (#30)
