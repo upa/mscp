@@ -1,4 +1,4 @@
-mscp (0.2.1) UNRELEASED; urgency=medium
+mscp (0.2.1-1~focal) focal; urgency=medium
 
   * fix broken checkpoint files when copying multiple files (#16)
   * fix broken password inputs for resume transfers (#17 and #18)
