@@ -1,4 +1,17 @@
-mscp (0.1.2) UNRELEASED; urgency=medium
+mscp (0.1.3) UNRELEASED; urgency=medium
+
+  * add -I option for inserting intervals between SSH attempts (issue #7)
+  * add -P option, equivalent to -p (just for compatibility)
+  * update libssh to 0.10.6-2-g6f1b1e76 for security fixes
+  * cleanup warning messages when scanning source files fails
+  * fix wrong destination paths for source paths under '/' (issue #8)
+  * reduce memory footprint for coping many (e.g., over 100k) files (issue #8)
+  * add SPDX-License-Identifer to the source files
+  * add manpage
+
+ -- Ryo Nakamura <upa@haeena.net>  Fri, 12 Jan 2024 22:20:24 +0900
+
+mscp (0.1.2) unstable; urgency=medium
 
   * Initial release for debian packaging
 
