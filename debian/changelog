@@ -1,4 +1,4 @@
-mscp (0.1.5) UNRELEASED; urgency=medium
+mscp (0.1.5~focal) focal; urgency=medium
 
   * add support for resuming failed transfer (#5 and #10)
   * remove the list structure derived from the linux kernel and refactoring
