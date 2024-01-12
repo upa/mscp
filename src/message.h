@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _MSCP_H_
 #define _MSCP_H_
 

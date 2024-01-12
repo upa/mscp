@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _PATH_H_
 #define _PATH_H_
 

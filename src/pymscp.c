@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <errno.h>

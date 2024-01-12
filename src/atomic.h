@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _ATOMIC_H_
 #define _ATOMIC_H_
 
