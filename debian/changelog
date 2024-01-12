@@ -1,4 +1,4 @@
-mscp (0.2.4) UNRELEASED; urgency=medium
+mscp (0.2.4-1~jammy) jammy; urgency=medium
 
   * fix password auth does not work (issue #36)
   * add Debian and Devuan to the install dep script (pr #38)
