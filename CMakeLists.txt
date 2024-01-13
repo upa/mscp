@@ -142,6 +142,21 @@ target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
 install(TARGETS mscp RUNTIME DESTINATION bin)
 
 
+# mscp manpage and document
+configure_file(
+	${mscp_SOURCE_DIR}/doc/mscp.1.in
+	${PROJECT_BINARY_DIR}/mscp.1)
+
+add_custom_target(update-mscp-rst
+	COMMENT "Update doc/mscp.rst from mscp.1.in"
+	WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+	COMMAND
+	pandoc -s -f man mscp.1 -t rst -o ${PROJECT_SOURCE_DIR}/doc/mscp.rst)
+
+install(FILES ${PROJECT_BINARY_DIR}/mscp.1
+	DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+
+
 # Test
 add_test(NAME	pytest
 	COMMAND	python3 -m pytest -v

@@ -1,0 +1,316 @@
+.TH MSCP 1 "@MSCP_BUILD_VERSION@" "mscp" "User Commands"
+
+.SH NAME
+mscp \- copy files over multiple SSH connections
+
+.SH SYNOPSIS
+
+.B mscp
+.RB [ \-vqDHdNh ]
+[\c
+.BI \-n \ NR_CONNECTIONS\c
+]
+[\c
+.BI \-m \ COREMASK\c
+]
+[\c
+.BI \-u \ MAX_STARTUPS\c
+]
+[\c
+.BI \-I \ INTERVAL\c
+]
+[\c
+.BI \-s \ MIN_CHUNK_SIZE\c
+]
+[\c
+.BI \-S \ MAX_CHUNK_SIZE\c
+]
+[\c
+.BI \-a \ NR_AHEAD\c
+]
+[\c
+.BI \-b \ BUF_SIZE\c
+]
+[\c
+.BI \-l \ LOGIN_NAME\c
+]
+[\c
+.BR \-p |\c
+.BI \-P \ PORT\c
+]
+[\c
+.BI \-F \ CONFIG\c
+]
+[\c
+.BI \-i \ IDENTITY\c
+]
+[\c
+.BI \-c \ CIPHER\c
+]
+[\c
+.BI \-M \ HMAC\c
+]
+[\c
+.BI \-C \ COMPRESS\c
+]
+.I source ... target
+
+.SH DESCRIPTION
+
+.PP
+.B mscp
+copies files over multiple SSH (SFTP) connections by multiple
+threads. It enables transferring (1) multiple files simultaneously and
+(2) a large file in parallel, reducing the transfer time for a lot
+of/large files over networks.
+
+.PP
+The usage of
+.B mscp
+imitates the
+.B scp
+command of
+.I OpenSSH,
+for example:
+
+.nf
+    $ mscp srcfile user@example.com:dstfile
+.fi
+
+Remote hosts only need to run standard
+.B sshd
+supporting the SFTP subsystem, and users need to be able to
+.B ssh
+to the hosts as usual.
+.B mscp
+does not require anything else.
+
+.PP
+.B mscp
+uses
+.UR https://\:www\:.libssh\:.org
+libssh
+.UE
+as its SSH implementation. Thus, supported SSH features, for example,
+authentication, encryption, and various options in ssh_config, follow
+what
+.I libssh
+supports.
+
+.SH OPTIONS
+.TP
+.B \-n \fINR_CONNECTIONS\fR
+Specifies the number of SSH connections. The default value is
+calculated from the number of CPU cores on the host with the following
+formula: floor(log(nr_cores)*2)+1.
+
+.TP
+.B \-m \fICOREMASK\fR
+Configures CPU cores to be used by the hexadecimal bitmask.  All CPU
+cores are used by default.
+
+.TP
+.B \-u \fIMAX_STARTUPS\fR
+Specifies the number of concurrent outgoing SSH connections.
+.B sshd
+limits the number of simultaneous SSH connection attempts by
+.I MaxStartups
+in
+.I sshd_config.
+The default
+.I MaxStartups
+is 10; thus, we set the default MAX_STARTUPS 8.
+
+.TP
+.B \-I \fIINTERVAL\fR
+Specifies the interval (in seconds) between SSH connection
+attempts. Some firewall products treat SSH connection attempts from a
+single source IP address for a short period as a brute force attack.
+This option inserts intervals between the attempts to avoid being
+determined as an attack. The default value is 0.
+
+.TP
+.B \-s \fIMIN_CHUNK_SIZE\fR
+Specifies the minimum chunk size.
+.B mscp
+divides a file into chunks and copies the chunks in parallel.
+
+.TP
+.B \-S \fIMAX_CHUNK_SIZE\fR
+Specifies the maximum chunk size. The default is file size divided by
+the number of connections.
+
+.TP
+.B \-a \fINR_AHEAD\fR
+Specifies the number of inflight SFTP commands. The default value is
+32.
+
+.TP
+.B \-b \fIBUF_SIZE\fR
+Specifies the buffer size for I/O and transfer over SFTP. The default
+value is 16384. Note that the SSH specification restricts buffer size
+delivered over SSH. Changing this value is not recommended at present.
+
+.TP
+.B \-v
+Increments the verbose output level.
+
+.TP
+.B \-q
+Quiet mode: turns off all outputs.
+
+.TP
+.B \-D
+Dry-run mode: it scans source files to be copied, calculates chunks,
+and resolves destination file paths. Dry-run mode with
+.B -vv
+option enables confirming files to be copied and their destination
+paths.
+
+.TP
+.B \-r
+No effect.
+.B mscp
+copies recursively if a source path is a directory. This option exists
+for just compatibility.
+
+.TP
+.B \-l \fILOGIN_NAME\fR
+Specifies the username to log in on the remote machine as with
+.I ssh(1).
+
+.TP
+.B \-p,\-P \fIPORT\fR
+Specifies the port number to connect to on the remote machine as with
+ssh(1) and scp(1).
+
+.TP
+.B \-F \fICONFIG\fR
+Specifies an alternative per-user ssh configuration file. Note that
+acceptable options in the configuration file are what
+.I libssh
+supports.
+
+.TP
+.B \-i \fIIDENTITY\fR
+Specifies the identity file for public key authentication.
+
+.TP
+.B \-c \fICIPHER\fR
+Selects the cipher to use for encrypting the data transfer. See
+.UR https://\:www\:.libssh\:.org/\:features/
+libssh features
+.UE .
+
+.TP
+.B \-M \fIHMAC\fR
+Specifies MAC hash algorithms. See
+.UR https://\:www\:.libssh\:.org/\:features/
+libssh features
+.UE .
+
+.TP
+.B \-C \fICOMPRESS\fR
+Enables compression: yes, no, zlib, zlib@openssh.com. The default is
+none. See
+.UR https://\:www\:.libssh\:.org/\:features/
+libssh features
+.UE .
+
+.TP
+.B \-H
+Disables hostkey checking.
+
+.TP
+.B \-d
+Increments the ssh debug output level.
+
+.TP
+.B \-N
+Enables Nagle's algorithm. It is disabled by default.
+
+.TP
+.B \-h
+Prints help.
+
+.SH EXIT STATUS
+Exit status is 0 on success,  and >0 if an error occurs.
+
+.SH NOTES
+
+.PP
+.B mscp
+uses glob(3) for globbing pathnames, including matching patterns for
+local and remote paths. However, globbing on the
+.I remote
+side does not work with musl libc (used in Alpine Linux and the
+single-binary version of mscp) because musl libc does not support
+GLOB_ALTDIRFUNC.
+
+.PP
+.B mscp
+does not support remote-to-remote copy, which
+.B scp
+supports.
+
+.SH EXAMPLES
+
+.PP
+Copy a local file to a remote host with different name:
+
+.nf
+    $ mscp ~/src-file 10.0.0.1:copied-file
+.fi
+
+.PP
+Copy a local file and a directory to /tmp at a remote host:
+
+.nf
+    $ mscp ~/src-file dir1 10.0.0.1:/tmp
+.fi
+
+.PP
+In a long fat network, following options might improve performance:
+
+.nf
+    $ mscp -n 64 -m 0xffff -a 64 -c aes128-gcm@openssh.com src 10.0.0.1:
+.fi
+
+.B -n
+increases the number of SSH connections than default,
+.B -m
+pins threads to specific CPU cores,
+.B -a
+increases asynchronous inflight SFTP WRITE/READ commands, and
+.B -c aes128-gcm@openssh.com
+will be faster than the default chacha20-poly1305 cipher, particularly
+on hosts that support AES-NI.
+
+
+
+.SH "SEE ALSO"
+.BR scp (1),
+.BR ssh (1),
+.BR sshd (8).
+
+.SH "PAPER REFERENCE"
+
+
+Ryo Nakamura and Yohei Kuga. 2023. Multi-threaded scp: Easy and Fast
+File Transfer over SSH. In Practice and Experience in Advanced
+Research Computing (PEARC '23). Association for Computing Machinery,
+New York, NY, USA, 320–323.
+.UR https://\:doi\:.org/\:10.1145/\:3569951.3597582
+DOI
+.UE .
+
+
+.SH CONTACT INFROMATION
+.PP
+For pathces, bug reports, or feature requests, please open an issue on
+.UR https://\:github\:.com/\:upa/\:mscp
+GitHub
+.UE .
+
+.SH AUTHORS
+Ryo Nakamura <upa@haeena.net>
