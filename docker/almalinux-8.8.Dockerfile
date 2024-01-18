@@ -1,7 +1,9 @@
 FROM almalinux:8.8
 
 # install pytest, sshd for test, and rpm-build
-RUN set -ex && yum -y install \
+RUN set -ex && \
+	rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux && \
+	yum -y install \
 	python3 python3-pip python3-devel openssh openssh-server openssh-clients rpm-build
 
 RUN python3 -m pip install pytest
