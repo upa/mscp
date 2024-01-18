@@ -11,7 +11,7 @@ find_package(Git)
 if (Git_FOUND)
 	# based on https://github.com/nocnokneo/cmake-git-versioning-example
 	execute_process(
-		COMMAND	${GIT_EXECUTABLE} describe --tags --dirty --match "v*"
+		COMMAND	${GIT_EXECUTABLE} describe --tags --match "v*"
 		OUTPUT_VARIABLE	GIT_DESCRIBE_VERSION
 		RESULT_VARIABLE	GIT_DESCRIBE_ERROR_CODE
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
