@@ -7,6 +7,10 @@
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdlib.h>
+#elif __FreeBSD__
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread_np.h>
 #else
 #error unsupported platform
 #endif
@@ -78,6 +82,17 @@ int nr_cpus()
 		return CPU_COUNT(&cpu_set);
 	return -1;
 }
+#endif
+
+#ifdef __FreeBSD__
+int nr_cpus()
+{
+	long nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	return nr_cpus;
+}
+#endif
+
+#if defined(linux) || defined(__FreeBSD__)
 
 int set_thread_affinity(pthread_t tid, int core)
 {

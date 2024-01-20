@@ -329,7 +329,7 @@ int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 #else
 		flags |= GLOB_ALTDIRFUNC;
 		set_tls_sftp_session(sftp);
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
 		pglob->gl_readdir = (struct dirent *(*)(void *))mscp_readdir;
 		pglob->gl_closedir = (void (*)(void *))mscp_closedir;

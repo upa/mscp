@@ -177,7 +177,7 @@ set(CPACK_PACKAGE_DESCRIPTION
 execute_process(COMMAND uname -m
 	OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-if(UNIX AND NOT APPLE) # on linux
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL Linux)
 	execute_process(COMMAND
 		bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2|tr -d '\"'"
 		OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
