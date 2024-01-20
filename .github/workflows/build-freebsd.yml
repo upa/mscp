@@ -2,7 +2,9 @@ name: build on FreeBSD
 
 on:
   push:
-    branches: [ "freebsd" ]
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
 
 jobs:
   build:
