@@ -1,6 +1,9 @@
-#!/bin/bash -eu
+#!/usr/bin/env bash
 #
 # Install build dpenedencies.
+
+set -e
+set -u
 
 platform=$(uname -s)
 
@@ -22,6 +25,9 @@ case $platform in
 	Linux-centos* | Linux-rhel* | Linux-rocky* | Linux-almalinux)
 		yum install -y \
 			gcc make cmake zlib-devel openssl-devel rpm-build
+		;;
+	FreeBSD-freebsd)
+		pkg install cmake
 		;;
 	*)
 		echo "unsupported platform: $platform"
