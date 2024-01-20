@@ -1,0 +1,25 @@
+name: build on FreeBSD
+
+on:
+  push:
+    branches: [ "freebsd" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Build in FreeBSD
+      uses: vmactions/freebsd-vm@v1
+      with:
+        prepare: |
+          pkg install -y git cmake
+        run: |
+          patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          build/mscp -h
