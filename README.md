@@ -1,6 +1,10 @@
 # mscp: multi-threaded scp
 
-[![build on ubuntu](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml) [![build on macOS](https://github.com/upa/mscp/actions/workflows/build-macos.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-macos.yml) [![test](https://github.com/upa/mscp/actions/workflows/test.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/test.yml)
+[![build on ubuntu](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-ubuntu.yml)
+[![build on macOS](https://github.com/upa/mscp/actions/workflows/build-macos.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-macos.yml)
+[![build on FreeBSD](https://github.com/upa/mscp/actions/workflows/build-freebsd.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/build-freebsd.yml)
+[![test](https://github.com/upa/mscp/actions/workflows/test.yml/badge.svg)](https://github.com/upa/mscp/actions/workflows/test.yml)
+
 
 
 `mscp`, a variant of `scp`, copies files over multiple SSH (SFTP)
@@ -70,7 +74,9 @@ patch introduces asynchronous SFTP Write, which is derived from
 https://github.com/limes-datentechnik-gmbh/libssh (see [Re: SFTP Write
 async](https://archive.libssh.org/libssh/2020-06/0000004.html)).
 
-Currently macOS and Linux (Ubuntu, Rocky and Alma) are supported.
+We test building mscp on Linux (Ubuntu, Rocky, Alma, and Alpine),
+macOS, and FreeBSD.
+
 
 ```console
 # clone this repository
