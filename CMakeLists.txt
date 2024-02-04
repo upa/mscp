@@ -262,3 +262,30 @@ add_custom_target(docker-build-all		DEPENDS ${DOCKER_BUILDS})
 add_custom_target(docker-build-all-no-cache	DEPENDS ${DOCKER_BUILDS_NO_CACHE})
 add_custom_target(docker-test-all		DEPENDS ${DOCKER_TESTS})
 add_custom_target(docker-pkg-all		DEPENDS ${DOCKER_PKGS})
+
+
+### rpmbuild-related definitions
+
+# generate files for rpmbuild
+configure_file(
+	${mscp_SOURCE_DIR}/rpm/mscp.spec.in
+	${mscp_SOURCE_DIR}/rpm/mscp.spec
+	@ONLY)
+configure_file(
+	${mscp_SOURCE_DIR}/docker/build-srpm.Dockerfile.in
+	${mscp_SOURCE_DIR}/docker/build-srpm.Dockerfile
+	@ONLY)
+
+# Custom targets to build mscp as a src.rpm in docker.
+set(RPMBUILDCONTAINER mscp-build-srpm)
+set(SRPMFILE mscp-${MSCP_VERSION}-1.el9.src.rpm)
+add_custom_target(build-srpm
+	COMMENT "Build mscp src.rpm inside a container"
+	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SRPMFILE}
+	COMMAND
+	docker build -t ${RPMBUILDCONTAINER} -f docker/build-srpm.Dockerfile .
+	COMMAND
+	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
+	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)
+

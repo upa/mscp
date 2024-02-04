@@ -50,17 +50,13 @@ sudo add-apt-repository ppa:upaa/mscp
 sudo apt-get install mscp
 ```
 
-- Rocky 8.8
+- RHEL-based distributions
 ```console
-yum install https://github.com/upa/mscp/releases/latest/download/mscp_rocky-8.8-x86_64.rpm
+sudo dnf copr enable upaaa/mscp
+sudo dnf install mscp
 ```
 
-- Alma 8.8
-```console
-yum install https://github.com/upa/mscp/releases/latest/download/mscp_almalinux-8.8-x86_64.rpm
-```
-
-- Linux with single binary `mscp` (x86_64 only, and not optimal performance)
+- Single binary `mscp` for x86_64 (not optimal performance)
 ```console
 wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86.static -O /usr/local/bin/mscp
 chmod 755 /usr/local/bin/mscp
