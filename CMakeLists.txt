@@ -147,7 +147,7 @@ configure_file(
 	${mscp_SOURCE_DIR}/doc/mscp.1.in
 	${PROJECT_BINARY_DIR}/mscp.1)
 
-add_custom_target(update-mscp-rst
+add_custom_target(update-rst
 	COMMENT "Update doc/mscp.rst from mscp.1.in"
 	WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
 	COMMAND
