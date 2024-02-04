@@ -52,8 +52,6 @@ if (BUILD_STATIC)
 endif()
 
 
-option(INSTALL_EXECUTABLE_ONLY OFF) # do not install libmscp
-
 
 # add libssh static library
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -90,28 +88,9 @@ configure_file(
 	${mscp_SOURCE_DIR}/include/mscp_version.h.in
 	${mscp_SOURCE_DIR}/include/mscp_version.h)
 
-
-# libmscp.so
+# libmscp.a
 set(LIBMSCP_SRC
 	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c)
-add_library(mscp-shared SHARED ${LIBMSCP_SRC})
-target_include_directories(mscp-shared
-	PUBLIC	$<BUILD_INTERFACE:${mscp_SOURCE_DIR}/include>
-		$<INSTALL_INTERFACE:include>
-	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS})
-target_compile_options(mscp-shared PRIVATE ${MSCP_COMPILE_OPTS})
-target_link_libraries(mscp-shared PRIVATE ${MSCP_LINK_LIBS})
-set_target_properties(mscp-shared
-	PROPERTIES
-	OUTPUT_NAME	mscp
-	PUBLIC_HEADER	${mscp_SOURCE_DIR}/include/mscp.h)
-
-if(!INSTALL_EXECUTABLE_ONLY)
-	install(TARGETS mscp-shared)
-endif()
-
-
-# libmscp.a
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
@@ -120,11 +99,6 @@ target_link_libraries(mscp-static PRIVATE ${MSCP_LINK_LIBS})
 set_target_properties(mscp-static
 	PROPERTIES
 	OUTPUT_NAME	mscp)
-
-if(!INSTALL_EXECUTABLE_ONLY)
-	install(TARGETS mscp-static)
-endif()
-
 
 # mscp executable
 list(APPEND MSCP_LINK_LIBS m pthread)

@@ -29,8 +29,3 @@ RUN cd ${mscpdir}			\
 	&& cpack -G RPM CPackConfig.cmake \
 	&& rpm -iv *.rpm
 
-# install mscp python module
-RUN cd ${mscpdir}	\
-	&& python3 pysetup.py install --user \
-	&& ldconfig
-

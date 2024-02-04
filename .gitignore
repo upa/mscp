@@ -5,7 +5,3 @@ CMakeUserPresets.json
 .*.swp
 
 include/mscp_version.h
-
-dist
-*.egg-info
-__pycache__

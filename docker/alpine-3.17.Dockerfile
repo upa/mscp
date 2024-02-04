@@ -35,6 +35,3 @@ RUN cd ${mscpdir}							\
 	&& cp mscp /mscp/build/mscp_alpine-3.17-x86_64.static
 # copy mscp to PKG FILE NAME because this build doesn't use CPACK
 
-# install mscp python module
-RUN cd ${mscpdir}	\
-	&& python3 pysetup.py install --user

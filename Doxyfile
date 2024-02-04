@@ -9,5 +9,5 @@ GENERATE_MAN	= NO
 
 SOURCE_BROWSER	= YES
 
-INPUT	= src include mscp
+INPUT	= src include
 

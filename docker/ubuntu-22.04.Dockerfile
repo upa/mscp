@@ -33,8 +33,3 @@ RUN cd ${mscpdir}			\
 	&& cpack -G DEB CPackConfig.cmake \
 	&& dpkg -i *.deb
 
-# install mscp python module
-RUN cd ${mscpdir}	\
-	&& python3 pysetup.py install --user \
-	&& ldconfig
-
