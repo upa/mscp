@@ -264,6 +264,20 @@ add_custom_target(docker-test-all		DEPENDS ${DOCKER_TESTS})
 add_custom_target(docker-pkg-all		DEPENDS ${DOCKER_PKGS})
 
 
+### debuild-related fefinitions
+
+set(DEBBUILDCONTAINER mscp-build-deb)
+add_custom_target(build-deb
+	COMMENT "build mscp deb files inside a container"
+	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	BYPRODUCTS ${CMAKE_BINARY_DIR}/debbuild
+	COMMAND
+	docker build -t ${DEBBUILDCONTAINER} -f docker/build-deb.Dockerfile .
+	COMMAND
+	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DEBBUILDCONTAINER}
+	cp -r /debbuild /out/)
+
+
 ### rpmbuild-related definitions
 
 # generate files for rpmbuild
@@ -288,4 +302,5 @@ add_custom_target(build-srpm
 	COMMAND
 	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
 	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)
+
 

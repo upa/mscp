@@ -19,7 +19,7 @@ case $platform in
 		brew install openssl@1.1
 		;;
 	Linux-ubuntu*)
-		apt-get install -y \
+		apt-get install --no-install-recommends -y \
 			gcc make cmake zlib1g-dev libssl-dev libkrb5-dev
 		;;
 	Linux-centos* | Linux-rhel* | Linux-rocky* | Linux-almalinux)
