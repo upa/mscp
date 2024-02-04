@@ -48,8 +48,6 @@ struct mscp_opts {
 	int     interval;	/** interval between SSH connection attempts */
 
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
-	int	msg_fd;		/** fd to output message. default STDOUT (0),
-				 * and -1 disables output */
 };
 
 #define MSCP_SSH_MAX_LOGIN_NAME		64

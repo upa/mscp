@@ -12,9 +12,9 @@
 #include <pthread.h>
 
 #include <mscp.h>
-#include <mscp_version.h>
 #include <util.h>
 
+#include "config.h"
 
 void usage(bool print_help) {
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
@@ -221,12 +221,13 @@ free_target_out:
 }
 
 struct mscp *m = NULL;
-int msg_fd = 0;
 pthread_t tid_stat = 0;
 
 void sigint_handler(int sig)
 {
 	mscp_stop(m);
+	if (tid_stat > 0)
+		pthread_cancel(tid_stat);
 }
 
 void *print_stat_thread(void *arg);
@@ -394,15 +395,6 @@ int main(int argc, char **argv)
 		if (t[i - 1].user != NULL && s.login_name[0] == '\0')
 			strncpy(s.login_name, t[i - 1].user,
 				MSCP_SSH_MAX_LOGIN_NAME - 1);
-	}
-
-	if (!dryrun) {
-		if (pipe(pipe_fd) < 0) {
-			fprintf(stderr, "pipe: %s\n", strerror(errno));
-			return -1;
-		}
-		msg_fd = pipe_fd[0];
-		o.msg_fd = pipe_fd[1];
 	}
 
 	if ((m = mscp_init(remote, direction, &o, &s)) == NULL) {
@@ -619,24 +611,9 @@ struct xfer_stat x;
 
 void print_stat(bool final)
 {
-	struct pollfd pfd = { .fd = msg_fd, .events = POLLIN };
 	struct mscp_stats s;
 	char buf[8192];
 	int timeout;
-
-	if (poll(&pfd, 1, !final ? 100 : 0) < 0) {
-		fprintf(stderr, "poll: %s\n", strerror(errno));
-		return;
-	}
-
-	if (pfd.revents & POLLIN) {
-		memset(buf, 0, sizeof(buf));
-		if (read(msg_fd, buf, sizeof(buf)) < 0) {
-			fprintf(stderr, "read: %s\n", strerror(errno));
-			return;
-		}
-		print_cli("\r\033[K" "%s", buf);
-	}
 
 	gettimeofday(&x.after, NULL);
 	if (calculate_timedelta(&x.before, &x.after) > 1 || final) {
@@ -658,7 +635,6 @@ void print_stat_thread_cleanup(void *arg)
 
 void *print_stat_thread(void *arg)
 {
-	struct pollfd pfd = { .fd = msg_fd, .events = POLLIN };
 	struct mscp_stats s;
 	char buf[8192];
 
@@ -672,6 +648,7 @@ void *print_stat_thread(void *arg)
 
 	while (true) {
 		print_stat(false);
+		sleep(1);
 	}
 
 	pthread_cleanup_pop(1);

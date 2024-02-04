@@ -69,12 +69,12 @@ add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
 
 # setup mscp compile options
-set(MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
-set(MSCP_BUILD_INCLUDE_DIRS
+list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
+list(APPEND MSCP_BUILD_INCLUDE_DIRS
 	${mscp_SOURCE_DIR}/src
 	${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 
-set(MSCP_LINK_LIBS ssh-static)
+list(APPEND MSCP_LINK_LIBS ssh-static)
 if(BUILD_CONAN)
 	find_package(ZLIB REQUIRED)
 	find_package(OpenSSL REQUIRED)
@@ -83,14 +83,20 @@ if(BUILD_CONAN)
 endif()
 
 
-# generate version header file
+# Symbol check
+check_symbol_exists(strlcat string.h HAVE_STRLCAT)
+
+# generate config.h in build dir
 configure_file(
-	${mscp_SOURCE_DIR}/include/mscp_version.h.in
-	${mscp_SOURCE_DIR}/include/mscp_version.h)
+	${mscp_SOURCE_DIR}/include/config.h.in
+	${CMAKE_CURRENT_BINARY_DIR}/include/config.h)
+list(APPEND MSCP_BUILD_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/include)
+
 
 # libmscp.a
 set(LIBMSCP_SRC
-	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c)
+	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c
+	src/openbsd-compat/strlcat.c)
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)

@@ -146,11 +146,11 @@ static char *resolve_dst_path(const char *src_file_path, struct path_resolve_arg
 			       a->dst_path, src_file_path + strlen(a->src_path) + 1);
 
 	if (ret >= PATH_MAX) {
-		mpr_warn(a->msg_fp, "Too long path: %s\n", dst_file_path);
+		mpr_warn("Too long path: %s", dst_file_path);
 		return NULL;
 	}
 
-        mpr_debug(a->msg_fp, "file: %s -> %s\n", src_file_path, dst_file_path);
+        mpr_debug("file: %s -> %s", src_file_path, dst_file_path);
 
         return strndup(dst_file_path, PATH_MAX);
 }
@@ -275,7 +275,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	int ret;
 
 	if (mscp_stat(path, &st, sftp) < 0) {
-		mpr_warn(a->msg_fp, "%s: %s\n",  strerrno(), path);
+		mpr_err("stat: %s: %s",  path, strerrno());
 		return -1;
 	}
 
@@ -289,7 +289,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 
 	/* ok, this path is a directory. walk through it. */
 	if (!(d = mscp_opendir(path, sftp))) {
-		mpr_warn(a->msg_fp, "%s: %s\n", strerrno(), path);
+		mpr_err("opendir: %s: %s", path, strerrno());
 		return -1;
 	}
 	
@@ -299,7 +299,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		
 		ret = snprintf(next_path, PATH_MAX, "%s/%s", path, e->d_name);
 		if (ret >= PATH_MAX) {
-			mpr_warn(a->msg_fp, "Too long path: %s/%s\n", path, e->d_name);
+			mpr_warn("Too long path: %s/%s", path, e->d_name);
 			continue;
 		}
 
@@ -353,8 +353,10 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 		if (mscp_stat(path, &st, sftp) == 0) {
 			if (S_ISDIR(st.st_mode))
 				goto next; /* directory exists. go deeper */
-			else
+			else {
+				mscp_set_error("mscp_stat %s: not a directory", path);
 				return -1; /* path exists, but not directory. */
+			}
 		}
 
 		if (errno == ENOENT) {
@@ -381,7 +383,7 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
         return 0;
 }
 
-static int prepare_dst_path(FILE *msg_fp, struct path *p, sftp_session dst_sftp)
+static int prepare_dst_path(struct path *p, sftp_session dst_sftp)
 {
 	int ret = 0;
 
@@ -389,10 +391,11 @@ static int prepare_dst_path(FILE *msg_fp, struct path *p, sftp_session dst_sftp)
 	if (p->state == FILE_STATE_INIT) {
 		if (touch_dst_path(p, dst_sftp) < 0) {
 			ret = -1;
+			mpr_err("failed to prepare dst path: %s", mscp_get_error());
 			goto out;
 		}
 		p->state = FILE_STATE_OPENED;
-		mpr_info(msg_fp, "copy start: %s\n", p->path);
+		mpr_info("copy start: %s", p->path);
 	}
 
 out:
@@ -552,8 +555,7 @@ static int _copy_chunk(struct chunk *c, mf *s, mf *d,
 	return -1; /* not reached */
 }
 
-int copy_chunk(FILE *msg_fp, struct chunk *c,
-	       sftp_session src_sftp, sftp_session dst_sftp,
+int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, size_t *counter)
 {
 	mode_t mode;
@@ -563,7 +565,7 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 
 	assert((src_sftp && !dst_sftp) || (!src_sftp && dst_sftp));
 
-	if (prepare_dst_path(msg_fp, c->p, dst_sftp) < 0)
+	if (prepare_dst_path(c->p, dst_sftp) < 0)
 		return -1;
 
 	/* open src */
@@ -593,12 +595,12 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 		return -1;
 	}
 
-	mpr_debug(msg_fp, "copy chunk start: %s 0x%lx-0x%lx\n",
+	mpr_debug("copy chunk start: %s 0x%lx-0x%lx",
 		  c->p->path, c->off, c->off + c->len);
 
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
 
-	mpr_debug(msg_fp, "copy chunk done: %s 0x%lx-0x%lx\n",
+	mpr_debug("copy chunk done: %s 0x%lx-0x%lx",
 		  c->p->path, c->off, c->off + c->len);
 
 
@@ -610,9 +612,9 @@ int copy_chunk(FILE *msg_fp, struct chunk *c,
 	if (refcnt_dec(&c->p->refcnt) == 0) {
 		c->p->state = FILE_STATE_DONE;
 		if (mscp_setstat(c->p->dst_path, c->p->mode, c->p->size, dst_sftp) < 0)
-			mpr_err(msg_fp, "failed to chmod and truncate %s: %s\n",
+			mpr_err("failed to chmod and truncate %s: %s",
 				c->p->path, strerrno());
-		mpr_info(msg_fp, "copy done: %s\n", c->p->path);
+		mpr_info("copy done: %s", c->p->path);
 	}
 
 	return ret;

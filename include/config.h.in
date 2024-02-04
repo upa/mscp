@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+#ifndef _CONFIG_H_
+#define _CONFIG_H_
+
+#define MSCP_VERSION		"@MSCP_VERSION@"
+#define MSCP_BUILD_VERSION	"@MSCP_BUILD_VERSION@"
+
+
+/* Define to 1 if you have the strlcat function. */
+#cmakedefine HAVE_STRLCAT 1
+
+#endif /* _CONFIG_H_ */

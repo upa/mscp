@@ -60,7 +60,7 @@ static void sftp_err_to_errno(sftp_session sftp)
 		errno = ENODEV;
 		break;
 	default:
-		mpr_warn(stderr, "unkown SSH_FX response %d", sftperr);
+		mpr_warn("unkown SSH_FX response %d", sftperr);
 	}
 }
 
@@ -184,7 +184,7 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 		st->st_mode |= S_IFIFO; /* really? */
 		break;
 	default:
-		mpr_warn(stderr, "unkown SSH_FILEXFER_TYPE %d", attr->type);
+		mpr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
 	}
 
 	/* ToDo: convert atime, ctime, and mtime */

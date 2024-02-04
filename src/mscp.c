@@ -16,14 +16,13 @@
 #include <message.h>
 #include <mscp.h>
 
+#include <openbsd-compat/openbsd-compat.h>
 
 struct mscp {
 	char			*remote;	/* remote host (and uername) */
 	int			direction;	/* copy direction */
 	struct mscp_opts	*opts;
 	struct mscp_ssh_opts	*ssh_opts;
-
-	FILE			*msg_fp;	/* writer fd for message pipe */
 
 	int			*cores;		/* usable cpu cores by COREMASK */
 	int			nr_cores;	/* length of array of cores */
@@ -207,9 +206,6 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 		o->max_startups = 1;
 	}
 
-	if (o->msg_fd == 0)
-		o->msg_fd = STDOUT_FILENO;
-
 	return 0;
 }
 
@@ -261,22 +257,17 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 		goto free_out;
 	}
 	m->direction = direction;
-	if (o->msg_fd > -1) {
-		m->msg_fp = fdopen(o->msg_fd, "a");
-		if (!m->msg_fp) {
-			mscp_set_error("fdopen failed: %s", strerrno());
-			goto free_out;
-		}
-	} else
-		m->msg_fp = NULL;
 
 	if (strlen(o->coremask) > 0) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
 			goto free_out;
-		mpr_notice(m->msg_fp, "usable cpu cores:");
-		for (n = 0; n < m->nr_cores; n++)
-			mpr_notice(m->msg_fp, " %d", m->cores[n]);
-		mpr_notice(m->msg_fp, "\n");
+		char b[512], c[8];
+		for (n = 0; n < m->nr_cores; n++) {
+			memset(c, 0, sizeof(c));
+			snprintf(c, sizeof(c) - 1, " %d", m->cores[n]);
+			strlcat(b, c, sizeof(b));
+		}
+		mpr_notice("usable cpu cores:%s", b);
 	}
 
 	m->opts = o;
@@ -403,7 +394,6 @@ void *mscp_scan_thread(void *arg)
 
 	/* initialize path_resolve_args */
 	memset(&a, 0, sizeof(a));
-	a.msg_fp = m->msg_fp;
 	a.total_bytes = &m->total_bytes;
 
 	if (list_count(&m->src_list) > 1)
@@ -420,7 +410,7 @@ void *mscp_scan_thread(void *arg)
 	a.max_chunk_sz = m->opts->max_chunk_sz;
 	a.chunk_align = get_page_mask();
 
-	mpr_info(m->msg_fp, "start to walk source path(s)\n");
+	mpr_info("start to walk source path(s)");
 
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
@@ -453,7 +443,7 @@ void *mscp_scan_thread(void *arg)
 		mscp_globfree(&pglob);
 	}
 
-	mpr_info(m->msg_fp, "walk source path(s) done\n");
+	mpr_info("walk source path(s) done");
 	chunk_pool_set_filled(&m->cp);
 	m->ret_scan = 0;
 	return NULL;
@@ -536,15 +526,15 @@ int mscp_start(struct mscp *m)
 	int n, ret = 0;
 
 	if ((n = chunk_pool_size(&m->cp)) < m->opts->nr_threads) {
-		mpr_notice(m->msg_fp, "we have only %d chunk(s). "
-			   "set number of connections to %d\n", n, n);
+		mpr_notice("we have only %d chunk(s). "
+			   "set number of connections to %d", n, n);
 		m->opts->nr_threads = n;
 	}
 
 	for (n = 0; n < m->opts->nr_threads; n++) {
 		t = mscp_copy_thread_spawn(m, n);
 		if (!t) {
-			mpr_err(m->msg_fp, "failed to spawn copy thread\n");
+			mpr_err("failed to spawn copy thread");
 			break;
 		}
 		RWLOCK_WRITE_ACQUIRE(&m->thread_rwlock);
@@ -592,7 +582,7 @@ int mscp_join(struct mscp *m)
 		}
 	}
 
-	mpr_notice(m->msg_fp, "%lu/%lu bytes copied for %lu/%lu files\n",
+	mpr_notice("%lu/%lu bytes copied for %lu/%lu files",
 		   done, m->total_bytes, nr_copied, nr_tobe_copied);
 
 	return ret;
@@ -637,31 +627,29 @@ void *mscp_copy_thread(void *arg)
         }
 
 	if (sem_wait(m->sem) < 0) {
-		mscp_set_error("sem_wait: %s", strerrno());
-		mpr_err(m->msg_fp, "%s", mscp_get_error());
+		mpr_err("sem_wait: %s", strerrno());
 		goto err_out;
 	}
 
 	if (!(nomore = chunk_pool_is_empty(&m->cp))) {
 		if (m->opts->interval > 0)
 			wait_for_interval(m->opts->interval);
-		mpr_notice(m->msg_fp, "thread:%d connecting to %s\n", t->id, m->remote);
+		mpr_notice("thread:%d connecting to %s", t->id, m->remote);
 		t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 	}
 
 	if (sem_post(m->sem) < 0) {
-		mscp_set_error("sem_post: %s", strerrno());
-		mpr_err(m->msg_fp, "%s", mscp_get_error());
+		mpr_err("sem_post: %s", strerrno());
 		goto err_out;
 	}
 
 	if (nomore) {
-		mpr_notice(m->msg_fp, "thread:%d no more connections needed\n", t->id);
+		mpr_notice("thread:%d no more connections needed", t->id);
 		goto out;
 	}
 
 	if (!t->sftp) {
-		mpr_err(m->msg_fp, "thread:%d: %s\n", t->id, mscp_get_error());
+		mpr_err("thread:%d: %s", t->id, mscp_get_error());
 		goto err_out;
 	}
 
@@ -688,8 +676,7 @@ void *mscp_copy_thread(void *arg)
                 if (!c)
                         break; /* no more chunks */
 
-		if ((t->ret = copy_chunk(m->msg_fp,
-					 c, src_sftp, dst_sftp, m->opts->nr_ahead,
+		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead,
 					 m->opts->buf_sz, &t->done)) < 0)
 			break;
         }
@@ -697,7 +684,7 @@ void *mscp_copy_thread(void *arg)
         pthread_cleanup_pop(1);
 
         if (t->ret < 0)
-		mpr_err(m->msg_fp, "thread:%d copy failed: %s 0x%010lx-0x%010lx\n",
+		mpr_err("thread:%d copy failed: %s 0x%010lx-0x%010lx",
 			t->id, c->p->path, c->off, c->off + c->len);
 
         return NULL;

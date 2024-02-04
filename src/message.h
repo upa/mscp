@@ -11,24 +11,24 @@
 void mprint_set_severity(int severity);
 int mprint_get_severity();
 
-#define mprint(fp, severity, fmt, ...)				\
-	do {							\
-		if (fp && severity <= mprint_get_severity()) {	\
-			fprintf(fp, fmt, ##__VA_ARGS__);	\
-			fflush(fp);				\
-		}						\
+#define mprint(fp, severity, fmt, ...)					\
+	do {								\
+		if (severity <= mprint_get_severity()) {		\
+			fprintf(fp, "\r\033[K" fmt "\n", ##__VA_ARGS__);	\
+			fflush(fp);					\
+		}							\
 	} while (0)
 
-#define mpr_err(fp, fmt, ...)					\
-	mprint(fp, MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
-#define mpr_warn(fp, fmt, ...)					\
-	mprint(fp, MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
-#define mpr_notice(fp, fmt, ...)				\
-	mprint(fp, MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
-#define mpr_info(fp, fmt, ...)					\
-	mprint(fp, MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
-#define mpr_debug(fp, fmt, ...)					\
-	mprint(fp, MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
+#define mpr_err(fmt, ...)					\
+	mprint(stderr, MSCP_SEVERITY_ERR, fmt, ##__VA_ARGS__)
+#define mpr_warn(fmt, ...)					\
+	mprint(stderr, MSCP_SEVERITY_WARN, fmt, ##__VA_ARGS__)
+#define mpr_notice(fmt, ...)				\
+	mprint(stdout, MSCP_SEVERITY_NOTICE, fmt, ##__VA_ARGS__)
+#define mpr_info(fmt, ...)					\
+	mprint(stdout, MSCP_SEVERITY_INFO, fmt, ##__VA_ARGS__)
+#define mpr_debug(fmt, ...)					\
+	mprint(stdout, MSCP_SEVERITY_DEBUG, fmt, ##__VA_ARGS__)
 
 
 /* errorno wrapper */
