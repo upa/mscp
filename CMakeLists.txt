@@ -141,51 +141,13 @@ enable_testing()
 
 
 
-# CPACK Rules
-#set(CPACK_SET_DESTDIR		true)
-set(CPACK_PACKAGE_NAME		${PROJECT_NAME})
-set(CPACK_PACKAGE_CONTACT	"Ryo Nakamura <upa@haeena.net>")
-set(CPACK_PACKAGE_DESCRIPTION
-	"mscp, copy files over multiple ssh connections")
-
-execute_process(COMMAND uname -m
-	OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL Linux)
-	execute_process(COMMAND
-		bash "-c" "cat /etc/os-release|grep '^ID='|cut -d '=' -f 2|tr -d '\"'"
-		OUTPUT_VARIABLE DIST_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND
-		bash "-c" "cat /etc/os-release|grep '^VERSION_ID='|cut -d '=' -f 2|tr -d '\"'"
-		OUTPUT_VARIABLE DIST_VER OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND
-		bash "-c" "${mscp_SOURCE_DIR}/scripts/print-install-deps.sh ${DIST_NAME}-${DIST_VER}"
-		OUTPUT_VARIABLE DIST_DEP OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-	set(PACKAGE_FILE_NAME
-		${PROJECT_NAME}_${DIST_NAME}-${DIST_VER}-${ARCH})
-
-	set(CPACK_DEBIAN_FILE_NAME		${PACKAGE_FILE_NAME}.deb)
-	set(CPACK_DEBIAN_PACKAGE_DEPENDS	${DIST_DEP})
-	set(CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/upa/mscp")
-
-	set(CPACK_RPM_FILE_NAME			${PACKAGE_FILE_NAME}.rpm)
-	set(CPACK_RPM_PACKAGE_REQUIRES		${DIST_DEP})
-	set(CPACK_RPM_PACKAGE_HOMEPAGE		"https://github.com/upa/mscp")
-	set(CPACK_RPM_PACKAGE_DESCRIPTION	${CPACK_PACKAGE_DESCRIPTION})
-	set(CPACK_RPM_PACKAGE_LICENSE		"GPLv3")
-endif() # on linux
-
-include(CPack)
-
-
 
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
-list(APPEND DIST_NAMES	ubuntu	ubuntu	rocky	almalinux	alpine)
-list(APPEND DIST_VERS	20.04	22.04	8.8	8.8		3.17)
-list(APPEND DIST_PKGS	deb	deb	rpm	rpm		static)
+list(APPEND DIST_NAMES	ubuntu	ubuntu	rocky	rocky	almalinux	alpine)
+list(APPEND DIST_VERS	20.04	22.04	8.9	9.3	9.3		3.19)
+list(APPEND DIST_PKGS	deb	deb	rpm	rpm	rpm		static)
 
 list(LENGTH DIST_NAMES _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
@@ -204,13 +166,13 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
+		docker build -t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-build-${DOCKER_INDEX}-no-cache
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build --no-cache -t ${DOCKER_IMAGE} -f docker/${DOCKER_INDEX}.Dockerfile .)
+		docker build --no-cache -t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-test-${DOCKER_INDEX}
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
@@ -219,26 +181,17 @@ foreach(x RANGE ${DIST_LISTLEN})
 		docker run --init --rm --sysctl net.ipv6.conf.all.disable_ipv6=0
 		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
-	add_custom_target(docker-pkg-${DOCKER_INDEX}
-		COMMENT "Retrieve mscp package from ${DOCKER_IMAGE} container"
-		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-		COMMAND
-		docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DOCKER_IMAGE}
-		cp /mscp/build/${PKG_FILE_NAME} /out/)
-
 	list(APPEND DOCKER_BUILDS		docker-build-${DOCKER_INDEX})
 	list(APPEND DOCKER_BUILDS_NO_CACHE	docker-build-${DOCKER_INDEX}-no-cache)
 	list(APPEND DOCKER_TESTS		docker-test-${DOCKER_INDEX})
-	list(APPEND DOCKER_PKGS			docker-pkg-${DOCKER_INDEX})
 endforeach()
 
 add_custom_target(docker-build-all		DEPENDS ${DOCKER_BUILDS})
 add_custom_target(docker-build-all-no-cache	DEPENDS ${DOCKER_BUILDS_NO_CACHE})
 add_custom_target(docker-test-all		DEPENDS ${DOCKER_TESTS})
-add_custom_target(docker-pkg-all		DEPENDS ${DOCKER_PKGS})
 
 
-### debuild-related fefinitions
+### debuild-related definitions
 
 set(DEBBUILDCONTAINER mscp-build-deb)
 add_custom_target(build-deb
@@ -246,7 +199,7 @@ add_custom_target(build-deb
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/debbuild
 	COMMAND
-	docker build -t ${DEBBUILDCONTAINER} -f docker/build-deb.Dockerfile .
+	docker build -t ${DEBBUILDCONTAINER} -f Dockerfile/build-deb.Dockerfile .
 	COMMAND
 	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DEBBUILDCONTAINER}
 	cp -r /debbuild /out/)
@@ -260,11 +213,11 @@ configure_file(
 	${mscp_SOURCE_DIR}/rpm/mscp.spec
 	@ONLY)
 configure_file(
-	${mscp_SOURCE_DIR}/docker/build-srpm.Dockerfile.in
-	${mscp_SOURCE_DIR}/docker/build-srpm.Dockerfile
+	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile.in
+	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile
 	@ONLY)
 
-# Custom targets to build mscp as a src.rpm in docker.
+# Custom target to build mscp as a src.rpm in docker.
 set(RPMBUILDCONTAINER mscp-build-srpm)
 set(SRPMFILE mscp-${MSCP_VERSION}-1.el9.src.rpm)
 add_custom_target(build-srpm
@@ -272,9 +225,24 @@ add_custom_target(build-srpm
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SRPMFILE}
 	COMMAND
-	docker build -t ${RPMBUILDCONTAINER} -f docker/build-srpm.Dockerfile .
+	docker build -t ${RPMBUILDCONTAINER} -f Dockerfile/build-srpm.Dockerfile .
 	COMMAND
 	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
 	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)
 
+### single-binary-build-related definitions
 
+# Custom target to get single binary mscp
+set(SINGLEBINARYFILE mscp.linux.${CMAKE_SYSTEM_PROCESSOR}.static)
+add_custom_target(build-single-binary
+	COMMENT "Build mscp as a single binary in alpine conatiner"
+	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SINGLEBINARYFILE}
+	DEPENDS docker-build-alpine-3.19
+	COMMAND
+	docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-alpine:3.19
+	cp /mscp/build/mscp /out/${SINGLEBINARYFILE})
+
+
+add_custom_target(build-pkg-all
+	DEPENDS build-deb build-srpm build-single-binary)

@@ -1,12 +1,12 @@
-FROM alpine:3.17
+FROM alpine:3.19
 
 # Build mscp with conan to create single binary mscp
 
 RUN apk add --no-cache \
 	gcc make cmake python3 py3-pip perl linux-headers libc-dev	\
-	openssh bash python3-dev g++
+	openssh bash python3-dev py3-pytest g++
 
-RUN pip3 install conan pytest
+RUN pip3 install --break-system-packages conan
 
 # preparation for sshd
 RUN ssh-keygen -A
@@ -30,8 +30,6 @@ RUN cd ${mscpdir}							\
 		-DCMAKE_BUILD_TYPE=Release				\
 		-DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake		\
 		-DBUILD_CONAN=ON -DBUILD_STATIC=ON			\
-	&& make								\
-	&& cp mscp /usr/bin/						\
-	&& cp mscp /mscp/build/mscp_alpine-3.17-x86_64.static
-# copy mscp to PKG FILE NAME because this build doesn't use CPACK
+	&& make	-j 2							\
+	&& make install
 

@@ -1,4 +1,4 @@
-FROM rockylinux:8.8
+FROM rockylinux:9.3
 
 # install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y install \
@@ -25,7 +25,6 @@ RUN cd ${mscpdir}			\
         && rm -rf build			\
         && cmake -B build		\
         && cd ${mscpdir}/build          \
-	&& make				\
-	&& cpack -G RPM CPackConfig.cmake \
-	&& rpm -iv *.rpm
+	&& make	-j 2			\
+	&& make install
 

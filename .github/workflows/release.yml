@@ -33,22 +33,14 @@ jobs:
       - name: Test
         run: make -C ${{github.workspace}}/build docker-test-all
 
-      - name: Retrieve packages from containers
-        run: make -C ${{github.workspace}}/build docker-pkg-all
-
-      - name: Copy mscp single binary built inside Alpine
-        run: cp ${{github.workspace}}/build/mscp_alpine-3.17-x86_64.static ${{github.workspace}}/build/mscp.linux.x86.static
+      - name: Build single binary mscp
+        run: make -C ${{github.workspace}}/build build-single-binary
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{github.workspace}}/build/mscp_ubuntu-20.04-x86_64.deb
-            ${{github.workspace}}/build/mscp_ubuntu-22.04-x86_64.deb
-            ${{github.workspace}}/build/mscp_rocky-8.8-x86_64.rpm
-            ${{github.workspace}}/build/mscp_almalinux-8.8-x86_64.rpm
-            ${{github.workspace}}/build/mscp_alpine-3.17-x86_64.static
-            ${{github.workspace}}/build/mscp.linux.x86.static
+            ${{github.workspace}}/build/mscp.linux.x86_64.static
 
   source-release:
     runs-on: ubuntu-latest

@@ -29,7 +29,5 @@ RUN cd ${mscpdir}			\
 	&& rm -rf build			\
 	&& cmake -B build		\
 	&& cd ${mscpdir}/build		\
-	&& make				\
-	&& cpack -G DEB CPackConfig.cmake \
-	&& dpkg -i *.deb
-
+	&& make	-j 2			\
+	&& make install
