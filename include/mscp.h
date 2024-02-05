@@ -31,8 +31,6 @@
 #define MSCP_DIRECTION_L2R	1	/** Indicates local to remote copy */
 #define MSCP_DIRECTION_R2L	2	/** Indicates remote to local copy */
 
-#define MSCP_MAX_COREMASK_STR	64
-
 /**
  * @struct	mscp_opts
  * @brief	Structure configuring mscp.
@@ -43,22 +41,13 @@ struct mscp_opts {
 	size_t	min_chunk_sz;	/** minimum chunk size (default 64MB) */
 	size_t	max_chunk_sz;	/** maximum chunk size (default file size/nr_threads) */
 	size_t	buf_sz;		/** buffer size, default 16k. */
-	char	coremask[MSCP_MAX_COREMASK_STR]; /** hex to specifiy usable cpu cores */
+	char	*coremask; /** hex to specifiy usable cpu cores */
 	int	max_startups;	/** sshd MaxStartups concurrent connections */
 	int     interval;	/** interval between SSH connection attempts */
 
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
 };
 
-#define MSCP_SSH_MAX_LOGIN_NAME		64
-#define MSCP_SSH_MAX_PORT_STR		32
-#define MSCP_SSH_MAX_IDENTITY_PATH	PATH_MAX
-#define MSCP_SSH_MAX_CIPHER_STR		32
-#define MSCP_SSH_MAX_HMAC_STR		32
-#define MSCP_SSH_MAX_COMP_STR		32 /* yes, no, zlib, zlib@openssh.com, none */
-#define MSCP_SSH_MAX_CCALGO_STR		16
-#define MSCP_SSH_MAX_PASSWORD		128
-#define MSCP_SSH_MAX_PASSPHRASE		128
 
 /**
  * @struct	mscp_ssh_opts
@@ -66,17 +55,17 @@ struct mscp_opts {
  */
 struct mscp_ssh_opts {
 	/* ssh options */
-	char	login_name[MSCP_SSH_MAX_LOGIN_NAME];	/** ssh username */
-	char	port[MSCP_SSH_MAX_PORT_STR];		/** ssh port */
-	char	config[PATH_MAX];	/** path to ssh_config, default ~/.ssh/config*/
-	char	identity[MSCP_SSH_MAX_IDENTITY_PATH];	/** path to private key */
-	char	cipher[MSCP_SSH_MAX_CIPHER_STR];	/** cipher spec */
-	char	hmac[MSCP_SSH_MAX_HMAC_STR];		/** hmacp spec */
-	char	compress[MSCP_SSH_MAX_COMP_STR];	/** yes, no, zlib@openssh.com */
-	char	ccalgo[MSCP_SSH_MAX_CCALGO_STR];	/** TCP cc algorithm */
+	char	*login_name;	/** ssh username */
+	char	*port;		/** ssh port */
+	char	*config;	/** path to ssh_config, default ~/.ssh/config*/
+	char	*identity;	/** path to private key */
+	char	*cipher;	/** cipher spec */
+	char	*hmac;		/** hmacp spec */
+	char	*compress;	/** yes, no, zlib@openssh.com */
+	char	*ccalgo;	/** TCP cc algorithm */
 
-	char	password[MSCP_SSH_MAX_PASSWORD];	/** password auth passowrd */
-	char	passphrase[MSCP_SSH_MAX_PASSPHRASE];	/** passphrase for private key */
+	char	*password;	/** password auth passowrd */
+	char	*passphrase;	/** passphrase for private key */
 
 	int	debug_level;		/** inclirement libssh debug output level */
 	bool	no_hostkey_check;	/** do not check host keys */

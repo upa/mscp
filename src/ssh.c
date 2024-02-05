@@ -12,32 +12,29 @@
 
 static int ssh_verify_known_hosts(ssh_session session);
 
-
-#define is_specified(s) (strlen(s) > 0)
-
 static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 {
 	ssh_set_log_level(opts->debug_level);
 
-	if (is_specified(opts->login_name) &&
+	if (opts->login_name &&
 	    ssh_options_set(ssh, SSH_OPTIONS_USER, opts->login_name) < 0) {
 		mscp_set_error("failed to set login name");
 		return -1;
 	}
 
-	if (is_specified(opts->port) &&
+	if (opts->port &&
 	    ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
 		mscp_set_error("failed to set port number");
 		return -1;
 	}
 
-	if (is_specified(opts->identity) &&
+	if (opts->identity &&
 	    ssh_options_set(ssh, SSH_OPTIONS_IDENTITY, opts->identity) < 0) {
 		mscp_set_error("failed to set identity");
 		return -1;
 	}
 
-	if (is_specified(opts->cipher)) {
+	if (opts->cipher) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_CIPHERS_C_S, opts->cipher) < 0) {
 			mscp_set_error("failed to set cipher for client to server");
 			return -1;
@@ -48,7 +45,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 	}
 
-	if (is_specified(opts->hmac)) {
+	if (opts->hmac) {
 		if (ssh_options_set(ssh, SSH_OPTIONS_HMAC_C_S, opts->hmac) < 0) {
 			mscp_set_error("failed to set hmac for client to server");
 			return -1;
@@ -59,13 +56,13 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 	}
 
-	if (is_specified(opts->compress) &&
+	if (opts->compress &&
 	    ssh_options_set(ssh, SSH_OPTIONS_COMPRESSION, opts->compress) < 0) {
 		mscp_set_error("failed to enable ssh compression");
 		return -1;
 	}
 
-	if (is_specified(opts->ccalgo) &&
+	if (opts->ccalgo &&
 	    ssh_options_set(ssh, SSH_OPTIONS_CCALGO, opts->ccalgo) < 0) {
 		mscp_set_error("failed to set cclago");
 		return -1;
@@ -80,7 +77,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 	}
 
-	if (is_specified(opts->config) &&
+	if (opts->config &&
 	    ssh_options_parse_config(ssh, opts->config) < 0) {
 		mscp_set_error("failed to parse ssh_config: %s", opts->config);
 		return -1;
@@ -106,15 +103,19 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return 0;
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
-		char *p = is_specified(opts->passphrase) ? opts->passphrase : NULL;
+		char *p = opts->passphrase ? opts->passphrase : NULL;
 		if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
 			return 0;
 	}
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
-		if (!is_specified(opts->password)) {
-			if (ssh_getpass("Password: ", opts->password,
-					MSCP_SSH_MAX_PASSWORD, 0, 0) < 0) {
+		if (!opts->password) {
+			char buf[128] = {};
+			if (ssh_getpass("Password: ", buf, sizeof(buf), 0, 0) < 0) {
+				return -1;
+			}
+			if (!(opts->password = strndup(buf, sizeof(buf)))) {
+				mpr_err("strndup: %s", strerrno());
 				return -1;
 			}
 		}
@@ -136,18 +137,25 @@ static int ssh_cache_passphrase(const char *prompt, char *buf, size_t len, int e
 	 * second time or after because cached passphrase is passed
 	 * to ssh_userauth_publickey_auto(). */
 
+	/* ToDo: use
+	 * ssh_userauth_publickey_auto_get_current_identity() to print
+	 * id for which we ask passphrase */
+
 	if (ssh_getpass("Passphrase: ", buf, len, echo, verify) < 0)
 		return -1;
 
 	/* cache the passphrase */
-	if (strlen(buf) > MSCP_SSH_MAX_PASSPHRASE - 1)  {
-		pr_warn("sorry, passphrase is too long to cache...\n");
-		return 0;
+	if (opts->passphrase)
+		free(opts->passphrase);
+
+	if (!(opts->passphrase = strndup(buf, len))) {
+		mpr_err("strndup: %s", strerrno());
+		return -1;
 	}
-	strncpy(opts->passphrase, buf, MSCP_SSH_MAX_PASSPHRASE);
 
 	return 0;
 }
+
 
 static struct ssh_callbacks_struct cb = {
 	.auth_function = ssh_cache_passphrase,

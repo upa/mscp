@@ -258,7 +258,7 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	}
 	m->direction = direction;
 
-	if (strlen(o->coremask) > 0) {
+	if (o->coremask) {
 		if (expand_coremask(o->coremask, &m->cores, &m->nr_cores) < 0)
 			goto free_out;
 		char b[512], c[8];

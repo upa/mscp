@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'm':
-			strncpy(o.coremask, optarg, sizeof(o.coremask));
+			o.coremask = optarg;
 			break;
 		case 'u':
 			o.max_startups = atoi(optarg);
@@ -301,58 +301,30 @@ int main(int argc, char **argv)
 			/* for compatibility with scp */
 			break;
 		case 'l':
-			if (strlen(optarg) > MSCP_SSH_MAX_LOGIN_NAME - 1) {
-				fprintf(stderr, "long login name: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.login_name, optarg, MSCP_SSH_MAX_LOGIN_NAME - 1);
+			s.login_name = optarg;
 			break;
 		case 'P':
 			/* fallthough for compatibility with scp */
 		case 'p':
-			if (strlen(optarg) > MSCP_SSH_MAX_PORT_STR - 1) {
-				fprintf(stderr, "long port string: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.port, optarg, MSCP_SSH_MAX_PORT_STR);
+			s.port = optarg;
 			break;
 		case 'F':
-			strncpy(s.config, optarg, PATH_MAX - 1);
+			s.config = optarg;
 			break;
 		case 'i':
-			if (strlen(optarg) > MSCP_SSH_MAX_IDENTITY_PATH - 1) {
-				fprintf(stderr, "long identity path: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.identity, optarg, MSCP_SSH_MAX_IDENTITY_PATH);
+			s.identity = optarg;
 			break;
 		case 'c':
-			if (strlen(optarg) > MSCP_SSH_MAX_CIPHER_STR - 1) {
-				fprintf(stderr, "long cipher string: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.cipher, optarg, MSCP_SSH_MAX_CIPHER_STR);
+			s.cipher = optarg;
 			break;
 		case 'M':
-			if (strlen(optarg) > MSCP_SSH_MAX_HMAC_STR - 1) {
-				fprintf(stderr, "long hmac string: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.hmac, optarg, MSCP_SSH_MAX_HMAC_STR);
+			s.hmac = optarg;
 			break;
 		case 'C':
-			if (strlen(optarg) > MSCP_SSH_MAX_COMP_STR - 1) {
-				fprintf(stderr, "long compress string: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.compress, optarg, MSCP_SSH_MAX_COMP_STR);
+			s.compress = optarg;
 			break;
 		case 'g':
-			if (strlen(optarg) > MSCP_SSH_MAX_CCALGO_STR - 1) {
-				fprintf(stderr, "long ccalgo string: %s\n", optarg);
-				return -1;
-			}
-			strncpy(s.ccalgo, optarg, MSCP_SSH_MAX_CCALGO_STR);
+			s.ccalgo = optarg;
 			break;
 		case 'H':
 			s.no_hostkey_check = true;
@@ -386,15 +358,12 @@ int main(int argc, char **argv)
 		/* copy remote to local */
 		direction = MSCP_DIRECTION_R2L;
 		remote = t[0].host;
-		if (t[0].user != NULL && s.login_name[0] == '\0')
-			strncpy(s.login_name, t[0].user, MSCP_SSH_MAX_LOGIN_NAME - 1);
+		s.login_name = s.login_name ? s.login_name : t[0].user;
 	} else {
 		/* copy local to remote */
 		direction = MSCP_DIRECTION_L2R;
 		remote = t[i - 1].host;
-		if (t[i - 1].user != NULL && s.login_name[0] == '\0')
-			strncpy(s.login_name, t[i - 1].user,
-				MSCP_SSH_MAX_LOGIN_NAME - 1);
+		s.login_name = s.login_name ? s.login_name : t[i - 1].user;
 	}
 
 	if ((m = mscp_init(remote, direction, &o, &s)) == NULL) {
