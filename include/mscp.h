@@ -120,7 +120,6 @@ struct mscp *mscp_init(const char *remote_host, int direction,
  * @param m	mscp instance.
  *
  * @return 	0 on success, < 0 if an error occured.
- *              mscp_get_error() can be used to retrieve error message.
  */
 int mscp_connect(struct mscp *m);
 
@@ -136,7 +135,6 @@ int mscp_connect(struct mscp *m);
  * @param src_path	source file path to be copied.
  *
  * @return 		0 on success, < 0 if an error occured.
- *              	mscp_get_error() can be used to retrieve error message.
  */
 int mscp_add_src_path(struct mscp *m, const char *src_path);
 
@@ -150,7 +148,6 @@ int mscp_add_src_path(struct mscp *m, const char *src_path);
  * @param dst_path	destination path to which source files copied.
  *
  * @return 		0 on success, < 0 if an error occured.
- *              	mscp_get_error() can be used to retrieve error message.
  */
 int mscp_set_dst_path(struct mscp *m, const char *dst_path);
 
@@ -165,7 +162,6 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path);
  * @param m	mscp instance.
  *
  * @return 	0 on success, < 0 if an error occured.
- *              mscp_get_error() can be used to retrieve error message.
  */
 int mscp_scan(struct mscp *m);
 
@@ -176,7 +172,6 @@ int mscp_scan(struct mscp *m);
  *
  * @param m	mscp instance.
  * @return	0 on success, < 0 if an error occured.
- *		mscp_get_error() can be used to retrieve error message.
  */
 int mscp_scan_join(struct mscp *m);
 
@@ -189,7 +184,6 @@ int mscp_scan_join(struct mscp *m);
  * @param m	mscp instance.
  *
  * @return 	number of threads on success, < 0 if an error occured.
- *              mscp_get_error() can be used to retrieve error message.
  *
  * @see		mscp_join()
  */
@@ -211,7 +205,6 @@ void mscp_stop(struct mscp *m);
  * @param m	mscp instance.
  *
  * @return 	0 on success, < 0 if an error occured.
- *              mscp_get_error() can be used to retrieve error message.
  */
 int mscp_join(struct mscp *m);
 
@@ -259,17 +252,6 @@ enum {
         MSCP_SEVERITY_INFO	= 3,
 	MSCP_SEVERITY_DEBUG	= 4,
 };
-
-
-
-/**
- * @brief Get the recent error message from libmscp. Note that this
- * function is not thread-safe.
- *
- * @return 	pointer to the message.
- */
-const char *mscp_get_error(void);
-
 
 
 #endif /* _MSCP_H_ */

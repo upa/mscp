@@ -7,13 +7,14 @@
 #include <sys/time.h>
 
 #include <list.h>       
-#include <util.h>       
-#include <ssh.h>                
+#include <minmax.h>
+#include <ssh.h>
 #include <path.h>
 #include <fileops.h>
-#include <atomic.h>             
+#include <atomic.h>
 #include <platform.h>
-#include <message.h>
+#include <print.h>
+#include <strerrno.h>
 #include <mscp.h>
 
 #include <openbsd-compat/openbsd-compat.h>
@@ -101,7 +102,7 @@ static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 
         core_list = realloc(NULL, sizeof(int) * 64);
         if (!core_list) {
-                mscp_set_error("failed to realloc: %s", strerrno());
+                priv_set_errv("failed to realloc: %s", strerrno());
                 return -1;
         }
 
@@ -111,7 +112,7 @@ static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
                 c[0] = _coremask[n];
                 v = strtol(c, NULL, 16);
                 if (v == LONG_MIN || v == LONG_MAX) {
-                        mscp_set_error("invalid coremask: %s", coremask);
+                        priv_set_errv("invalid coremask: %s", coremask);
                         return -1;
                 }
 
@@ -123,7 +124,7 @@ static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
                                 nr_usable++;
                                 core_list = realloc(core_list, sizeof(int) * nr_usable);
                                 if (!core_list) {
-                                        mscp_set_error("realloc: %s", strerrno());
+                                        priv_set_errv("realloc: %s", strerrno());
                                         return -1;
                                 }
                                 core_list[nr_usable - 1] = nr_all - 1;
@@ -132,7 +133,7 @@ static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
         }
 
         if (nr_usable < 1) {
-                mscp_set_error("invalid core mask: %s", coremask);
+                priv_set_errv("invalid core mask: %s", coremask);
                 return -1;
         }
 
@@ -149,13 +150,13 @@ static int default_nr_threads()
 static int validate_and_set_defaut_params(struct mscp_opts *o)
 {
 	if (o->nr_threads < 0) {
-		mscp_set_error("invalid nr_threads: %d", o->nr_threads);
+		priv_set_errv("invalid nr_threads: %d", o->nr_threads);
 		return -1;
 	} else if (o->nr_threads == 0)
 		o->nr_threads = default_nr_threads();
 
 	if (o->nr_ahead < 0) {
-		mscp_set_error("invalid nr_ahead: %d", o->nr_ahead);
+		priv_set_errv("invalid nr_ahead: %d", o->nr_ahead);
 		return -1;
 	} else if (o->nr_ahead == 0)
 		o->nr_ahead = DEFAULT_NR_AHEAD;
@@ -165,7 +166,7 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	else {
 		if (o->min_chunk_sz < getpagesize() ||
 		    o->min_chunk_sz % getpagesize() != 0) {
-			mscp_set_error("min chunk size must be "
+			priv_set_errv("min chunk size must be "
 				       "larget than and multiple of page size %d: %lu",
 				       getpagesize(), o->min_chunk_sz);
 			return -1;
@@ -175,12 +176,12 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	if (o->max_chunk_sz) {
 		if (o->max_chunk_sz < getpagesize() ||
 		    o->max_chunk_sz % getpagesize() != 0) {
-			mscp_set_error("min chunk size must be larget than and "
+			priv_set_errv("min chunk size must be larget than and "
 				       "multiple of page size %d: %lu",
 				       getpagesize(), o->max_chunk_sz);
 		}
 		if (o->min_chunk_sz > o->max_chunk_sz) {
-			mscp_set_error("smaller max chunk size than "
+			priv_set_errv("smaller max chunk size than "
 				       "min chunk size: %lu < %lu",
 				       o->max_chunk_sz, o->min_chunk_sz);
 			return -1;
@@ -190,14 +191,14 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	if (o->buf_sz == 0)
 		o->buf_sz = DEFAULT_BUF_SZ;
 	else if (o->buf_sz == 0) {
-		mscp_set_error("invalid buf size: %lu", o->buf_sz);
+		priv_set_errv("invalid buf size: %lu", o->buf_sz);
 		return -1;
 	}
 
 	if (o->max_startups == 0)
 		o->max_startups = DEFAULT_MAX_STARTUPS;
 	else if (o->max_startups < 0) {
-		mscp_set_error("invalid max_startups: %d", o->max_startups);
+		priv_set_errv("invalid max_startups: %d", o->max_startups);
 		return -1;
 	}
 
@@ -216,17 +217,17 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	int n;
 
 	if (!remote_host) {
-		mscp_set_error("empty remote host");
+		priv_set_errv("empty remote host");
 		return NULL;
 	}
 
 	if (!(direction == MSCP_DIRECTION_L2R ||
 	      direction == MSCP_DIRECTION_R2L)) {
-		mscp_set_error("invalid copy direction: %d", direction);
+		priv_set_errv("invalid copy direction: %d", direction);
 		return NULL;
 	}
 
-	mprint_set_severity(o->severity);
+	set_print_severity(o->severity);
 
 	if (validate_and_set_defaut_params(o) < 0) {
 		return NULL;
@@ -234,7 +235,7 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 
 	m = malloc(sizeof(*m));
 	if (!m) {
-		mscp_set_error("failed to allocate memory: %s", strerrno());
+		priv_set_errv("failed to allocate memory: %s", strerrno());
 		return NULL;
 	}
 
@@ -247,13 +248,13 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 	rwlock_init(&m->thread_rwlock);
 
 	if ((m->sem = sem_create(o->max_startups)) == NULL) {
-		mscp_set_error("sem_create: %s", strerrno());
+		priv_set_errv("sem_create: %s", strerrno());
 		goto free_out;
 	}
 
 	m->remote = strdup(remote_host);
 	if (!m->remote) {
-		mscp_set_error("failed to allocate memory: %s", strerrno());
+		priv_set_errv("failed to allocate memory: %s", strerrno());
 		goto free_out;
 	}
 	m->direction = direction;
@@ -267,7 +268,7 @@ struct mscp *mscp_init(const char *remote_host, int direction,
 			snprintf(c, sizeof(c) - 1, " %d", m->cores[n]);
 			strlcat(b, c, sizeof(b));
 		}
-		mpr_notice("usable cpu cores:%s", b);
+		pr_notice("usable cpu cores:%s", b);
 	}
 
 	m->opts = o;
@@ -295,14 +296,14 @@ int mscp_add_src_path(struct mscp *m, const char *src_path)
 
 	s = malloc(sizeof(*s));
 	if (!s) {
-		mscp_set_error("failed to allocate memory: %s", strerrno());
+		priv_set_errv("failed to allocate memory: %s", strerrno());
 		return -1;
 	}
 
 	memset(s, 0, sizeof(*s));
 	s->path = strdup(src_path);
 	if (!s->path) {
-		mscp_set_error("failed to allocate memory: %s", strerrno());
+		priv_set_errv("failed to allocate memory: %s", strerrno());
 		free(s);
 		return -1;
 	}
@@ -314,7 +315,7 @@ int mscp_add_src_path(struct mscp *m, const char *src_path)
 int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 {
 	if (strlen(dst_path) + 1 >= PATH_MAX) {
-		mscp_set_error("too long dst path: %s", dst_path);
+		priv_set_errv("too long dst path: %s", dst_path);
 		return -1;
 	}
 
@@ -388,7 +389,7 @@ void *mscp_scan_thread(void *arg)
 		dst_sftp = NULL;
 		break;
 	default:
-		mscp_set_error("invalid copy direction: %d", m->direction);
+		priv_set_errv("invalid copy direction: %d", m->direction);
 		goto err_out;
 	}
 
@@ -410,19 +411,19 @@ void *mscp_scan_thread(void *arg)
 	a.max_chunk_sz = m->opts->max_chunk_sz;
 	a.chunk_align = get_page_mask();
 
-	mpr_info("start to walk source path(s)");
+	pr_info("start to walk source path(s)");
 
 	/* walk a src_path recusively, and resolve path->dst_path for each src */
 	list_for_each_entry(s, &m->src_list, list) {
 		memset(&pglob, 0, sizeof(pglob));
 		if (mscp_glob(s->path, GLOB_NOCHECK, &pglob, src_sftp) < 0) {
-			mscp_set_error("mscp_glob: %s", strerrno());
+			priv_set_errv("mscp_glob: %s", strerrno());
 			goto err_out;
 		}
 
 		for (n = 0; n < pglob.gl_pathc; n++) {
 			if (mscp_stat(pglob.gl_pathv[n], &ss, src_sftp) < 0) {
-				mscp_set_error("stat: %s %s", s->path, strerrno());
+				priv_set_errv("stat: %s %s", s->path, strerrno());
 				goto err_out;
 			}
 
@@ -443,7 +444,7 @@ void *mscp_scan_thread(void *arg)
 		mscp_globfree(&pglob);
 	}
 
-	mpr_info("walk source path(s) done");
+	pr_info("walk source path(s) done");
 	chunk_pool_set_filled(&m->cp);
 	m->ret_scan = 0;
 	return NULL;
@@ -458,7 +459,7 @@ int mscp_scan(struct mscp *m)
 {
 	int ret = pthread_create(&m->tid_scan, NULL, mscp_scan_thread, m);
 	if (ret < 0) {
-		mscp_set_error("pthread_create_error: %d", ret);
+		priv_set_errv("pthread_create_error: %d", ret);
 		m->tid_scan = 0;
 		mscp_stop(m);
 		return -1;
@@ -497,7 +498,7 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 
 	t = malloc(sizeof(*t));
 	if (!t){
-		mscp_set_error("malloc: %s,", strerrno());
+		priv_set_errv("malloc: %s,", strerrno());
 		return NULL;
 	}
 
@@ -511,7 +512,7 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 
 	ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t);
 	if (ret < 0) {
-		mscp_set_error("pthread_create error: %d", ret);
+		priv_set_errv("pthread_create error: %d", ret);
 		free(t);
 		return NULL;
 	}
@@ -526,7 +527,7 @@ int mscp_start(struct mscp *m)
 	int n, ret = 0;
 
 	if ((n = chunk_pool_size(&m->cp)) < m->opts->nr_threads) {
-		mpr_notice("we have only %d chunk(s). "
+		pr_notice("we have only %d chunk(s). "
 			   "set number of connections to %d", n, n);
 		m->opts->nr_threads = n;
 	}
@@ -534,7 +535,7 @@ int mscp_start(struct mscp *m)
 	for (n = 0; n < m->opts->nr_threads; n++) {
 		t = mscp_copy_thread_spawn(m, n);
 		if (!t) {
-			mpr_err("failed to spawn copy thread");
+			pr_err("failed to spawn copy thread");
 			break;
 		}
 		RWLOCK_WRITE_ACQUIRE(&m->thread_rwlock);
@@ -582,7 +583,7 @@ int mscp_join(struct mscp *m)
 		}
 	}
 
-	mpr_notice("%lu/%lu bytes copied for %lu/%lu files",
+	pr_notice("%lu/%lu bytes copied for %lu/%lu files",
 		   done, m->total_bytes, nr_copied, nr_tobe_copied);
 
 	return ret;
@@ -627,29 +628,29 @@ void *mscp_copy_thread(void *arg)
         }
 
 	if (sem_wait(m->sem) < 0) {
-		mpr_err("sem_wait: %s", strerrno());
+		pr_err("sem_wait: %s", strerrno());
 		goto err_out;
 	}
 
 	if (!(nomore = chunk_pool_is_empty(&m->cp))) {
 		if (m->opts->interval > 0)
 			wait_for_interval(m->opts->interval);
-		mpr_notice("thread:%d connecting to %s", t->id, m->remote);
+		pr_notice("thread:%d connecting to %s", t->id, m->remote);
 		t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
 	}
 
 	if (sem_post(m->sem) < 0) {
-		mpr_err("sem_post: %s", strerrno());
+		pr_err("sem_post: %s", strerrno());
 		goto err_out;
 	}
 
 	if (nomore) {
-		mpr_notice("thread:%d no more connections needed", t->id);
+		pr_notice("thread:%d no more connections needed", t->id);
 		goto out;
 	}
 
 	if (!t->sftp) {
-		mpr_err("thread:%d: %s", t->id, mscp_get_error());
+		pr_err("thread:%d: %s", t->id, priv_get_err());
 		goto err_out;
 	}
 
@@ -685,8 +686,8 @@ void *mscp_copy_thread(void *arg)
         pthread_cleanup_pop(1);
 
         if (t->ret < 0)
-		mpr_err("thread:%d copy failed: %s 0x%010lx-0x%010lx",
-			t->id, c->p->path, c->off, c->off + c->len);
+		pr_err("thread:%d copy failed: %s 0x%010lx-0x%010lx",
+		       t->id, c->p->path, c->off, c->off + c->len);
 
         return NULL;
 
@@ -777,3 +778,4 @@ void mscp_get_stats(struct mscp *m, struct mscp_stats *s)
 
 	s->finished = nr_threads > 0 ? (nr_finished == nr_threads) : false;
 }
+

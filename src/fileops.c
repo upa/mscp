@@ -9,7 +9,7 @@
 
 #include <fileops.h>
 #include <ssh.h>
-#include <message.h>
+#include <print.h>
 #include <platform.h>
 
 
@@ -63,7 +63,7 @@ static void sftp_err_to_errno(sftp_session sftp)
 		errno = ENODEV;
 		break;
 	default:
-		mpr_warn("unkown SSH_FX response %d", sftperr);
+		pr_warn("unkown SSH_FX response %d", sftperr);
 	}
 }
 
@@ -199,7 +199,7 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 		st->st_mode |= S_IFIFO; /* really? */
 		break;
 	default:
-		mpr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
+		pr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
 	}
 }
 

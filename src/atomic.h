@@ -6,8 +6,6 @@
 #include <assert.h>
 #include <pthread.h>
 
-#include <message.h>
-
 typedef int refcnt;
 
 static inline void refcnt_inc(refcnt *cnt)

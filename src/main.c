@@ -12,7 +12,10 @@
 #include <pthread.h>
 
 #include <mscp.h>
-#include <util.h>
+#include <minmax.h>
+#include <strerrno.h>
+#include <print.h>
+
 
 #include "config.h"
 
@@ -79,7 +82,7 @@ char *split_user_host_path(const char *s, char **userp, char **hostp, char **pat
 	bool inbrackets = false;
 
 	if (!(tmp = strdup(s))) {
-		fprintf(stderr, "stdrup: %s\n", strerror(errno));
+		pr_err("stdrup: %s", strerror(errno));
 		return NULL;
 	}
 
@@ -174,7 +177,7 @@ struct target *validate_targets(char **arg, int len)
 	int n;
 
 	if ((t = calloc(len, sizeof(struct target))) == NULL) {
-		fprintf(stderr, "calloc: %s\n", strerror(errno));
+		pr_err("calloc: %s", strerrno());
 		return NULL;
 	}
 	memset(t, 0, len * sizeof(struct target));
@@ -198,19 +201,19 @@ struct target *validate_targets(char **arg, int len)
 
 	/* check inconsistent remote position in args */
 	if (t[0].host == NULL && t[len - 1].host == NULL) {
-		fprintf(stderr, "no remote host given\n");
+		pr_err("no remote host given");
 		goto free_split_out;
 	}
 
 	if (t[0].host != NULL && t[len - 1].host != NULL) {
-		fprintf(stderr, "no local path given\n");
+		pr_err("no local path given");
 		goto free_split_out;
 	}
 
 	return t;
 
 invalid_remotes:
-	fprintf(stderr, "invalid remote host notation\n");
+	pr_err("invalid remote host notation");
 
 free_split_out:
 	for (n = 0; n < len; n++)
@@ -263,8 +266,7 @@ int main(int argc, char **argv)
 		case 'n':
 			o.nr_threads = atoi(optarg);
 			if (o.nr_threads < 1) {
-				fprintf(stderr, "invalid number of connections: %s\n",
-					optarg);
+				pr_err( "invalid number of connections: %s", optarg);
 				return 1;
 			}
 			break;
@@ -373,29 +375,29 @@ int main(int argc, char **argv)
 	}
 
 	if ((m = mscp_init(remote, direction, &o, &s)) == NULL) {
-		fprintf(stderr, "mscp_init: %s\n", mscp_get_error());
+		pr_err("mscp_init: %s", priv_get_err());
 		return -1;
 	}
 
 	if (mscp_connect(m) < 0) {
-		fprintf(stderr, "mscp_connect: %s\n", mscp_get_error());
+		pr_err("mscp_connect: %s", priv_get_err());
 		return -1;
 	}
 
 	for (n = 0; n < i - 1; n++) {
 		if (mscp_add_src_path(m, t[n].path) < 0) {
-			fprintf(stderr, "mscp_add_src_path: %s\n", mscp_get_error());
+			pr_err("mscp_add_src_path: %s", priv_get_err());
 			return -1;
 		}
         }
 
 	if (mscp_set_dst_path(m, t[i - 1].path) < 0) {
-		fprintf(stderr, "mscp_set_dst_path: %s\n", mscp_get_error());
+		pr_err("mscp_set_dst_path: %s", priv_get_err());
 		return -1;
 	}
 
 	if (mscp_scan(m) < 0) {
-		fprintf(stderr, "mscp_scan: %s\n", mscp_get_error());
+		pr_err("mscp_scan: %s", priv_get_err());
 		return -1;
 	}
 
@@ -405,22 +407,22 @@ int main(int argc, char **argv)
 	}
 
 	if (pthread_create(&tid_stat, NULL, print_stat_thread, NULL) < 0) {
-		fprintf(stderr, "pthread_create: %s\n", strerror(errno));
+		pr_err("pthread_create: %s", strerror(errno));
 		return -1;
 	}
 
 	if (signal(SIGINT, sigint_handler) == SIG_ERR) {
-		fprintf(stderr, "signal: %s\n", strerror(errno));
+		pr_err("signal: %s", strerror(errno));
 		return -1;
 	}
 
 	ret = mscp_start(m);
 	if (ret < 0)
-		fprintf(stderr, "mscp_start: %s\n", mscp_get_error());
+		pr_err("mscp_start: %s", priv_get_err());
 
 	ret = mscp_join(m);
 	if (ret != 0)
-		fprintf(stderr, "mscp_join: %s\n", mscp_get_error());
+		pr_err("mscp_join: %s", priv_get_err());
 
 	pthread_cancel(tid_stat);
 	pthread_join(tid_stat, NULL);

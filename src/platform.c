@@ -22,9 +22,9 @@
 #error unsupported platform
 #endif
 
-#include <util.h>
 #include <platform.h>
-#include <message.h>
+#include <strerrno.h>
+#include <print.h>
 
 
 #ifdef __APPLE__
@@ -34,7 +34,7 @@ int nr_cpus()
 	size_t size = sizeof(n);
 
 	if (sysctlbyname("machdep.cpu.core_count", &n, &size, NULL, 0) != 0) {
-		mscp_set_error("failed to get number of cpu cores: %s", strerrno());
+		priv_set_errv("failed to get number of cpu cores: %s", strerrno());
 		return -1;
 	}
 
@@ -43,7 +43,7 @@ int nr_cpus()
 
 int set_thread_affinity(pthread_t tid, int core)
 {
-	pr_warn("setting thread afinity is not implemented on apple\n");
+	pr_warn("setting thread afinity is not implemented on apple");
 	return 0;
 }
 
@@ -124,8 +124,8 @@ int set_thread_affinity(pthread_t tid, int core)
 	CPU_SET(core, &target_cpu_set);
 	ret = pthread_setaffinity_np(tid, sizeof(target_cpu_set), &target_cpu_set);
 	if (ret < 0)
-		mscp_set_error("failed to set thread/cpu affinity for core %d: %s",
-			       core, strerrno());
+		priv_set_errv("failed to set thread/cpu affinity for core %d: %s",
+			      core, strerrno());
 	return ret;
 }
 

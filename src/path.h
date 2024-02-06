@@ -10,7 +10,6 @@
 #include <list.h>
 #include <atomic.h>
 #include <ssh.h>
-#include <message.h>
 
 struct path {
 	struct list_head	list;	/* mscp->path_list */
