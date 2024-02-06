@@ -12,16 +12,16 @@ from subprocess import check_call, CalledProcessError, PIPE
 from util import File, check_same_md5sum
 
 
-def run2ok(args):
+def run2ok(args, env = None):
     cmd = list(map(str, args))
     print("cmd: {}".format(" ".join(cmd)))
-    check_call(cmd)
+    check_call(cmd, env = env)
 
-def run2ng(args):
+def run2ng(args, env = None):
     cmd = list(map(str, args))
     print("cmd: {}".format(" ".join(cmd)))
     with pytest.raises(CalledProcessError) as e:
-        check_call(cmd)
+        check_call(cmd, env = env)
 
 
 """ usage test """
@@ -401,3 +401,44 @@ def test_config_ng(mscp, src_prefix, dst_prefix):
     os.remove(config)
     src.cleanup()
     dst.cleanup()
+
+# username test assumes that this test runs inside a container, see Dockerfiles
+def test_specify_passphrase_via_env(mscp):
+    src = File(os.getcwd() + "/src", size = 1024).make()
+    dst = File("/home/test/dst")
+    env = os.environ
+    env["MSCP_SSH_AUTH_PASSPHRASE"]  = "keypassphrase"
+    run2ok([mscp, "-H", "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
+            src.path, "localhost:" + dst.path], env = env)
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+def test_specify_invalid_passphrase_via_env(mscp):
+    src = File(os.getcwd() + "/src", size = 1024).make()
+    dst = File("/home/test/dst")
+    env = os.environ
+    env["MSCP_SSH_AUTH_PASSPHRASE"]  = "invalid-keypassphrase"
+    run2ng([mscp, "-H", "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
+            src.path, "localhost:" + dst.path], env = env)
+    src.cleanup()
+
+def test_specify_password_via_env(mscp):
+    src = File(os.getcwd() + "/src", size = 1024).make()
+    dst = File("/home/test/dst")
+    env = os.environ
+    env["MSCP_SSH_AUTH_PASSWORD"]  = "userpassword"
+    run2ok([mscp, "-H", "-vvv", "-l", "test",
+            src.path, "localhost:" + dst.path], env = env)
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+def test_specify_invalid_password_via_env(mscp):
+    src = File(os.getcwd() + "/src", size = 1024).make()
+    dst = File("/home/test/dst")
+    env = os.environ
+    env["MSCP_SSH_AUTH_PASSWORD"]  = "invalid-userpassword"
+    run2ng([mscp, "-H", "-vvv", "-l", "test",
+            src.path, "localhost:" + dst.path], env = env)
+    src.cleanup()

@@ -9,10 +9,20 @@ RUN apk add --no-cache \
 RUN pip3 install --break-system-packages conan
 
 # preparation for sshd
-RUN ssh-keygen -A
-RUN  mkdir /var/run/sshd        \
-        && ssh-keygen -f /root/.ssh/id_rsa -N ""                \
-        && mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+RUN ssh-keygen -A \
+	&& mkdir /var/run/sshd        \
+	&& ssh-keygen -f /root/.ssh/id_rsa -N ""                \
+	&& cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
+
+# create test user
+RUN addgroup -S test \
+	&& adduser -S test -G test \
+        && echo "test:userpassword" | chpasswd \
+        && mkdir -p /home/test/.ssh     \
+        && ssh-keygen -f /home/test/.ssh/id_rsa_test -N "keypassphrase" \
+        && cat /home/test/.ssh/id_rsa_test.pub >> /home/test/.ssh/authorized_keys \
+        && chown -R test:test /home/test \
+        && chown -R test:test /home/test/.ssh
 
 
 # Build mscp as a single binary

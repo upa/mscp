@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.3
+:Date:   v0.1.3-15-g9908fb3
 
 NAME
 ====
@@ -146,6 +146,19 @@ EXIT STATUS
 ===========
 
 Exit status is 0 on success, and >0 if an error occurs.
+
+ENVIRONMENT
+===========
+
+**mscp** recognizes the following environment variables.
+
+**MSCP_SSH_AUTH_PASSWORD**
+   This environment variable passes a password for password
+   authentication to establish SSH connections.
+
+**MSCP_SSH_AUTH_PASSPHRASE**
+   This environment variable passes a passphrase for public-key
+   authentication for establishing SSH connections.
 
 NOTES
 =====

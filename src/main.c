@@ -344,6 +344,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
+	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
+
+
 	if (argc - optind < 2) {
 		/* mscp needs at lease 2 (src and target) argument */
 		usage(false);

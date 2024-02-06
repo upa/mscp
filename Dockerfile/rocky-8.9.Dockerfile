@@ -8,10 +8,22 @@ RUN python3 -m pip install pytest
 
 
 # preparation for sshd
-RUN  mkdir /var/run/sshd        \
+RUN mkdir /var/run/sshd        \
 	&& ssh-keygen -A	\
         && ssh-keygen -f /root/.ssh/id_rsa -N ""                \
-        && mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+        && cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
+
+# create test user
+RUN useradd -m -d /home/test test       \
+        && echo "test:userpassword" | chpasswd \
+        && mkdir -p /home/test/.ssh     \
+        && ssh-keygen -f /home/test/.ssh/id_rsa_test -N "keypassphrase" \
+        && cat /home/test/.ssh/id_rsa_test.pub >> /home/test/.ssh/authorized_keys \
+        && chown -R test:test /home/test \
+        && chown -R test:test /home/test/.ssh
+
+RUN rm -rf /run/nologin
+
 
 ARG mscpdir="/mscp"
 

@@ -236,6 +236,24 @@ Prints help.
 .SH EXIT STATUS
 Exit status is 0 on success,  and >0 if an error occurs.
 
+.SH ENVIRONMENT
+
+.PP
+.B mscp
+recognizes the following environment variables.
+
+.TP
+.B MSCP_SSH_AUTH_PASSWORD
+This environment variable passes a password for password
+authentication to establish SSH connections.
+
+.TP
+.B MSCP_SSH_AUTH_PASSPHRASE
+This environment variable passes a passphrase for public-key
+authentication for establishing SSH connections.
+
+
+
 .SH NOTES
 
 .PP

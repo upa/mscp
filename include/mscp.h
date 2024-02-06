@@ -72,6 +72,17 @@ struct mscp_ssh_opts {
 	bool	enable_nagle;		/** enable Nagle's algorithm if true */
 };
 
+/** @def
+ * Environment variable that passes password for ssh password auth
+ */
+#define ENV_SSH_AUTH_PASSWORD	"MSCP_SSH_AUTH_PASSWORD"
+
+/** @def
+ * Environment vraible that passes passphrase for private key
+ */
+#define ENV_SSH_AUTH_PASSPHRASE	"MSCP_SSH_AUTH_PASSPHRASE"
+
+
 /**
  * @struct	mscp_stats
  * @brief	Structure to get mscp statistics
