@@ -26,7 +26,6 @@
 #include <strerrno.h>
 #include <print.h>
 
-
 #ifdef __APPLE__
 int nr_cpus()
 {
@@ -49,7 +48,7 @@ int set_thread_affinity(pthread_t tid, int core)
 
 int setutimes(const char *path, struct timespec atime, struct timespec mtime)
 {
-	struct timeval tv[2]  = {
+	struct timeval tv[2] = {
 		{
 			.tv_sec = atime.tv_sec,
 			.tv_usec = atime.tv_nsec * 1000,
@@ -64,14 +63,14 @@ int setutimes(const char *path, struct timespec atime, struct timespec mtime)
 
 static void random_string(char *buf, size_t size)
 {
-        char chars[] = "abcdefhijklmnopqrstuvwxyz1234567890";
-        int n, x;
+	char chars[] = "abcdefhijklmnopqrstuvwxyz1234567890";
+	int n, x;
 
-        for (n = 0; n < size - 1; n++) {
-                x = arc4random() % (sizeof(chars) - 1);
-                buf[n] = chars[x];
-        }
-        buf[size - 1] = '\0';
+	for (n = 0; n < size - 1; n++) {
+		x = arc4random() % (sizeof(chars) - 1);
+		buf[n] = chars[x];
+	}
+	buf[size - 1] = '\0';
 }
 
 sem_t *sem_create(int value)
@@ -80,10 +79,10 @@ sem_t *sem_create(int value)
 	sem_t *sem;
 	int n;
 
-        n = strlen(sem_name);
-        random_string(sem_name + n, sizeof(sem_name) - n - 1);
-        if ((sem = sem_open(sem_name, O_CREAT, 600, value)) == SEM_FAILED)
-	    return NULL;
+	n = strlen(sem_name);
+	random_string(sem_name + n, sizeof(sem_name) - n - 1);
+	if ((sem = sem_open(sem_name, O_CREAT, 600, value)) == SEM_FAILED)
+		return NULL;
 
 	return sem;
 }
@@ -124,8 +123,8 @@ int set_thread_affinity(pthread_t tid, int core)
 	CPU_SET(core, &target_cpu_set);
 	ret = pthread_setaffinity_np(tid, sizeof(target_cpu_set), &target_cpu_set);
 	if (ret < 0)
-		priv_set_errv("failed to set thread/cpu affinity for core %d: %s",
-			      core, strerrno());
+		priv_set_errv("failed to set thread/cpu affinity for core %d: %s", core,
+			      strerrno());
 	return ret;
 }
 
@@ -164,4 +163,3 @@ int sem_release(sem_t *sem)
 }
 
 #endif
-

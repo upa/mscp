@@ -22,8 +22,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return -1;
 	}
 
-	if (opts->port &&
-	    ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
+	if (opts->port && ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
 		priv_set_errv("failed to set port number");
 		return -1;
 	}
@@ -62,8 +61,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return -1;
 	}
 
-	if (opts->ccalgo &&
-	    ssh_options_set(ssh, SSH_OPTIONS_CCALGO, opts->ccalgo) < 0) {
+	if (opts->ccalgo && ssh_options_set(ssh, SSH_OPTIONS_CCALGO, opts->ccalgo) < 0) {
 		priv_set_errv("failed to set cclago");
 		return -1;
 	}
@@ -77,8 +75,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 	}
 
-	if (opts->config &&
-	    ssh_options_parse_config(ssh, opts->config) < 0) {
+	if (opts->config && ssh_options_parse_config(ssh, opts->config) < 0) {
 		priv_set_errv("failed to parse ssh_config: %s", opts->config);
 		return -1;
 	}
@@ -157,7 +154,6 @@ static int ssh_cache_passphrase(const char *prompt, char *buf, size_t len, int e
 	return 0;
 }
 
-
 static struct ssh_callbacks_struct cb = {
 	.auth_function = ssh_cache_passphrase,
 	.userdata = NULL,
@@ -213,14 +209,13 @@ sftp_session ssh_init_sftp_session(const char *sshdst, struct mscp_ssh_opts *opt
 
 	sftp = sftp_new(ssh);
 	if (!sftp) {
-		priv_set_errv("failed to allocate sftp session: %s",
-			       ssh_get_error(ssh));
+		priv_set_errv("failed to allocate sftp session: %s", ssh_get_error(ssh));
 		goto err_out;
 	}
 
 	if (sftp_init(sftp) != SSH_OK) {
 		priv_set_errv("failed to initialize sftp session: err code %d",
-			       sftp_get_error(sftp));
+			      sftp_get_error(sftp));
 		goto err_out;
 	}
 
@@ -230,7 +225,6 @@ err_out:
 	ssh_free(ssh);
 	return NULL;
 }
-
 
 /* copied from https://api.libssh.org/stable/libssh_tutor_guided_tour.html*/
 static int ssh_verify_known_hosts(ssh_session session)
@@ -250,10 +244,7 @@ static int ssh_verify_known_hosts(ssh_session session)
 		return -1;
 	}
 
-	rc = ssh_get_publickey_hash(srv_pubkey,
-				    SSH_PUBLICKEY_HASH_SHA1,
-				    &hash,
-				    &hlen);
+	rc = ssh_get_publickey_hash(srv_pubkey, SSH_PUBLICKEY_HASH_SHA1, &hash, &hlen);
 	ssh_key_free(srv_pubkey);
 	if (rc < 0) {
 		return -1;
@@ -274,8 +265,9 @@ static int ssh_verify_known_hosts(ssh_session session)
 		return -1;
 	case SSH_KNOWN_HOSTS_OTHER:
 		fprintf(stderr, "The host key for this server was not found but an other"
-			"type of key exists.\n");
-		fprintf(stderr, "An attacker might change the default server key to"
+				"type of key exists.\n");
+		fprintf(stderr,
+			"An attacker might change the default server key to"
 			"confuse your client into thinking the key does not exist\n");
 		ssh_clean_pubkey_hash(&hash);
 
@@ -283,7 +275,7 @@ static int ssh_verify_known_hosts(ssh_session session)
 	case SSH_KNOWN_HOSTS_NOT_FOUND:
 		fprintf(stderr, "Could not find known host file.\n");
 		fprintf(stderr, "If you accept the host key here, the file will be"
-			"automatically created.\n");
+				"automatically created.\n");
 
 		/* FALL THROUGH to SSH_SERVER_NOT_KNOWN behavior */
 

@@ -12,7 +12,6 @@
 #include <print.h>
 #include <platform.h>
 
-
 sftp_session __thread tls_sftp;
 /* tls_sftp is used *_wrapped() functions */
 
@@ -25,7 +24,7 @@ static void sftp_err_to_errno(sftp_session sftp)
 {
 	int sftperr = sftp_get_error(sftp);
 
-	switch (sftperr){
+	switch (sftperr) {
 	case SSH_FX_OK:
 	case SSH_FX_EOF:
 		errno = 0;
@@ -66,7 +65,6 @@ static void sftp_err_to_errno(sftp_session sftp)
 		pr_warn("unkown SSH_FX response %d", sftperr);
 	}
 }
-
 
 MDIR *mscp_opendir(const char *path, sftp_session sftp)
 {
@@ -111,7 +109,6 @@ void mscp_closedir(MDIR *md)
 
 	free(md);
 }
-
 
 struct dirent __thread tls_dirent;
 /* tls_dirent contains dirent converted from sftp_attributes returned
@@ -161,26 +158,25 @@ int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp)
 	return ret;
 }
 
-
 static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 {
-        memset(st, 0, sizeof(*st));
-	st->st_size	= attr->size;
-	st->st_uid	= attr->uid;
-	st->st_gid	= attr->gid;
-	st->st_mode	= attr->permissions;
+	memset(st, 0, sizeof(*st));
+	st->st_size = attr->size;
+	st->st_uid = attr->uid;
+	st->st_gid = attr->gid;
+	st->st_mode = attr->permissions;
 
 #if defined(__APPLE__)
-#define st_atim	st_atimespec
-#define st_mtim	st_mtimespec
-#define st_ctim	st_ctimespec
+#define st_atim st_atimespec
+#define st_mtim st_mtimespec
+#define st_ctim st_ctimespec
 #endif
-	st->st_atim.tv_sec	= attr->atime;
-	st->st_atim.tv_nsec	= attr->atime_nseconds;
-	st->st_mtim.tv_sec	= attr->mtime;
-	st->st_mtim.tv_nsec	= attr->mtime_nseconds;
-	st->st_ctim.tv_sec	= attr->createtime;
-	st->st_ctim.tv_nsec	= attr->createtime_nseconds;
+	st->st_atim.tv_sec = attr->atime;
+	st->st_atim.tv_nsec = attr->atime_nseconds;
+	st->st_mtim.tv_sec = attr->mtime;
+	st->st_mtim.tv_nsec = attr->mtime_nseconds;
+	st->st_ctim.tv_sec = attr->createtime;
+	st->st_ctim.tv_nsec = attr->createtime_nseconds;
 
 	switch (attr->type) {
 	case SSH_FILEXFER_TYPE_REGULAR:
@@ -202,7 +198,6 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 		pr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
 	}
 }
-
 
 int mscp_stat(const char *path, struct stat *st, sftp_session sftp)
 {
@@ -255,7 +250,6 @@ int mscp_lstat_wrapped(const char *path, struct stat *st)
 {
 	return mscp_lstat(path, st, tls_sftp);
 }
-
 
 mf *mscp_open(const char *path, int flags, mode_t mode, sftp_session sftp)
 {
@@ -316,7 +310,7 @@ int mscp_setstat(const char *path, struct stat *st, bool preserve_ts, sftp_sessi
 		memset(&attr, 0, sizeof(attr));
 		attr.permissions = st->st_mode;
 		attr.size = st->st_size;
-		attr.flags = (SSH_FILEXFER_ATTR_PERMISSIONS|SSH_FILEXFER_ATTR_SIZE);
+		attr.flags = (SSH_FILEXFER_ATTR_PERMISSIONS | SSH_FILEXFER_ATTR_SIZE);
 		if (preserve_ts) {
 			attr.atime = st->st_atim.tv_sec;
 			attr.atime_nseconds = st->st_atim.tv_nsec;
@@ -357,7 +351,7 @@ int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 		set_tls_sftp_session(sftp);
 #if defined(__APPLE__) || defined(__FreeBSD__)
 		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
-		pglob->gl_readdir = (struct dirent *(*)(void *))mscp_readdir;
+		pglob->gl_readdir = (struct dirent * (*)(void *)) mscp_readdir;
 		pglob->gl_closedir = (void (*)(void *))mscp_closedir;
 		pglob->gl_lstat = mscp_lstat_wrapped;
 		pglob->gl_stat = mscp_stat_wrapped;

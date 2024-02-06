@@ -19,7 +19,6 @@ struct mdir_struct {
 };
 typedef struct mdir_struct MDIR;
 
-
 MDIR *mscp_opendir(const char *path, sftp_session sftp);
 MDIR *mscp_opendir_wrapped(const char *path);
 void mscp_closedir(MDIR *md);
@@ -33,7 +32,6 @@ int mscp_stat_wrapped(const char *path, struct stat *st);
 
 int mscp_lstat(const char *path, struct stat *st, sftp_session sftp);
 int mscp_lstat_wrapped(const char *path, struct stat *st);
-
 
 /* file operations */
 

@@ -16,4 +16,3 @@ int get_print_severity()
 {
 	return __print_severity;
 }
-

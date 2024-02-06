@@ -16,10 +16,10 @@
 #include <strerrno.h>
 #include <print.h>
 
-
 #include "config.h"
 
-void usage(bool print_help) {
+void usage(bool print_help)
+{
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
 	       "Usage: mscp [vqDpHdNh] [-n nr_conns] [-m coremask]\n"
@@ -184,8 +184,8 @@ struct target *validate_targets(char **arg, int len)
 
 	/* split remote:path into remote and path */
 	for (n = 0; n < len; n++) {
-		t[n].copy = split_user_host_path(arg[n], &t[n].user,
-					      &t[n].host, &t[n].path);
+		t[n].copy =
+			split_user_host_path(arg[n], &t[n].user, &t[n].host, &t[n].path);
 		if (!t[n].copy)
 			goto free_target_out;
 	}
@@ -217,7 +217,8 @@ invalid_remotes:
 
 free_split_out:
 	for (n = 0; n < len; n++)
-		if (t[n].copy) free(t[n].copy);
+		if (t[n].copy)
+			free(t[n].copy);
 
 free_target_out:
 	free(t);
@@ -238,7 +239,7 @@ void *print_stat_thread(void *arg);
 
 void print_cli(const char *fmt, ...)
 {
-        va_list va;
+	va_list va;
 	va_start(va, fmt);
 	vfprintf(stdout, fmt, va);
 	fflush(stdout);
@@ -260,13 +261,13 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-	while ((ch = getopt(argc, argv,
-			    "n:m:u:I:s:S:a:b:vqDrl:P:i:F:c:M:C:g:pHdNh")) != -1) {
+	while ((ch = getopt(argc, argv, "n:m:u:I:s:S:a:b:vqDrl:P:i:F:c:M:C:g:pHdNh")) !=
+	       -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
 			if (o.nr_threads < 1) {
-				pr_err( "invalid number of connections: %s", optarg);
+				pr_err("invalid number of connections: %s", optarg);
 				return 1;
 			}
 			break;
@@ -351,7 +352,6 @@ int main(int argc, char **argv)
 	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
 	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
 
-
 	if (argc - optind < 2) {
 		/* mscp needs at lease 2 (src and target) argument */
 		usage(false);
@@ -389,7 +389,7 @@ int main(int argc, char **argv)
 			pr_err("mscp_add_src_path: %s", priv_get_err());
 			return -1;
 		}
-        }
+	}
 
 	if (mscp_set_dst_path(m, t[i - 1].path) < 0) {
 		pr_err("mscp_set_dst_path: %s", priv_get_err());
@@ -434,52 +434,49 @@ out:
 	return ret;
 }
 
-
 /* progress bar-related functions */
 
 double calculate_timedelta(struct timeval *b, struct timeval *a)
 {
-        double sec, usec;
+	double sec, usec;
 
-        if (a->tv_usec < b->tv_usec) {
-                a->tv_usec += 1000000;
-                a->tv_sec--;
-        }
+	if (a->tv_usec < b->tv_usec) {
+		a->tv_usec += 1000000;
+		a->tv_sec--;
+	}
 
-        sec = a->tv_sec - b->tv_sec;
-        usec = a->tv_usec - b->tv_usec;
-        sec += usec / 1000000;
+	sec = a->tv_sec - b->tv_sec;
+	usec = a->tv_usec - b->tv_usec;
+	sec += usec / 1000000;
 
-        return sec;
+	return sec;
 }
-
 
 double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
 {
-        return (double)diff / calculate_timedelta(b, a);
+	return (double)diff / calculate_timedelta(b, a);
 }
-
 
 char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a,
 		    bool final)
 {
-        static char buf[16];
+	static char buf[16];
 
 #define bps_window_size 16
 	static double bps_window[bps_window_size];
 	static size_t sum, idx, count;
-        double elapsed = calculate_timedelta(b, a);
+	double elapsed = calculate_timedelta(b, a);
 	double bps = diff / elapsed;
 	double avg, eta;
 
 	/* early return when diff == 0 (stalled) or final output */
-        if (diff == 0) {
-                snprintf(buf, sizeof(buf), "--:-- ETA");
+	if (diff == 0) {
+		snprintf(buf, sizeof(buf), "--:-- ETA");
 		return buf;
 	}
 	if (final) {
-		snprintf(buf, sizeof(buf), "%02d:%02d    ",
-			 (int)(floor(elapsed / 60)), (int)round(elapsed) % 60);
+		snprintf(buf, sizeof(buf), "%02d:%02d    ", (int)(floor(elapsed / 60)),
+			 (int)round(elapsed) % 60);
 		return buf;
 	}
 
@@ -493,96 +490,97 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
 	/* calcuate ETA from avg of recent bps values */
 	avg = sum / min(count, bps_window_size);
 	eta = remain / avg;
-	snprintf(buf, sizeof(buf), "%02d:%02d ETA",
-		 (int)floor(eta / 60), (int)round(eta) % 60);
+	snprintf(buf, sizeof(buf), "%02d:%02d ETA", (int)floor(eta / 60),
+		 (int)round(eta) % 60);
 
-        return buf;
+	return buf;
 }
 
 void print_progress_bar(double percent, char *suffix)
 {
-        int n, thresh, bar_width;
-        struct winsize ws;
-        char buf[128];
+	int n, thresh, bar_width;
+	struct winsize ws;
+	char buf[128];
 
-        /*
+	/*
          * [=======>   ] XX% SUFFIX
          */
 
-        buf[0] = '\0';
+	buf[0] = '\0';
 
-        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
-                return; /* XXX */
-        bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
+		return; /* XXX */
+	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
 
-        memset(buf, 0, sizeof(buf));
-        if (bar_width > 8) {
-                thresh = floor(bar_width * (percent / 100)) - 1;
+	memset(buf, 0, sizeof(buf));
+	if (bar_width > 8) {
+		thresh = floor(bar_width * (percent / 100)) - 1;
 
-                for (n = 1; n < bar_width - 1; n++) {
-                        if (n <= thresh)
-                                buf[n] = '=';
-                        else
-                                buf[n] = ' ';
-                }
-                buf[thresh] = '>';
-                buf[0] = '[';
-                buf[bar_width - 1] = ']';
-                snprintf(buf + bar_width, sizeof(buf) - bar_width,
-                         " %3d%% ", (int)floor(percent));
-        }
+		for (n = 1; n < bar_width - 1; n++) {
+			if (n <= thresh)
+				buf[n] = '=';
+			else
+				buf[n] = ' ';
+		}
+		buf[thresh] = '>';
+		buf[0] = '[';
+		buf[bar_width - 1] = ']';
+		snprintf(buf + bar_width, sizeof(buf) - bar_width, " %3d%% ",
+			 (int)floor(percent));
+	}
 
-	print_cli("\r\033[K" "%s%s", buf, suffix);
+	print_cli("\r\033[K"
+		  "%s%s",
+		  buf, suffix);
 }
 
-void print_progress(struct timeval *b, struct timeval *a,
-		    size_t total, size_t last, size_t done, bool final)
+void print_progress(struct timeval *b, struct timeval *a, size_t total, size_t last,
+		    size_t done, bool final)
 {
-        char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
-        char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
-        char suffix[128];
-        int bps_u, byte_tu, byte_du;
-        double total_round, done_round;
-        int percent;
-        double bps;
+	char *bps_units[] = { "B/s ", "KB/s", "MB/s", "GB/s" };
+	char *byte_units[] = { "B ", "KB", "MB", "GB", "TB", "PB" };
+	char suffix[128];
+	int bps_u, byte_tu, byte_du;
+	double total_round, done_round;
+	int percent;
+	double bps;
 
 #define array_size(a) (sizeof(a) / sizeof(a[0]))
 
-        if (total <= 0) {
-		print_cli("\r\033[K" "total 0 byte transferred");
-                return; /* copy 0-byte file(s) */
-        }
+	if (total <= 0) {
+		print_cli("\r\033[K"
+			  "total 0 byte transferred");
+		return; /* copy 0-byte file(s) */
+	}
 
-        total_round = total;
-        for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
-             byte_tu++)
-                total_round /= 1024;
+	total_round = total;
+	for (byte_tu = 0; total_round > 1000 && byte_tu < array_size(byte_units) - 1;
+	     byte_tu++)
+		total_round /= 1024;
 
-        bps = calculate_bps(done - last, b, a);
-        for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
-                bps /= 1000;
+	bps = calculate_bps(done - last, b, a);
+	for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
+		bps /= 1000;
 
-        percent = floor(((double)(done) / (double)total) * 100);
+	percent = floor(((double)(done) / (double)total) * 100);
 
-        done_round = done;
-        for (byte_du = 0; done_round > 1024 && byte_du < array_size(byte_units) - 1;
-             byte_du++)
-                done_round /= 1024;
+	done_round = done;
+	for (byte_du = 0; done_round > 1024 && byte_du < array_size(byte_units) - 1;
+	     byte_du++)
+		done_round /= 1024;
 
-        snprintf(suffix, sizeof(suffix), "%4.1lf%s/%.1lf%s %6.1f%s  %s",
-                 done_round, byte_units[byte_du], total_round, byte_units[byte_tu],
-                 bps, bps_units[bps_u],
-		 calculate_eta(total - done, done - last, b, a, final));
+	snprintf(suffix, sizeof(suffix), "%4.1lf%s/%.1lf%s %6.1f%s  %s", done_round,
+		 byte_units[byte_du], total_round, byte_units[byte_tu], bps,
+		 bps_units[bps_u], calculate_eta(total - done, done - last, b, a, final));
 
-        print_progress_bar(percent, suffix);
+	print_progress_bar(percent, suffix);
 }
 
-
 struct xfer_stat {
-        struct timeval start, before, after;
-        size_t total;
-        size_t last;
-        size_t done;
+	struct timeval start, before, after;
+	size_t total;
+	size_t last;
+	size_t done;
 };
 struct xfer_stat x;
 
@@ -597,8 +595,8 @@ void print_stat(bool final)
 		mscp_get_stats(m, &s);
 		x.total = s.total;
 		x.done = s.done;
-		print_progress(!final ? &x.before : &x.start, &x.after,
-			       x.total, !final ? x.last : 0, x.done, final);
+		print_progress(!final ? &x.before : &x.start, &x.after, x.total,
+			       !final ? x.last : 0, x.done, final);
 		x.before = x.after;
 		x.last = x.done;
 	}
@@ -616,12 +614,12 @@ void *print_stat_thread(void *arg)
 	char buf[8192];
 
 	memset(&x, 0, sizeof(x));
-        gettimeofday(&x.start, NULL);
-        x.before = x.start;
+	gettimeofday(&x.start, NULL);
+	x.before = x.start;
 
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-        pthread_cleanup_push(print_stat_thread_cleanup, NULL);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+	pthread_cleanup_push(print_stat_thread_cleanup, NULL);
 
 	while (true) {
 		print_stat(false);

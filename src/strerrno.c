@@ -7,7 +7,7 @@
 
 #include <strerrno.h>
 
-#define STRERRNO_TLS_BUFSIZ	128
+#define STRERRNO_TLS_BUFSIZ 128
 __thread char tls_strerrno_buf[STRERRNO_TLS_BUFSIZ];
 
 const char *strerrno(void)
@@ -17,7 +17,7 @@ const char *strerrno(void)
 	return tls_strerrno_buf;
 }
 
-#define PRIV_ERR_BUFSIZ	(1 << 12)
+#define PRIV_ERR_BUFSIZ (1 << 12)
 static char priv_err_buf[PRIV_ERR_BUFSIZ], internal[PRIV_ERR_BUFSIZ];
 
 void priv_set_err(const char *fmt, ...)
@@ -27,10 +27,10 @@ void priv_set_err(const char *fmt, ...)
 	/* arguments may contains priv_err_buf. Thus, we build the
 	 * string in a internal buffer, and then copy it to
 	 * priv_err_buf. */
-        memset(internal, 0, sizeof(internal));
-        va_start(va, fmt);
-        vsnprintf(internal, sizeof(internal), fmt, va);
-        va_end(va);	
+	memset(internal, 0, sizeof(internal));
+	va_start(va, fmt);
+	vsnprintf(internal, sizeof(internal), fmt, va);
+	va_end(va);
 
 	snprintf(priv_err_buf, sizeof(priv_err_buf), "%s", internal);
 }

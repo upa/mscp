@@ -16,8 +16,8 @@
 #include <print.h>
 
 /* chunk pool operations */
-#define CHUNK_POOL_STATE_FILLING	0
-#define CHUNK_POOL_STATE_FILLED		1
+#define CHUNK_POOL_STATE_FILLING 0
+#define CHUNK_POOL_STATE_FILLED 1
 
 void chunk_pool_init(struct chunk_pool *cp)
 {
@@ -83,9 +83,9 @@ struct chunk *chunk_pool_pop(struct chunk_pool *cp)
 
 static void chunk_free(struct list_head *list)
 {
-        struct chunk *c;
-        c = list_entry(list, typeof(*c), list);
-        free(c);
+	struct chunk *c;
+	c = list_entry(list, typeof(*c), list);
+	free(c);
 }
 
 void chunk_pool_release(struct chunk_pool *cp)
@@ -96,17 +96,17 @@ void chunk_pool_release(struct chunk_pool *cp)
 /* paths of copy source resoltion */
 static char *resolve_dst_path(const char *src_file_path, struct path_resolve_args *a)
 {
-        char copy[PATH_MAX + 1], dst_file_path[PATH_MAX + 1];
-        char *prefix;
-        int offset;
+	char copy[PATH_MAX + 1], dst_file_path[PATH_MAX + 1];
+	char *prefix;
+	int offset;
 	int ret;
 
-        strncpy(copy, a->src_path, PATH_MAX);
-        prefix = dirname(copy);
-        if (!prefix) {
-                priv_set_errv("dirname: %s", strerrno());
-                return NULL;
-        }
+	strncpy(copy, a->src_path, PATH_MAX);
+	prefix = dirname(copy);
+	if (!prefix) {
+		priv_set_errv("dirname: %s", strerrno());
+		return NULL;
+	}
 
 	offset = strlen(prefix) + 1;
 	if (strlen(prefix) == 1) { /* corner cases */
@@ -120,93 +120,93 @@ static char *resolve_dst_path(const char *src_file_path, struct path_resolve_arg
 		}
 	}
 
-        if (!a->src_path_is_dir && !a->dst_path_is_dir) {
-                /* src path is file. dst path is (1) file, or (2) does not exist.
+	if (!a->src_path_is_dir && !a->dst_path_is_dir) {
+		/* src path is file. dst path is (1) file, or (2) does not exist.
                  * In the second case, we need to put src under the dst.
                  */
-                if (a->dst_path_should_dir)
-                        ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
-				       a->dst_path, a->src_path + offset);
-                else
-                        ret = snprintf(dst_file_path, PATH_MAX, "%s", a->dst_path);
-        }
+		if (a->dst_path_should_dir)
+			ret = snprintf(dst_file_path, PATH_MAX, "%s/%s", a->dst_path,
+				       a->src_path + offset);
+		else
+			ret = snprintf(dst_file_path, PATH_MAX, "%s", a->dst_path);
+	}
 
-        /* src is file, and dst is dir */
-        if (!a->src_path_is_dir && a->dst_path_is_dir)
-                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
-			       a->dst_path, a->src_path + offset);
+	/* src is file, and dst is dir */
+	if (!a->src_path_is_dir && a->dst_path_is_dir)
+		ret = snprintf(dst_file_path, PATH_MAX, "%s/%s", a->dst_path,
+			       a->src_path + offset);
 
-        /* both are directory */
-        if (a->src_path_is_dir && a->dst_path_is_dir)
-                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
-			       a->dst_path, src_file_path + offset);
+	/* both are directory */
+	if (a->src_path_is_dir && a->dst_path_is_dir)
+		ret = snprintf(dst_file_path, PATH_MAX, "%s/%s", a->dst_path,
+			       src_file_path + offset);
 
-        /* dst path does not exist. change dir name to dst_path */
-        if (a->src_path_is_dir && !a->dst_path_is_dir)
-                ret = snprintf(dst_file_path, PATH_MAX, "%s/%s",
-			       a->dst_path, src_file_path + strlen(a->src_path) + 1);
+	/* dst path does not exist. change dir name to dst_path */
+	if (a->src_path_is_dir && !a->dst_path_is_dir)
+		ret = snprintf(dst_file_path, PATH_MAX, "%s/%s", a->dst_path,
+			       src_file_path + strlen(a->src_path) + 1);
 
 	if (ret >= PATH_MAX) {
 		pr_warn("Too long path: %s", dst_file_path);
 		return NULL;
 	}
 
-        pr_debug("file: %s -> %s", src_file_path, dst_file_path);
+	pr_debug("file: %s -> %s", src_file_path, dst_file_path);
 
-        return strndup(dst_file_path, PATH_MAX);
+	return strndup(dst_file_path, PATH_MAX);
 }
 
 /* chunk preparation */
 static struct chunk *alloc_chunk(struct path *p)
 {
-        struct chunk *c;
+	struct chunk *c;
 
-        if (!(c = malloc(sizeof(*c)))) {
-                priv_set_errv("malloc %s", strerrno());
-                return NULL;
-        }
-        memset(c, 0, sizeof(*c));
+	if (!(c = malloc(sizeof(*c)))) {
+		priv_set_errv("malloc %s", strerrno());
+		return NULL;
+	}
+	memset(c, 0, sizeof(*c));
 
-        c->p = p;
-        c->off = 0;
-        c->len = 0;
-        refcnt_inc(&p->refcnt);
-        return c;
+	c->p = p;
+	c->off = 0;
+	c->len = 0;
+	refcnt_inc(&p->refcnt);
+	return c;
 }
 
 static int resolve_chunk(struct path *p, struct path_resolve_args *a)
 {
-        struct chunk *c;
-        size_t chunk_sz;
-        size_t size;
+	struct chunk *c;
+	size_t chunk_sz;
+	size_t size;
 
-        if (p->size <= a->min_chunk_sz)
-                chunk_sz = p->size;
-        else if (a->max_chunk_sz)
-                chunk_sz = a->max_chunk_sz;
-        else {
-                chunk_sz = (p->size - (p->size % a->nr_conn)) / a->nr_conn;
-                chunk_sz &= ~a->chunk_align; /* align with page_sz */
-                if (chunk_sz <= a->min_chunk_sz)
-                        chunk_sz = a->min_chunk_sz;
-        }
+	if (p->size <= a->min_chunk_sz)
+		chunk_sz = p->size;
+	else if (a->max_chunk_sz)
+		chunk_sz = a->max_chunk_sz;
+	else {
+		chunk_sz = (p->size - (p->size % a->nr_conn)) / a->nr_conn;
+		chunk_sz &= ~a->chunk_align; /* align with page_sz */
+		if (chunk_sz <= a->min_chunk_sz)
+			chunk_sz = a->min_chunk_sz;
+	}
 
-        /* for (size = f->size; size > 0;) does not create a file
+	/* for (size = f->size; size > 0;) does not create a file
          * (chunk) when file size is 0. This do {} while (size > 0)
          * creates just open/close a 0-byte file.
          */
-        size = p->size;
-        do {
-                c = alloc_chunk(p);
-                if (!c)
-                        return -1;
-                c->off = p->size - size;
-                c->len = size < chunk_sz ? size : chunk_sz;
-                size -= c->len;
-                chunk_pool_add(a->cp, c);
-        } while (size > 0);
+	size = p->size;
+	do {
+		c = alloc_chunk(p);
+		if (!c)
+			return -1;
+		c->off = p->size - size;
+		c->len = size < chunk_sz ? size : chunk_sz;
+		size -= c->len;
+		chunk_pool_add(a->cp, c);
+	} while (size > 0);
 
-        return 0;
+	return 0;
 }
 
 void free_path(struct path *p)
@@ -257,13 +257,13 @@ free_out:
 }
 
 static bool check_path_should_skip(const char *path)
-{               
-        int len = strlen(path);
-        if ((len == 1 && strncmp(path, ".", 1) == 0) ||
-            (len == 2 && strncmp(path, "..", 2) == 0)) {
-                return true;
-        }
-        return false; 
+{
+	int len = strlen(path);
+	if ((len == 1 && strncmp(path, ".", 1) == 0) ||
+	    (len == 2 && strncmp(path, "..", 2) == 0)) {
+		return true;
+	}
+	return false;
 }
 
 static int walk_path_recursive(sftp_session sftp, const char *path,
@@ -276,7 +276,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	int ret;
 
 	if (mscp_stat(path, &st, sftp) < 0) {
-		pr_err("stat: %s: %s",  path, strerrno());
+		pr_err("stat: %s: %s", path, strerrno());
 		return -1;
 	}
 
@@ -293,11 +293,11 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		pr_err("opendir: %s: %s", path, strerrno());
 		return -1;
 	}
-	
+
 	for (e = mscp_readdir(d); e; e = mscp_readdir(d)) {
 		if (check_path_should_skip(e->d_name))
 			continue;
-		
+
 		ret = snprintf(next_path, PATH_MAX, "%s/%s", path, e->d_name);
 		if (ret >= PATH_MAX) {
 			pr_warn("Too long path: %s/%s", path, e->d_name);
@@ -329,27 +329,25 @@ void path_dump(struct list_head *path_list)
 		printf("dst: %s\n", p->dst_path);
 	}
 }
-	
-
 
 /* based on
  * https://stackoverflow.com/questions/2336242/recursive-mkdir-system-call-on-unix */
 static int touch_dst_path(struct path *p, sftp_session sftp)
 {
-        /* XXX: should reflect the permission of the original directory? */
-        mode_t mode =  S_IRWXU | S_IRWXG | S_IRWXO;
+	/* XXX: should reflect the permission of the original directory? */
+	mode_t mode = S_IRWXU | S_IRWXG | S_IRWXO;
 	struct stat st;
-        char path[PATH_MAX];
-        char *needle;
-        int ret;
+	char path[PATH_MAX];
+	char *needle;
+	int ret;
 	mf *f;
 
-        strncpy(path, p->dst_path, sizeof(path));
+	strncpy(path, p->dst_path, sizeof(path));
 
-        /* mkdir -p.
+	/* mkdir -p.
 	 * XXX: this may be slow when dst is the remote side. need speed-up. */
-        for (needle = strchr(path + 1, '/'); needle; needle = strchr(needle + 1, '/')) {
-                *needle = '\0';
+	for (needle = strchr(path + 1, '/'); needle; needle = strchr(needle + 1, '/')) {
+		*needle = '\0';
 
 		if (mscp_stat(path, &st, sftp) == 0) {
 			if (S_ISDIR(st.st_mode))
@@ -367,13 +365,13 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 				return -1;
 			}
 		}
-        next:
-                *needle = '/';
-        }
+next:
+		*needle = '/';
+	}
 
 	/* Do not set O_TRUNC here. Instead, do mscp_setstat() at the
 	 * end. see https://bugzilla.mindrot.org/show_bug.cgi?id=3431 */
-	f = mscp_open(p->dst_path, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR, sftp);
+	f = mscp_open(p->dst_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR, sftp);
 	if (!f) {
 		priv_set_errv("mscp_open %s: %s\n", p->dst_path, strerrno());
 		return -1;
@@ -381,7 +379,7 @@ static int touch_dst_path(struct path *p, sftp_session sftp)
 
 	mscp_close(f);
 
-        return 0;
+	return 0;
 }
 
 static int prepare_dst_path(struct path *p, sftp_session dst_sftp)
@@ -404,152 +402,149 @@ out:
 	return ret;
 }
 
-
 /* functions for copy */
 
 static ssize_t read_to_buf(void *ptr, size_t len, void *userdata)
 {
-        int fd = *((int *)userdata);
-        return read(fd, ptr, len);
+	int fd = *((int *)userdata);
+	return read(fd, ptr, len);
 }
 
-static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf,
-			  int nr_ahead, int buf_sz, size_t *counter)
+static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, int buf_sz,
+			  size_t *counter)
 {
-        ssize_t read_bytes, remaind, thrown;
-        int idx, ret;
-        struct {
-                uint32_t id;
-                ssize_t  len;
-        } reqs[nr_ahead];
+	ssize_t read_bytes, remaind, thrown;
+	int idx, ret;
+	struct {
+		uint32_t id;
+		ssize_t len;
+	} reqs[nr_ahead];
 
-        if (c->len == 0)
-                return 0;
+	if (c->len == 0)
+		return 0;
 
-        remaind = thrown = c->len;
-        for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
-                reqs[idx].len = min(thrown, buf_sz);
-                reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
-                                                 &reqs[idx].id);
-                if (reqs[idx].len < 0) {
-                        priv_set_errv("sftp_async_write: %s or %s",
-				       sftp_get_ssh_error(sf->sftp), strerrno());
-                        return -1;
-                }
-                thrown -= reqs[idx].len;
-        }
+	remaind = thrown = c->len;
+	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
+		reqs[idx].len = min(thrown, buf_sz);
+		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
+						 &reqs[idx].id);
+		if (reqs[idx].len < 0) {
+			priv_set_errv("sftp_async_write: %s or %s",
+				      sftp_get_ssh_error(sf->sftp), strerrno());
+			return -1;
+		}
+		thrown -= reqs[idx].len;
+	}
 
-        for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
-                ret = sftp_async_write_end(sf, reqs[idx].id, 1);
-                if (ret != SSH_OK) {
-                        priv_set_errv("sftp_async_write_end: %s",
-				       sftp_get_ssh_error(sf->sftp));
-                        return -1;
-                }
+	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
+		ret = sftp_async_write_end(sf, reqs[idx].id, 1);
+		if (ret != SSH_OK) {
+			priv_set_errv("sftp_async_write_end: %s",
+				      sftp_get_ssh_error(sf->sftp));
+			return -1;
+		}
 
-                *counter += reqs[idx].len;
-                remaind -= reqs[idx].len;
+		*counter += reqs[idx].len;
+		remaind -= reqs[idx].len;
 
-                if (remaind <= 0)
-                        break;
+		if (remaind <= 0)
+			break;
 
-                if (thrown <= 0)
-                        continue;
+		if (thrown <= 0)
+			continue;
 
-                reqs[idx].len = min(thrown, buf_sz);
-                reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
-                                                 &reqs[idx].id);
-                if (reqs[idx].len < 0) {
-                        priv_set_errv("sftp_async_write: %s or %s",
-				       sftp_get_ssh_error(sf->sftp), strerrno());
-                        return -1;
-                }
-                thrown -= reqs[idx].len;
-        }
+		reqs[idx].len = min(thrown, buf_sz);
+		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
+						 &reqs[idx].id);
+		if (reqs[idx].len < 0) {
+			priv_set_errv("sftp_async_write: %s or %s",
+				      sftp_get_ssh_error(sf->sftp), strerrno());
+			return -1;
+		}
+		thrown -= reqs[idx].len;
+	}
 
-        if (remaind < 0) {
-                priv_set_errv("invalid remaind bytes %ld. "
-			       "last async_write_end bytes %lu.",
-			       remaind, reqs[idx].len);
-                return -1;
-        }
+	if (remaind < 0) {
+		priv_set_errv("invalid remaind bytes %ld. "
+			      "last async_write_end bytes %lu.",
+			      remaind, reqs[idx].len);
+		return -1;
+	}
 
-        return 0;
-
+	return 0;
 }
 
-static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
-			  int nr_ahead, int buf_sz, size_t *counter)
+static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, int buf_sz,
+			  size_t *counter)
 {
-        ssize_t read_bytes, write_bytes, remaind, thrown;
-        char buf[buf_sz];
-        int idx;
-        struct {
-                int id;
-                ssize_t len;
-        } reqs[nr_ahead];
+	ssize_t read_bytes, write_bytes, remaind, thrown;
+	char buf[buf_sz];
+	int idx;
+	struct {
+		int id;
+		ssize_t len;
+	} reqs[nr_ahead];
 
-        if (c->len == 0)
-                return 0;
+	if (c->len == 0)
+		return 0;
 
-        remaind = thrown = c->len;
+	remaind = thrown = c->len;
 
-        for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
-                reqs[idx].len = min(thrown, sizeof(buf));
-                reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
-                if (reqs[idx].id < 0) {
-                        priv_set_errv("sftp_async_read_begin: %d",
-				       sftp_get_error(sf->sftp));
-                        return -1;
-                }
-                thrown -= reqs[idx].len;
-        }
+	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
+		reqs[idx].len = min(thrown, sizeof(buf));
+		reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
+		if (reqs[idx].id < 0) {
+			priv_set_errv("sftp_async_read_begin: %d",
+				      sftp_get_error(sf->sftp));
+			return -1;
+		}
+		thrown -= reqs[idx].len;
+	}
 
-        for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
-                read_bytes = sftp_async_read(sf, buf, reqs[idx].len, reqs[idx].id);
-                if (read_bytes == SSH_ERROR) {
-                        priv_set_errv("sftp_async_read: %d",
-				       sftp_get_error(sf->sftp));
-                        return -1;
-                }
+	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
+		read_bytes = sftp_async_read(sf, buf, reqs[idx].len, reqs[idx].id);
+		if (read_bytes == SSH_ERROR) {
+			priv_set_errv("sftp_async_read: %d", sftp_get_error(sf->sftp));
+			return -1;
+		}
 
-                if (thrown > 0) {
-                        reqs[idx].len = min(thrown, sizeof(buf));
-                        reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
-                        thrown -= reqs[idx].len;
-                }
+		if (thrown > 0) {
+			reqs[idx].len = min(thrown, sizeof(buf));
+			reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
+			thrown -= reqs[idx].len;
+		}
 
-                write_bytes = write(fd, buf, read_bytes);
-                if (write_bytes < 0) {
-                        priv_set_errv("write: %s", strerrno());
-                        return -1;
-                }
+		write_bytes = write(fd, buf, read_bytes);
+		if (write_bytes < 0) {
+			priv_set_errv("write: %s", strerrno());
+			return -1;
+		}
 
-                if (write_bytes < read_bytes) {
-                        priv_set_errv("failed to write full bytes");
-                        return -1;
-                }
+		if (write_bytes < read_bytes) {
+			priv_set_errv("failed to write full bytes");
+			return -1;
+		}
 
-                *counter += write_bytes;
-                remaind -= read_bytes;
-        }
+		*counter += write_bytes;
+		remaind -= read_bytes;
+	}
 
-        if (remaind < 0) {
-                priv_set_errv("invalid remaind bytes %ld. last async_read bytes %ld. "
-			       "last write bytes %ld",
-			       remaind, read_bytes, write_bytes);
-                return -1;
-        }
+	if (remaind < 0) {
+		priv_set_errv("invalid remaind bytes %ld. last async_read bytes %ld. "
+			      "last write bytes %ld",
+			      remaind, read_bytes, write_bytes);
+		return -1;
+	}
 
-        return 0;
+	return 0;
 }
 
-static int _copy_chunk(struct chunk *c, mf *s, mf *d,
-		       int nr_ahead, int buf_sz, size_t *counter)
+static int _copy_chunk(struct chunk *c, mf *s, mf *d, int nr_ahead, int buf_sz,
+		       size_t *counter)
 {
 	if (s->local && d->remote) /* local to remote copy */
 		return copy_chunk_l2r(c, s->local, d->remote, nr_ahead, buf_sz, counter);
-	else if (s->remote && d->local)  /* remote to local copy */
+	else if (s->remote && d->local) /* remote to local copy */
 		return copy_chunk_r2l(c, s->remote, d->local, nr_ahead, buf_sz, counter);
 
 	assert(false);
@@ -570,8 +565,8 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 		return -1;
 
 	/* open src */
-        flags = O_RDONLY;
-        mode = S_IRUSR;
+	flags = O_RDONLY;
+	mode = S_IRUSR;
 	s = mscp_open(c->p->path, flags, mode, src_sftp);
 	if (!s) {
 		priv_set_errv("mscp_open: %s: %s", c->p->path, strerrno());
@@ -583,8 +578,8 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	}
 
 	/* open dst */
-        flags = O_WRONLY;
-        mode = S_IRUSR|S_IWUSR;
+	flags = O_WRONLY;
+	mode = S_IRUSR | S_IWUSR;
 	d = mscp_open(c->p->dst_path, flags, mode, dst_sftp);
 	if (!d) {
 		mscp_close(s);
@@ -596,14 +591,11 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 		return -1;
 	}
 
-	pr_debug("copy chunk start: %s 0x%lx-0x%lx",
-		  c->p->path, c->off, c->off + c->len);
+	pr_debug("copy chunk start: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
 
-	pr_debug("copy chunk done: %s 0x%lx-0x%lx",
-		  c->p->path, c->off, c->off + c->len);
-
+	pr_debug("copy chunk done: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 
 	mscp_close(d);
 	mscp_close(s);
