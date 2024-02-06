@@ -85,6 +85,9 @@ endif()
 
 # Symbol check
 check_symbol_exists(strlcat string.h HAVE_STRLCAT)
+if (NOT HAVE_STRLCAT)
+	list(APPEND OPENBSD_COMPAT_SRC src/openbsd-compat/strlcat.c)
+endif()
 
 # generate config.h in build dir
 configure_file(
@@ -96,7 +99,7 @@ list(APPEND MSCP_BUILD_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/include)
 # libmscp.a
 set(LIBMSCP_SRC
 	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c src/message.c
-	src/openbsd-compat/strlcat.c)
+	${OPENBSD_COMPAT_SRC})
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static
 	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
