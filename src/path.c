@@ -556,7 +556,7 @@ static int _copy_chunk(struct chunk *c, mf *s, mf *d,
 }
 
 int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
-	       int nr_ahead, int buf_sz, size_t *counter)
+	       int nr_ahead, int buf_sz, bool preserve_ts, size_t *counter)
 {
 	mode_t mode;
 	int flags;
@@ -610,10 +610,18 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 		return ret;
 
 	if (refcnt_dec(&c->p->refcnt) == 0) {
+		struct stat st;
 		c->p->state = FILE_STATE_DONE;
-		if (mscp_setstat(c->p->dst_path, c->p->mode, c->p->size, dst_sftp) < 0)
-			mpr_err("failed to chmod and truncate %s: %s",
-				c->p->path, strerrno());
+
+		/* sync stat */
+		if (mscp_stat(c->p->path, &st, src_sftp) < 0) {
+			mpr_err("mscp_stat: %s: %s", c->p->path, strerrno());
+			return -1;
+		}
+		if (mscp_setstat(c->p->dst_path, &st, preserve_ts, dst_sftp) < 0) {
+			mpr_err("mscp_setstat: %s: %s", c->p->path, strerrno());
+			return -1;
+		}
 		mpr_info("copy done: %s", c->p->path);
 	}
 

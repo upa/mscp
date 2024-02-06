@@ -98,7 +98,7 @@ void free_path(struct path *p);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
 int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
-	       int nr_ahead, int buf_sz, size_t *counter);
+	       int nr_ahead, int buf_sz, bool preserve_ts, size_t *counter);
 
 /* just print contents. just for debugging */
 void path_dump(struct list_head *path_list);

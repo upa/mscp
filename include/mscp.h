@@ -44,6 +44,7 @@ struct mscp_opts {
 	char	*coremask; /** hex to specifiy usable cpu cores */
 	int	max_startups;	/** sshd MaxStartups concurrent connections */
 	int     interval;	/** interval between SSH connection attempts */
+	bool	preserve_ts;	/** preserve file timestamps */
 
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
 };

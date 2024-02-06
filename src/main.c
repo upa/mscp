@@ -19,7 +19,7 @@
 void usage(bool print_help) {
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
 	       "\n"
-	       "Usage: mscp [vqDHdNh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [vqDpHdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-u max_startups] [-I interval]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]\n"
@@ -48,7 +48,7 @@ void usage(bool print_help) {
 	       "    -r                 no effect\n"
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
-	       "    -p/-P PORT         port number\n"
+	       "    -P PORT            port number\n"
 	       "    -F CONFIG          path to user ssh config (default ~/.ssh/config)\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
@@ -56,6 +56,7 @@ void usage(bool print_help) {
 	       "    -C COMPRESS        enable compression: "
 	       "yes, no, zlib, zlib@openssh.com\n"
 	       "    -g CONGESTION      specify TCP congestion control algorithm\n"
+	       "    -p                 preserve timestamps of files\n"
 	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
 	       "    -N                 enable Nagle's algorithm (default disabled)\n"
@@ -257,7 +258,7 @@ int main(int argc, char **argv)
 	o.severity = MSCP_SEVERITY_WARN;
 
 	while ((ch = getopt(argc, argv,
-			    "n:m:u:I:s:S:a:b:vqDrl:P:p:i:F:c:M:C:g:HdNh")) != -1) {
+			    "n:m:u:I:s:S:a:b:vqDrl:P:i:F:c:M:C:g:pHdNh")) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -304,8 +305,6 @@ int main(int argc, char **argv)
 			s.login_name = optarg;
 			break;
 		case 'P':
-			/* fallthough for compatibility with scp */
-		case 'p':
 			s.port = optarg;
 			break;
 		case 'F':
@@ -325,6 +324,9 @@ int main(int argc, char **argv)
 			break;
 		case 'g':
 			s.ccalgo = optarg;
+			break;
+		case 'p':
+			o.preserve_ts = true;
 			break;
 		case 'H':
 			s.no_hostkey_check = true;

@@ -50,7 +50,7 @@ off_t mscp_lseek(mf *f, off_t off);
 /* mscp_setstat() involves chmod and truncate. It executes both at
  * once via a single SFTP command (sftp_setstat()).
  */
-int mscp_setstat(const char *path, mode_t mode, size_t size, sftp_session sftp);
+int mscp_setstat(const char *path, struct stat *st, bool preserve_ts, sftp_session sftp);
 
 /* remote glob */
 int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp);

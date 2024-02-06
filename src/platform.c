@@ -2,14 +2,21 @@
 #ifdef __APPLE__
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #elif linux
 #define _GNU_SOURCE
-#include <sched.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sched.h>
 #elif __FreeBSD__
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <pthread_np.h>
 #else
 #error unsupported platform
@@ -40,6 +47,20 @@ int set_thread_affinity(pthread_t tid, int core)
 	return 0;
 }
 
+int setutimes(const char *path, struct timespec atime, struct timespec mtime)
+{
+	struct timeval tv[2]  = {
+		{
+			.tv_sec = atime.tv_sec,
+			.tv_usec = atime.tv_nsec * 1000,
+		},
+		{
+			.tv_sec = mtime.tv_sec,
+			.tv_usec = mtime.tv_nsec * 1000,
+		},
+	};
+	return utimes(path, tv);
+}
 
 static void random_string(char *buf, size_t size)
 {
@@ -105,6 +126,19 @@ int set_thread_affinity(pthread_t tid, int core)
 	if (ret < 0)
 		mscp_set_error("failed to set thread/cpu affinity for core %d: %s",
 			       core, strerrno());
+	return ret;
+}
+
+int setutimes(const char *path, struct timespec atime, struct timespec mtime)
+{
+	struct timespec ts[2] = { atime, mtime };
+	int fd = open(path, O_WRONLY);
+	int ret;
+
+	if (fd < 0)
+		return -1;
+	ret = futimens(fd, ts);
+	close(fd);
 	return ret;
 }
 

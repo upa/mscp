@@ -676,8 +676,9 @@ void *mscp_copy_thread(void *arg)
                 if (!c)
                         break; /* no more chunks */
 
-		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead,
-					 m->opts->buf_sz, &t->done)) < 0)
+		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp,
+					 m->opts->nr_ahead, m->opts->buf_sz,
+					 m->opts->preserve_ts, &t->done)) < 0)
 			break;
         }
 

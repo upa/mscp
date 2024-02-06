@@ -6,7 +6,7 @@ mscp \- copy files over multiple SSH connections
 .SH SYNOPSIS
 
 .B mscp
-.RB [ \-vqDHdNh ]
+.RB [ \-vqDpHdNh ]
 [\c
 .BI \-n \ NR_CONNECTIONS\c
 ]
@@ -35,7 +35,6 @@ mscp \- copy files over multiple SSH connections
 .BI \-l \ LOGIN_NAME\c
 ]
 [\c
-.BR \-p |\c
 .BI \-P \ PORT\c
 ]
 [\c
@@ -216,6 +215,11 @@ none. See
 .UR https://\:www\:.libssh\:.org/\:features/
 libssh features
 .UE .
+
+.TP
+.B \-p
+Preserves modification times and access times (file mode bits are
+preserved by default).
 
 .TP
 .B \-H

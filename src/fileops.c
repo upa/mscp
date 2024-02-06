@@ -4,10 +4,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <sys/times.h>
+#include <utime.h>
 
 #include <fileops.h>
 #include <ssh.h>
 #include <message.h>
+#include <platform.h>
 
 
 sftp_session __thread tls_sftp;
@@ -167,6 +170,18 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 	st->st_gid	= attr->gid;
 	st->st_mode	= attr->permissions;
 
+#if defined(__APPLE__)
+#define st_atim	st_atimespec
+#define st_mtim	st_mtimespec
+#define st_ctim	st_ctimespec
+#endif
+	st->st_atim.tv_sec	= attr->atime;
+	st->st_atim.tv_nsec	= attr->atime_nseconds;
+	st->st_mtim.tv_sec	= attr->mtime;
+	st->st_mtim.tv_nsec	= attr->mtime_nseconds;
+	st->st_ctim.tv_sec	= attr->createtime;
+	st->st_ctim.tv_nsec	= attr->createtime_nseconds;
+
 	switch (attr->type) {
 	case SSH_FILEXFER_TYPE_REGULAR:
 		st->st_mode |= S_IFREG;
@@ -186,8 +201,6 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 	default:
 		mpr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
 	}
-
-	/* ToDo: convert atime, ctime, and mtime */
 }
 
 
@@ -195,6 +208,8 @@ int mscp_stat(const char *path, struct stat *st, sftp_session sftp)
 {
 	sftp_attributes attr;
 	int ret = 0;
+
+	memset(st, 0, sizeof(*st));
 
 	if (sftp) {
 		attr = sftp_stat(sftp, path);
@@ -292,23 +307,34 @@ off_t mscp_lseek(mf *f, off_t off)
 	return ret;
 }
 
-int mscp_setstat(const char *path, mode_t mode, size_t size, sftp_session sftp)
+int mscp_setstat(const char *path, struct stat *st, bool preserve_ts, sftp_session sftp)
 {
 	int ret;
 
 	if (sftp) {
 		struct sftp_attributes_struct attr;
 		memset(&attr, 0, sizeof(attr));
-		attr.permissions = mode;
-		attr.size = size;
+		attr.permissions = st->st_mode;
+		attr.size = st->st_size;
 		attr.flags = (SSH_FILEXFER_ATTR_PERMISSIONS|SSH_FILEXFER_ATTR_SIZE);
+		if (preserve_ts) {
+			attr.atime = st->st_atim.tv_sec;
+			attr.atime_nseconds = st->st_atim.tv_nsec;
+			attr.mtime = st->st_mtim.tv_sec;
+			attr.mtime_nseconds = st->st_mtim.tv_nsec;
+			attr.flags |= (SSH_FILEXFER_ATTR_ACCESSTIME |
+				       SSH_FILEXFER_ATTR_MODIFYTIME |
+				       SSH_FILEXFER_ATTR_SUBSECOND_TIMES);
+		}
 		ret = sftp_setstat(sftp, path, &attr);
 		sftp_err_to_errno(sftp);
 	} else {
-		if ((ret = chmod(path, mode)) < 0)
+		if ((ret = chmod(path, st->st_mode)) < 0)
 			return ret;
-		if ((ret = truncate(path, size)) < 0)
+		if ((ret = truncate(path, st->st_size)) < 0)
 			return ret;
+		if (preserve_ts)
+			ret = setutimes(path, st->st_atim, st->st_mtim);
 	}
 
 	return ret;

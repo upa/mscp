@@ -7,6 +7,7 @@
 
 int nr_cpus(void);
 int set_thread_affinity(pthread_t tid, int core);
+int setutimes(const char *path, struct timespec atime, struct timespec mtime);
 
 /*
  * macOS does not support sem_init(). macOS (seems to) releases the
