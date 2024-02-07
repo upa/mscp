@@ -13,7 +13,7 @@ RUN ${mscpdir}/scripts/install-build-deps.sh
 
 # build
 RUN cd ${mscpdir} 	\
-	&& debuild -us -uc	\
+	&& debuild -us -uc -S \
 	&& mv ${mscpdir} /
 
 # Then all debuild output files exsit at /debbuild

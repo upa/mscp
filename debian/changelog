@@ -1,4 +1,19 @@
-mscp (0.1.3) UNRELEASED; urgency=medium
+mscp (0.1.4) UNRELEASED; urgency=medium
+
+  * add a test for builds on FreeBSD
+  * updat container images for tests
+  * dropp support for Python bindings
+  * clean up error message handling
+  * add MSCP_SSH_AUTH_PASSWORD/PASSPHRASE environment variables
+    to pass passwords to MSCP without interactive input (issue #9)
+  * add a -p option to preserve timestamps
+  * add -4 and -6 options to use IPv4 or IPv6, respectively
+  * introduc .clang-format, which is derived from the Linux kernel
+  * fix the manpage
+
+ -- Ryo Nakamura <upa@haeena.net>  Wed, 07 Feb 2024 15:56:58 +0900
+
+mscp (0.1.3) unstable; urgency=medium
 
   * add -I option for inserting intervals between SSH attempts (issue #7)
   * add -P option, equivalent to -p (just for compatibility)

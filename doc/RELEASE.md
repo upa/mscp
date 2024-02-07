@@ -16,9 +16,8 @@ After that:
 
 ```console
 $ ls debbuild
-mscp_0.1.3_amd64.build	    mscp_0.1.3_amd64.deb  mscp-dbgsym_0.1.3_amd64.ddeb
-mscp_0.1.3_amd64.buildinfo  mscp_0.1.3.dsc
-mscp_0.1.3_amd64.changes    mscp_0.1.3.tar.xz
+mscp_0.1.4.dsc		 mscp_0.1.4_source.buildinfo  mscp_0.1.4.tar.xz
+mscp_0.1.4_source.build  mscp_0.1.4_source.changes
 ```
 
 ### To publush mscp in launchpad PPA:
@@ -53,8 +52,10 @@ mscp-0.1.3-1.el9.src.rpm
 
 ### To publish mscp in COPR:
 
-1. download `mscp-X.X.X-1.yyy.src.rpm`
-2. upload the src.rpm to Build page at COPR.
+1. update `changelog` in `rpm/mscp.spec` (the date command needed here is `date "+%a %b %d %Y"`)
+2. run `make build-srpm`
+3. download `mscp-X.X.X-1.yyy.src.rpm`
+4. upload the src.rpm to Build page at COPR.
 
 
 
