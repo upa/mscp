@@ -52,6 +52,9 @@ mscp \- copy files over multiple SSH connections
 [\c
 .BI \-C \ COMPRESS\c
 ]
+[\c
+.BI \-g \ CONGESTION\c
+]
 .I source ... target
 
 .SH DESCRIPTION
@@ -223,6 +226,10 @@ none. See
 .UR https://\:www\:.libssh\:.org/\:features/
 libssh features
 .UE .
+
+.TP
+.B \-g \fICONGESTION\fR
+Specifies the TCP congestion control algorithm to use (Linux only).
 
 .TP
 .B \-p
