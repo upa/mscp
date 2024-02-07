@@ -186,8 +186,10 @@ struct target *validate_targets(char **arg, int len)
 	for (n = 0; n < len; n++) {
 		t[n].copy =
 			split_user_host_path(arg[n], &t[n].user, &t[n].host, &t[n].path);
-		if (!t[n].copy)
+		if (!t[n].copy) {
+			pr_err("failed to parse '%s'", arg[n]);
 			goto free_target_out;
+		}
 	}
 
 	/* check all user@host are identical. t[len - 1] is destination,
@@ -421,8 +423,6 @@ int main(int argc, char **argv)
 		pr_err("mscp_start: %s", priv_get_err());
 
 	ret = mscp_join(m);
-	if (ret != 0)
-		pr_err("mscp_join: %s", priv_get_err());
 
 	pthread_cancel(tid_stat);
 	pthread_join(tid_stat, NULL);

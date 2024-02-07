@@ -11,9 +11,12 @@
 const char *strerrno(void);
 
 /**
- * priv_set_err() sets an error message into a private buffer. This
- * error message set by priv_set_err() can be accessed via
- * priv_get_err(). priv_*_err functions are not thread safe.
+ * priv_set_err() sets an error message into a thread-local private
+ * buffer. This error message can be accessed via priv_get_err().
+ *
+ * The top-level function in a thread should print errors using
+ * priv_get_err(), while lower-level functions should set error
+ * messages using priv_set_err().
  */
 void priv_set_err(const char *fmt, ...);
 
@@ -26,7 +29,7 @@ void priv_set_err(const char *fmt, ...);
 		     ##__VA_ARGS__)
 
 /**
- * priv_get_err() gets the error message sotred in a private buffer.
+ * priv_get_err() gets the error message sotred in the thread-local private buffer.
  */
 const char *priv_get_err();
 

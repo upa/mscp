@@ -186,6 +186,7 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 	}
 
 	if (!opts->no_hostkey_check && ssh_verify_known_hosts(ssh) != 0) {
+		priv_set_errv("ssh_veriy_known_hosts failed");
 		goto disconnect_out;
 	}
 
@@ -203,9 +204,8 @@ sftp_session ssh_init_sftp_session(const char *sshdst, struct mscp_ssh_opts *opt
 	sftp_session sftp;
 	ssh_session ssh = ssh_init_session(sshdst, opts);
 
-	if (!ssh) {
+	if (!ssh)
 		return NULL;
-	}
 
 	sftp = sftp_new(ssh);
 	if (!sftp) {
@@ -304,7 +304,7 @@ static int ssh_verify_known_hosts(ssh_session session)
 
 		break;
 	case SSH_KNOWN_HOSTS_ERROR:
-		priv_set_errv("known hosts error: %s", ssh_get_error(session));
+		fprintf(stderr, "known hosts error: %s", ssh_get_error(session));
 		ssh_clean_pubkey_hash(&hash);
 		return -1;
 	}

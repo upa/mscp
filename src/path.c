@@ -104,7 +104,7 @@ static char *resolve_dst_path(const char *src_file_path, struct path_resolve_arg
 	strncpy(copy, a->src_path, PATH_MAX);
 	prefix = dirname(copy);
 	if (!prefix) {
-		priv_set_errv("dirname: %s", strerrno());
+		pr_err("dirname: %s", strerrno());
 		return NULL;
 	}
 
@@ -162,7 +162,7 @@ static struct chunk *alloc_chunk(struct path *p)
 	struct chunk *c;
 
 	if (!(c = malloc(sizeof(*c)))) {
-		priv_set_errv("malloc %s", strerrno());
+		pr_err("malloc %s", strerrno());
 		return NULL;
 	}
 	memset(c, 0, sizeof(*c));
@@ -231,8 +231,10 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 	memset(p, 0, sizeof(*p));
 	INIT_LIST_HEAD(&p->list);
 	p->path = strndup(path, PATH_MAX);
-	if (!p->path)
+	if (!p->path) {
+		pr_err("strndup: %s", strerrno());
 		goto free_out;
+	}
 	p->size = st.st_size;
 	p->mode = st.st_mode;
 	p->state = FILE_STATE_INIT;
@@ -306,7 +308,11 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 
 		walk_path_recursive(sftp, next_path, path_list, a);
 		/* do not stop even when walk_path_recursive returns
-		 * -1 due to an unreadable file. go to a next file. */
+		 * -1 due to an unreadable file. go to a next
+		 * file. Thus, do not pass error messages via
+		 * priv_set_err() under walk_path_recursive.  Print
+		 * the error with pr_err immediately.
+		 */
 	}
 
 	mscp_closedir(d);
@@ -318,16 +324,6 @@ int walk_src_path(sftp_session src_sftp, const char *src_path,
 		  struct list_head *path_list, struct path_resolve_args *a)
 {
 	return walk_path_recursive(src_sftp, src_path, path_list, a);
-}
-
-void path_dump(struct list_head *path_list)
-{
-	struct path *p;
-
-	list_for_each_entry(p, path_list, list) {
-		printf("src: %s %lu-byte\n", p->path, p->size);
-		printf("dst: %s\n", p->dst_path);
-	}
 }
 
 /* based on
@@ -390,7 +386,6 @@ static int prepare_dst_path(struct path *p, sftp_session dst_sftp)
 	if (p->state == FILE_STATE_INIT) {
 		if (touch_dst_path(p, dst_sftp) < 0) {
 			ret = -1;
-			pr_err("failed to prepare dst path: %s", priv_get_err());
 			goto out;
 		}
 		p->state = FILE_STATE_OPENED;
@@ -608,11 +603,11 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 
 		/* sync stat */
 		if (mscp_stat(c->p->path, &st, src_sftp) < 0) {
-			pr_err("mscp_stat: %s: %s", c->p->path, strerrno());
+			priv_set_errv("mscp_stat: %s: %s", c->p->path, strerrno());
 			return -1;
 		}
 		if (mscp_setstat(c->p->dst_path, &st, preserve_ts, dst_sftp) < 0) {
-			pr_err("mscp_setstat: %s: %s", c->p->path, strerrno());
+			priv_set_errv("mscp_setstat: %s: %s", c->p->path, strerrno());
 			return -1;
 		}
 		pr_info("copy done: %s", c->p->path);
