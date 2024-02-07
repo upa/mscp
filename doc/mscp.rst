@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.3-15-g9908fb3
+:Date:   v0.1.3-22-g9608400
 
 NAME
 ====
@@ -12,13 +12,13 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-vqDHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
+**mscp** [**-vqDpHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
 **-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
 **-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
 **-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-l**\ *LOGIN_NAME* ] [
-**-p**\ \| **-P**\ *PORT* ] [ **-F**\ *CONFIG* ] [ **-i**\ *IDENTITY* ]
-[ **-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] *source
-... target*
+**-P**\ *PORT* ] [ **-F**\ *CONFIG* ] [ **-i**\ *IDENTITY* ] [
+**-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] *source ...
+target*
 
 DESCRIPTION
 ===========
@@ -106,7 +106,7 @@ OPTIONS
    Specifies the username to log in on the remote machine as with
    *ssh(1).*
 
-**-p,-P PORT**
+**-P PORT**
    Specifies the port number to connect to on the remote machine as with
    ssh(1) and scp(1).
 
@@ -129,6 +129,10 @@ OPTIONS
 **-C COMPRESS**
    Enables compression: yes, no, zlib, zlib@openssh.com. The default is
    none. See `libssh features <https://www.libssh.org/features/>`__.
+
+**-p**
+   Preserves modification times and access times (file mode bits are
+   preserved by default).
 
 **-H**
    Disables hostkey checking.

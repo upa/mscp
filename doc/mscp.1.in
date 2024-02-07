@@ -179,7 +179,7 @@ Specifies the username to log in on the remote machine as with
 .I ssh(1).
 
 .TP
-.B \-p,\-P \fIPORT\fR
+.B \-P \fIPORT\fR
 Specifies the port number to connect to on the remote machine as with
 ssh(1) and scp(1).
 
