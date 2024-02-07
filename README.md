@@ -58,7 +58,7 @@ sudo dnf install mscp
 
 - Single binary `mscp` for x86_64 (not optimal performance)
 ```console
-wget https://github.com/upa/mscp/releases/download/v0.1.4/mscp.linux.x86_64.static -O /usr/local/bin/mscp
+wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86_64.static -O /usr/local/bin/mscp
 chmod 755 /usr/local/bin/mscp
 ```
 
