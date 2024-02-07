@@ -369,7 +369,7 @@ next:
 	 * end. see https://bugzilla.mindrot.org/show_bug.cgi?id=3431 */
 	f = mscp_open(p->dst_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR, sftp);
 	if (!f) {
-		priv_set_errv("mscp_open %s: %s\n", p->dst_path, strerrno());
+		priv_set_errv("mscp_open %s: %s", p->dst_path, strerrno());
 		return -1;
 	}
 
