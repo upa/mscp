@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.3-23-ga9c59f7
+:Date:   v0.1.4
 
 NAME
 ====
@@ -17,8 +17,8 @@ SYNOPSIS
 **-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
 **-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-l**\ *LOGIN_NAME* ] [
 **-P**\ *PORT* ] [ **-F**\ *CONFIG* ] [ **-i**\ *IDENTITY* ] [
-**-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] *source ...
-target*
+**-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] [
+**-g**\ *CONGESTION* ] *source ... target*
 
 DESCRIPTION
 ===========
@@ -135,6 +135,9 @@ OPTIONS
 **-C COMPRESS**
    Enables compression: yes, no, zlib, zlib@openssh.com. The default is
    none. See `libssh features <https://www.libssh.org/features/>`__.
+
+**-g CONGESTION**
+   Specifies the TCP congestion control algorithm to use (Linux only).
 
 **-p**
    Preserves modification times and access times (file mode bits are
