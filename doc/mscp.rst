@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.3-22-g9608400
+:Date:   v0.1.3-23-ga9c59f7
 
 NAME
 ====
@@ -12,7 +12,7 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-vqDpHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
+**mscp** [**-46vqDpHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
 **-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
 **-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
 **-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-l**\ *LOGIN_NAME* ] [
@@ -86,6 +86,12 @@ OPTIONS
    value is 16384. Note that the SSH specification restricts buffer size
    delivered over SSH. Changing this value is not recommended at
    present.
+
+**-4**
+   Uses IPv4 addresses only.
+
+**-6**
+   Uses IPv6 addresses only.
 
 **-v**
    Increments the verbose output level.

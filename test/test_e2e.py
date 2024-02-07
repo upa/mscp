@@ -324,6 +324,38 @@ def test_set_port(mscp, src_prefix, dst_prefix, src, dst):
     run2ng([mscp, "-H", "-vvv", "-P", 21, src_prefix + src.path, dst_prefix + dst.path])
     src.cleanup()
 
+def test_v4only(mscp):
+    src = File("src", size = 1024).make()
+    dst = File("dst")
+    dst_prefix = "localhost:{}/".format(os.getcwd())
+    run2ok([mscp, "-H", "-vvv", "-4", src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+def test_v6only(mscp):
+    src = File("src", size = 1024).make()
+    dst = File("dst")
+    dst_prefix = "localhost:{}/".format(os.getcwd())
+    run2ok([mscp, "-H", "-vvv", "-6", src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+def test_v4_to_v6_should_fail(mscp):
+    src = File("src", size = 1024).make()
+    dst = File("dst")
+    dst_prefix = "[::1]:{}/".format(os.getcwd())
+    run2ng([mscp, "-H", "-vvv", "-4", src.path, dst_prefix + dst.path])
+    src.cleanup()
+
+def test_v6_to_v4_should_fail(mscp):
+    src = File("src", size = 1024).make()
+    dst = File("dst")
+    dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
+    run2ng([mscp, "-H", "-vvv", "-6", src.path, dst_prefix + dst.path])
+    src.cleanup()
+
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_set_conn_interval(mscp, src_prefix, dst_prefix):
     srcs = []
@@ -442,3 +474,4 @@ def test_specify_invalid_password_via_env(mscp):
     run2ng([mscp, "-H", "-vvv", "-l", "test",
             src.path, "localhost:" + dst.path], env = env)
     src.cleanup()
+

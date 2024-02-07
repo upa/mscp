@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <poll.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <pthread.h>
 
 #include <mscp.h>
@@ -20,12 +22,12 @@
 
 void usage(bool print_help)
 {
-	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple ssh connections\n"
+	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple SSH connections\n"
 	       "\n"
-	       "Usage: mscp [vqDpHdNh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [-46vqDpHdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-u max_startups] [-I interval]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
-	       "            [-l login_name] [-p port] [-F ssh_config] [-i identity_file]\n"
+	       "            [-l login_name] [-P port] [-F ssh_config] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
 	       "            source ... target\n"
 	       "\n");
@@ -45,6 +47,8 @@ void usage(bool print_help)
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
 	       "\n"
+	       "    -4                 use IPv4\n"
+	       "    -6                 use IPv6\n"
 	       "    -v                 increment verbose output level\n"
 	       "    -q                 disable output\n"
 	       "    -D                 dry run. check copy destinations with -vvv\n"
@@ -263,8 +267,8 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-	while ((ch = getopt(argc, argv, "n:m:u:I:s:S:a:b:vqDrl:P:i:F:c:M:C:g:pHdNh")) !=
-	       -1) {
+#define mscpopts "n:m:u:I:s:S:a:b:46vqDrl:P:i:F:c:M:C:g:pHdNh"
+	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
@@ -293,6 +297,12 @@ int main(int argc, char **argv)
 			break;
 		case 'b':
 			o.buf_sz = atoi(optarg);
+			break;
+		case '4':
+			s.ai_family = AF_INET;
+			break;
+		case '6':
+			s.ai_family = AF_INET6;
 			break;
 		case 'v':
 			o.severity++;

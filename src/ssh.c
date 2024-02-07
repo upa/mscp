@@ -27,6 +27,12 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return -1;
 	}
 
+	if (opts->ai_family &&
+	    ssh_options_set(ssh, SSH_OPTIONS_AI_FAMILY, &opts->ai_family) < 0) {
+		priv_set_errv("failed to set address family");
+		return -1;
+	}
+
 	if (opts->identity &&
 	    ssh_options_set(ssh, SSH_OPTIONS_IDENTITY, opts->identity) < 0) {
 		priv_set_errv("failed to set identity");

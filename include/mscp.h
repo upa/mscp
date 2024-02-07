@@ -58,6 +58,7 @@ struct mscp_ssh_opts {
 	/* ssh options */
 	char	*login_name;	/** ssh username */
 	char	*port;		/** ssh port */
+	int	ai_family;	/** address family */
 	char	*config;	/** path to ssh_config, default ~/.ssh/config*/
 	char	*identity;	/** path to private key */
 	char	*cipher;	/** cipher spec */

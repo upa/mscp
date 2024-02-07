@@ -6,7 +6,7 @@ mscp \- copy files over multiple SSH connections
 .SH SYNOPSIS
 
 .B mscp
-.RB [ \-vqDpHdNh ]
+.RB [ \-46vqDpHdNh ]
 [\c
 .BI \-n \ NR_CONNECTIONS\c
 ]
@@ -149,6 +149,14 @@ Specifies the number of inflight SFTP commands. The default value is
 Specifies the buffer size for I/O and transfer over SFTP. The default
 value is 16384. Note that the SSH specification restricts buffer size
 delivered over SSH. Changing this value is not recommended at present.
+
+.TP
+.B \-4
+Uses IPv4 addresses only.
+
+.TP
+.B \-6
+Uses IPv6 addresses only.
 
 .TP
 .B \-v
