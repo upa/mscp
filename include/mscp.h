@@ -128,9 +128,7 @@ int mscp_connect(struct mscp *m);
 
 /**
  * @brief Add a source file path to be copied. The path indicates
- * either a file or directory. The path can be `user@host:path`
- * notation.  In this case, `dst_path` for mscp_set_dst_path() must
- * not contain remote host notation.
+ * either a file or directory.
  *
  * @param m		mscp instance.
  * @param src_path	source file path to be copied.
@@ -141,9 +139,7 @@ int mscp_add_src_path(struct mscp *m, const char *src_path);
 
 /**
  * @brief Set the destination file path. The path indicates either a
- * file, directory, or nonexistent path. The path can be
- * `user@host:path` notation.  In this case, all source paths appended
- * by mscp_set_src_path() must not contain remote host notation.
+ * file, directory, or nonexistent path.
  *
  * @param m		mscp instance.
  * @param dst_path	destination path to which source files copied.
