@@ -99,7 +99,7 @@ list(APPEND MSCP_BUILD_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/include)
 # libmscp.a
 set(LIBMSCP_SRC
 	src/mscp.c src/ssh.c src/fileops.c src/path.c src/platform.c
-	src/print.c src/strerrno.c
+	src/print.c src/pool.c src/strerrno.c
 	${OPENBSD_COMPAT_SRC})
 add_library(mscp-static STATIC ${LIBMSCP_SRC})
 target_include_directories(mscp-static

@@ -7,6 +7,7 @@
 #include <sys/time.h>
 
 #include <list.h>
+#include <pool.h>
 #include <minmax.h>
 #include <ssh.h>
 #include <path.h>
@@ -34,6 +35,7 @@ struct mscp {
 	sftp_session first; /* first sftp session */
 
 	char dst_path[PATH_MAX];
+	pool *src_pool;
 	struct list_head src_list;
 	struct list_head path_list;
 	struct chunk_pool cp;
@@ -58,11 +60,6 @@ struct mscp_thread {
 	size_t done;
 	bool finished;
 	int ret;
-};
-
-struct src {
-	struct list_head list; /* mscp->src_list */
-	char *path;
 };
 
 #define DEFAULT_MIN_CHUNK_SZ (64 << 20) /* 64MB */
@@ -235,9 +232,14 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 		priv_set_errv("malloc: %s", strerrno());
 		return NULL;
 	}
-
 	memset(m, 0, sizeof(*m));
-	INIT_LIST_HEAD(&m->src_list);
+
+	m->src_pool = pool_new();
+	if (!m->src_pool) {
+		priv_set_errv("pool_new: %s", strerrno());
+		goto free_out;
+	}
+
 	INIT_LIST_HEAD(&m->path_list);
 	chunk_pool_init(&m->cp);
 
@@ -275,6 +277,8 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 	return m;
 
 free_out:
+	if (m->src_pool)
+		pool_free(m->src_pool);
 	free(m);
 	return NULL;
 }
@@ -290,23 +294,15 @@ int mscp_connect(struct mscp *m)
 
 int mscp_add_src_path(struct mscp *m, const char *src_path)
 {
-	struct src *s;
-
-	s = malloc(sizeof(*s));
+	char *s = strdup(src_path);
 	if (!s) {
-		priv_set_errv("malloc: %s", strerrno());
+		priv_set_errv("strdup: %s", strerrno());
 		return -1;
 	}
-
-	memset(s, 0, sizeof(*s));
-	s->path = strdup(src_path);
-	if (!s->path) {
-		priv_set_errv("malloc: %s", strerrno());
-		free(s);
+	if (pool_push(m->src_pool, s) < 0) {
+		priv_set_errv("pool_push: %s", strerrno());
 		return -1;
 	}
-
-	list_add_tail(&s->list, &m->src_list);
 	return 0;
 }
 
@@ -370,8 +366,8 @@ void *mscp_scan_thread(void *arg)
 	struct path_resolve_args a;
 	struct list_head tmp;
 	struct path *p;
-	struct src *s;
 	struct stat ss, ds;
+	char *src_path;
 	glob_t pglob;
 	int n;
 
@@ -395,7 +391,7 @@ void *mscp_scan_thread(void *arg)
 	memset(&a, 0, sizeof(a));
 	a.total_bytes = &m->total_bytes;
 
-	if (list_count(&m->src_list) > 1)
+	if (pool_size(m->src_pool) > 1)
 		a.dst_path_should_dir = true;
 
 	if (mscp_stat(m->dst_path, &ds, dst_sftp) == 0) {
@@ -411,22 +407,22 @@ void *mscp_scan_thread(void *arg)
 
 	pr_info("start to walk source path(s)");
 
-	/* walk a src_path recusively, and resolve path->dst_path for each src */
-	list_for_each_entry(s, &m->src_list, list) {
+	/* walk each src_path recusively, and resolve path->dst_path for each src */
+	pool_iter_for_each(m->src_pool, src_path) {
 		memset(&pglob, 0, sizeof(pglob));
-		if (mscp_glob(s->path, GLOB_NOCHECK, &pglob, src_sftp) < 0) {
+		if (mscp_glob(src_path, GLOB_NOCHECK, &pglob, src_sftp) < 0) {
 			pr_err("mscp_glob: %s", strerrno());
 			goto err_out;
 		}
 
 		for (n = 0; n < pglob.gl_pathc; n++) {
 			if (mscp_stat(pglob.gl_pathv[n], &ss, src_sftp) < 0) {
-				pr_err("stat: %s %s", s->path, strerrno());
+				pr_err("stat: %s %s", src_path, strerrno());
 				goto err_out;
 			}
 
 			if (!a.dst_path_should_dir && pglob.gl_pathc > 1)
-				a.dst_path_should_dir = true; /* we have over 1 src */
+				a.dst_path_should_dir = true; /* we have over 1 srces */
 
 			/* set path specific args */
 			a.src_path = pglob.gl_pathv[n];
@@ -705,14 +701,6 @@ out:
 
 /* cleanup-related functions */
 
-static void list_free_src(struct list_head *list)
-{
-	struct src *s;
-	s = list_entry(list, typeof(*s), list);
-	free(s->path);
-	free(s);
-}
-
 static void list_free_path(struct list_head *list)
 {
 	struct path *p;
@@ -733,9 +721,6 @@ void mscp_cleanup(struct mscp *m)
 		ssh_sftp_close(m->first);
 		m->first = NULL;
 	}
-
-	list_free_f(&m->src_list, list_free_src);
-	INIT_LIST_HEAD(&m->src_list);
 
 	list_free_f(&m->path_list, list_free_path);
 	INIT_LIST_HEAD(&m->path_list);
