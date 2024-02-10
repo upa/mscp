@@ -9,7 +9,6 @@
 #include <ssh.h>
 #include <minmax.h>
 #include <fileops.h>
-#include <list.h>
 #include <atomic.h>
 #include <path.h>
 #include <strerrno.h>
@@ -219,17 +218,16 @@ void free_path(struct path *p)
 }
 
 static int append_path(sftp_session sftp, const char *path, struct stat st,
-		       struct list_head *path_list, struct path_resolve_args *a)
+		       struct path_resolve_args *a)
 {
 	struct path *p;
 
 	if (!(p = malloc(sizeof(*p)))) {
-		priv_set_errv("failed to allocate memory: %s", strerrno());
+		pr_err("malloc: %s", strerrno());
 		return -1;
 	}
 
 	memset(p, 0, sizeof(*p));
-	INIT_LIST_HEAD(&p->list);
 	p->path = strndup(path, PATH_MAX);
 	if (!p->path) {
 		pr_err("strndup: %s", strerrno());
@@ -248,7 +246,11 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 		return -1; /* XXX: do not free path becuase chunk(s)
 			    * was added to chunk pool already */
 
-	list_add_tail(&p->list, path_list);
+	if (pool_push_lock(a->path_pool, p) < 0) {
+		pr_err("pool_push: %s", strerrno());
+		goto free_out;
+	}
+
 	*a->total_bytes += p->size;
 
 	return 0;
@@ -269,7 +271,7 @@ static bool check_path_should_skip(const char *path)
 }
 
 static int walk_path_recursive(sftp_session sftp, const char *path,
-			       struct list_head *path_list, struct path_resolve_args *a)
+			       struct path_resolve_args *a)
 {
 	char next_path[PATH_MAX + 1];
 	struct dirent *e;
@@ -284,7 +286,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 
 	if (S_ISREG(st.st_mode)) {
 		/* this path is regular file. it is to be copied */
-		return append_path(sftp, path, st, path_list, a);
+		return append_path(sftp, path, st, a);
 	}
 
 	if (!S_ISDIR(st.st_mode))
@@ -306,7 +308,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			continue;
 		}
 
-		walk_path_recursive(sftp, next_path, path_list, a);
+		walk_path_recursive(sftp, next_path, a);
 		/* do not stop even when walk_path_recursive returns
 		 * -1 due to an unreadable file. go to a next
 		 * file. Thus, do not pass error messages via
@@ -321,9 +323,9 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 }
 
 int walk_src_path(sftp_session src_sftp, const char *src_path,
-		  struct list_head *path_list, struct path_resolve_args *a)
+		  struct path_resolve_args *a)
 {
-	return walk_path_recursive(src_sftp, src_path, path_list, a);
+	return walk_path_recursive(src_sftp, src_path, a);
 }
 
 /* based on

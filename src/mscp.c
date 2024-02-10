@@ -35,9 +35,7 @@ struct mscp {
 	sftp_session first; /* first sftp session */
 
 	char dst_path[PATH_MAX];
-	pool *src_pool;
-	struct list_head src_list;
-	struct list_head path_list;
+	pool *src_pool, *path_pool;
 	struct chunk_pool cp;
 
 	pthread_t tid_scan; /* tid for scan thread */
@@ -240,7 +238,12 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 		goto free_out;
 	}
 
-	INIT_LIST_HEAD(&m->path_list);
+	m->path_pool = pool_new();
+	if (!m->path_pool) {
+		priv_set_errv("pool_new: %s", strerrno());
+		goto free_out;
+	}
+
 	chunk_pool_init(&m->cp);
 
 	INIT_LIST_HEAD(&m->thread_list);
@@ -279,6 +282,8 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 free_out:
 	if (m->src_pool)
 		pool_free(m->src_pool);
+	if (m->path_pool)
+		pool_free(m->path_pool);
 	free(m);
 	return NULL;
 }
@@ -400,6 +405,7 @@ void *mscp_scan_thread(void *arg)
 	}
 
 	a.cp = &m->cp;
+	a.path_pool = m->path_pool;
 	a.nr_conn = m->opts->nr_threads;
 	a.min_chunk_sz = m->opts->min_chunk_sz;
 	a.max_chunk_sz = m->opts->max_chunk_sz;
@@ -429,11 +435,8 @@ void *mscp_scan_thread(void *arg)
 			a.dst_path = m->dst_path;
 			a.src_path_is_dir = S_ISDIR(ss.st_mode);
 
-			INIT_LIST_HEAD(&tmp);
-			if (walk_src_path(src_sftp, pglob.gl_pathv[n], &tmp, &a) < 0)
+			if (walk_src_path(src_sftp, pglob.gl_pathv[n], &a) < 0)
 				goto err_out;
-
-			list_splice_tail(&tmp, m->path_list.prev);
 		}
 		mscp_globfree(&pglob);
 	}
@@ -565,12 +568,14 @@ int mscp_join(struct mscp *m)
 	}
 
 	/* count up number of transferred files */
-	list_for_each_entry(p, &m->path_list, list) {
+	pool_lock(m->path_pool);
+	pool_iter_for_each(m->path_pool, p) {
 		nr_tobe_copied++;
 		if (p->state == FILE_STATE_DONE) {
 			nr_copied++;
 		}
 	}
+	pool_unlock();
 
 	pr_notice("%lu/%lu bytes copied for %lu/%lu files", done, m->total_bytes,
 		  nr_copied, nr_tobe_copied);
@@ -701,13 +706,6 @@ out:
 
 /* cleanup-related functions */
 
-static void list_free_path(struct list_head *list)
-{
-	struct path *p;
-	p = list_entry(list, typeof(*p), list);
-	free_path(p);
-}
-
 static void list_free_thread(struct list_head *list)
 {
 	struct mscp_thread *t;
@@ -722,9 +720,8 @@ void mscp_cleanup(struct mscp *m)
 		m->first = NULL;
 	}
 
-	list_free_f(&m->path_list, list_free_path);
-	INIT_LIST_HEAD(&m->path_list);
-
+	pool_zeroize(m->src_pool, free);
+	pool_zeroize(m->path_pool, (pool_map_f)free_path);
 	chunk_pool_release(&m->cp);
 	chunk_pool_init(&m->cp);
 
@@ -735,7 +732,9 @@ void mscp_cleanup(struct mscp *m)
 
 void mscp_free(struct mscp *m)
 {
-	mscp_cleanup(m);
+	pool_destroy(m->src_pool, free);
+	pool_destroy(m->path_pool, (pool_map_f)free_path);
+
 	if (m->remote)
 		free(m->remote);
 	if (m->cores)

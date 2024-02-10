@@ -1,7 +1,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "pool.h"
+#include <pool.h>
 
 #define DEFAULT_START_SIZE 16
 
@@ -27,17 +27,34 @@ pool *pool_new(void)
 
 void pool_free(pool *p)
 {
-	if (p->array)
+	if (p->array) {
 		free(p->array);
+		p->array = NULL;
+	}
 	free(p);
+}
+
+void pool_zeroize(pool *p, pool_map_f f)
+{
+	void *v;
+	pool_iter_for_each(p, v) {
+		f(v);
+	}
+	p->num = 0;
+}
+
+void pool_destroy(pool *p, pool_map_f f)
+{
+	pool_zeroize(p, f);
+	pool_free(p);
 }
 
 int pool_push(pool *p, void *v)
 {
 	if (p->num == p->len) {
 		/* expand array */
-		size_t newlen = p->len * 2 * sizeof(void *);
-		void **new = realloc(p->array, newlen);
+		size_t newlen = p->len * 2;
+		void *new = realloc(p->array, newlen * sizeof(void *));
 		if (new == NULL)
 			return -1;
 		p->len = newlen;

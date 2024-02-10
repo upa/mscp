@@ -6,14 +6,12 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
 #include <list.h>
+#include <pool.h>
 #include <atomic.h>
 #include <ssh.h>
 
 struct path {
-	struct list_head list; /* mscp->path_list */
-
 	char *path; /* file path */
 	size_t size; /* size of file on this path */
 	mode_t mode; /* permission */
@@ -78,6 +76,7 @@ struct path_resolve_args {
 	bool dst_path_should_dir;
 
 	/* args to resolve chunks for a path */
+	pool *path_pool;
 	struct chunk_pool *cp;
 	int nr_conn;
 	size_t min_chunk_sz;
@@ -85,9 +84,9 @@ struct path_resolve_args {
 	size_t chunk_align;
 };
 
-/* recursivly walk through src_path and fill path_list for each file */
+/* walk src_path recursivly and fill a->path_pool with found files */
 int walk_src_path(sftp_session src_sftp, const char *src_path,
-		  struct list_head *path_list, struct path_resolve_args *a);
+		  struct path_resolve_args *a);
 
 /* free struct path */
 void free_path(struct path *p);
@@ -95,8 +94,5 @@ void free_path(struct path *p);
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
 int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, bool preserve_ts, size_t *counter);
-
-/* just print contents. just for debugging */
-void path_dump(struct list_head *path_list);
 
 #endif /* _PATH_H_ */

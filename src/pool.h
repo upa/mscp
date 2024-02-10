@@ -21,8 +21,20 @@ struct pool_struct {
 
 typedef struct pool_struct pool;
 
+/* allocate a new pool */
 pool *pool_new(void);
+
+/* func type applied to each item in a pool*/
+typedef void (*pool_map_f)(void *v);
+
+/* apply f, which free an item, to all items and set num to 0 */
+void pool_zeroize(pool *p, pool_map_f f);
+
+/* free pool->array and pool */
 void pool_free(pool *p);
+
+/* free pool->array and pool after applying f to all items in p->array */
+void pool_destroy(pool *p, pool_map_f f);
 
 #define pool_lock(p) LOCK_ACQUIRE(&(p->lock))
 #define pool_unlock(p) LOCK_RELEASE()

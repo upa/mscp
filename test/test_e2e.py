@@ -7,6 +7,7 @@ import platform
 import pytest
 import getpass
 import os
+import shutil
 
 from subprocess import check_call, CalledProcessError, PIPE
 from util import File, check_same_md5sum
@@ -475,3 +476,15 @@ def test_specify_invalid_password_via_env(mscp):
             src.path, "localhost:" + dst.path], env = env)
     src.cleanup()
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_10k_files(mscp, src_prefix, dst_prefix):
+    srcs = []
+    dsts = []
+    for n in range(10000):
+        srcs.append(File("src/src-{:06d}".format(n), size=1024).make())
+        dsts.append(File("dst/src-{:06d}".format(n)))
+    run2ok([mscp, "-H", "-v", src_prefix + "src/*", dst_prefix + "dst"])
+    for s, d in zip(srcs, dsts):
+        assert check_same_md5sum(s, d)
+    shutil.rmtree("src")
+    shutil.rmtree("dst")
