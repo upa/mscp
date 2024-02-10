@@ -61,6 +61,7 @@ int pool_push(pool *p, void *v)
 		p->array = new;
 	}
 	p->array[p->num] = v;
+	__sync_synchronize();
 	p->num++;
 	return 0;
 }
@@ -86,6 +87,11 @@ void *pool_pop_lock(pool *p)
 	v = pool_pop(p);
 	pool_unlock(p);
 	return v;
+}
+
+void *pool_get(pool *p, unsigned int idx)
+{
+	return p->num <= idx ? NULL : p->array[idx];
 }
 
 void *pool_iter_next(pool *p)

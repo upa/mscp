@@ -53,8 +53,10 @@ int pool_push_lock(pool *p, void *v);
 void *pool_pop(pool *p);
 void *pool_pop_lock(pool *p);
 
+/* pool_get() returns value indexed by idx */
+void *pool_get(pool *p, unsigned int idx);
+
 #define pool_size(p) ((p)->num)
-#define pool_get(p, idx) ((p->num <= idx) ? NULL : p->array[idx])
 
 /*
  * pool->idx indicates next *v in an iteration. This has two

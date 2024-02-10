@@ -92,7 +92,6 @@ struct mscp_ssh_opts {
 struct mscp_stats {
 	size_t total;	/** total bytes to be transferred */
 	size_t done;	/** total bytes transferred */
-	bool finished;	/** true when all copy threads finished */
 };
 
 
