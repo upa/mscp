@@ -21,24 +21,27 @@
 
 struct mscp_thread {
 	struct mscp *m;
-	pthread_t tid;
 	sftp_session sftp;
 
-	int ret;
-
 	/* attributes used by copy threads */
+	size_t copied_bytes;
 	int id;
 	int cpu;
-	size_t copied_bytes;
 
 	/* attributes used by scan thread */
 	size_t total_bytes;
 	bool finished;
+
+	/* thread-specific values */
+	pthread_t tid;
+	int ret;
 };
 
 struct mscp {
 	char *remote; /* remote host (and uername) */
 	int direction; /* copy direction */
+	char dst_path[PATH_MAX];
+
 	struct mscp_opts *opts;
 	struct mscp_ssh_opts *ssh_opts;
 
@@ -49,15 +52,11 @@ struct mscp {
 
 	sftp_session first; /* first sftp session */
 
-	char dst_path[PATH_MAX];
-
 	pool *src_pool, *path_pool, *chunk_pool, *thread_pool;
 
 	struct mscp_thread scan; /* mscp_thread for mscp_scan_thread() */
 #define mscp_scan_is_finished(m) ((m)->scan.finished)
 };
-
-
 
 #define DEFAULT_MIN_CHUNK_SZ (64 << 20) /* 64MB */
 #define DEFAULT_NR_AHEAD 32
@@ -466,8 +465,7 @@ int mscp_scan(struct mscp *m)
 	t->sftp = m->first;
 	t->finished = false;
 
-	ret = pthread_create(&t->tid, NULL, mscp_scan_thread, t);
-	if (ret < 0) {
+	if ((ret = pthread_create(&t->tid, NULL, mscp_scan_thread, t)) < 0) {
 		priv_set_err("pthread_create: %d", ret);
 		return -1;
 	}
@@ -502,8 +500,7 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 	struct mscp_thread *t;
 	int ret;
 
-	t = malloc(sizeof(*t));
-	if (!t) {
+	if (!(t = malloc(sizeof(*t)))) {
 		priv_set_errv("malloc: %s,", strerrno());
 		return NULL;
 	}
@@ -516,8 +513,7 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 	else
 		t->cpu = m->cores[id % m->nr_cores];
 
-	ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t);
-	if (ret < 0) {
+	if ((ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t)) < 0) {
 		priv_set_errv("pthread_create: %d", ret);
 		free(t);
 		return NULL;

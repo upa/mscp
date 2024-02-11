@@ -96,40 +96,40 @@ static struct chunk *alloc_chunk(struct path *p)
 	return c;
 }
 
-static int resolve_chunk(struct path *p, struct path_resolve_args *a)
+static int resolve_chunk(struct path *p, size_t size, struct path_resolve_args *a)
 {
 	struct chunk *c;
 	size_t chunk_sz;
-	size_t size;
+	size_t remaind;
 
-	if (p->size <= a->min_chunk_sz)
-		chunk_sz = p->size;
+	if (size <= a->min_chunk_sz)
+		chunk_sz = size;
 	else if (a->max_chunk_sz)
 		chunk_sz = a->max_chunk_sz;
 	else {
-		chunk_sz = (p->size - (p->size % a->nr_conn)) / a->nr_conn;
+		chunk_sz = (size - (size % a->nr_conn)) / a->nr_conn;
 		chunk_sz &= ~a->chunk_align; /* align with page_sz */
 		if (chunk_sz <= a->min_chunk_sz)
 			chunk_sz = a->min_chunk_sz;
 	}
 
-	/* for (size = f->size; size > 0;) does not create a file
-         * (chunk) when file size is 0. This do {} while (size > 0)
-         * creates just open/close a 0-byte file.
+	/* for (size = size; size > 0;) does not create a file (chunk)
+         * when file size is 0. This do {} while (remaind > 0) creates
+         * just open/close a 0-byte file.
          */
-	size = p->size;
+	remaind = size;
 	do {
 		c = alloc_chunk(p);
 		if (!c)
 			return -1;
-		c->off = p->size - size;
-		c->len = size < chunk_sz ? size : chunk_sz;
-		size -= c->len;
+		c->off = size - remaind;
+		c->len = remaind < chunk_sz ? remaind : chunk_sz;
+		remaind -= c->len;
 		if (pool_push_lock(a->chunk_pool, c) < 0) {
 			pr_err("pool_push_lock: %s", strerrno());
 			return -1;
 		}
-	} while (size > 0);
+	} while (remaind > 0);
 
 	return 0;
 }
@@ -159,8 +159,6 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 		pr_err("strndup: %s", strerrno());
 		goto free_out;
 	}
-	p->size = st.st_size;
-	p->mode = st.st_mode;
 	p->state = FILE_STATE_INIT;
 	lock_init(&p->lock);
 
@@ -168,7 +166,7 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 	if (!p->dst_path)
 		goto free_out;
 
-	if (resolve_chunk(p, a) < 0)
+	if (resolve_chunk(p, st.st_size, a) < 0)
 		return -1; /* XXX: do not free path becuase chunk(s)
 			    * was added to chunk pool already */
 
@@ -177,7 +175,7 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 		goto free_out;
 	}
 
-	*a->total_bytes += p->size;
+	*a->total_bytes += st.st_size;
 
 	return 0;
 
@@ -490,8 +488,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	/* open src */
 	flags = O_RDONLY;
 	mode = S_IRUSR;
-	s = mscp_open(c->p->path, flags, mode, src_sftp);
-	if (!s) {
+	if (!(s = mscp_open(c->p->path, flags, mode, src_sftp))) {
 		priv_set_errv("mscp_open: %s: %s", c->p->path, strerrno());
 		return -1;
 	}
@@ -503,8 +500,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	/* open dst */
 	flags = O_WRONLY;
 	mode = S_IRUSR | S_IWUSR;
-	d = mscp_open(c->p->dst_path, flags, mode, dst_sftp);
-	if (!d) {
+	if (!(d = mscp_open(c->p->dst_path, flags, mode, dst_sftp))) {
 		mscp_close(s);
 		priv_set_errv("mscp_open: %s: %s", c->p->dst_path, strerrno());
 		return -1;

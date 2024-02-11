@@ -12,18 +12,15 @@
 
 struct path {
 	char *path; /* file path */
-	size_t size; /* size of file on this path */
-	mode_t mode; /* permission */
-
 	char *dst_path; /* copy dst path */
 
-	int state;
+	refcnt refcnt; /* number of associated chunks */
 	lock lock;
-	refcnt refcnt;
-};
+	int state;
 #define FILE_STATE_INIT 0
 #define FILE_STATE_OPENED 1
 #define FILE_STATE_DONE 2
+};
 
 struct chunk {
 	struct path *p;
