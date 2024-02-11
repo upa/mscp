@@ -6,6 +6,7 @@ test_e2e.py: End-to-End test for mscp executable.
 import platform
 import pytest
 import getpass
+import time
 import os
 import shutil
 
@@ -316,6 +317,26 @@ def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     md5_after = f.md5sum()
     assert md5_before == md5_after
     f.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
+    # copy 100 files with -n 20 -I 1 options. if mscp creates 20 SSH
+    # connections although all files have been copied, it is error.
+    srcs = []
+    dsts = []
+    for n in range(100):
+        srcs.append(File("src/src-{:06d}".format(n), size=1024).make())
+        dsts.append(File("dst/src-{:06d}".format(n)))
+    start = time.time()
+    run2ok([mscp, "-H", "-v", "-n", "20", "-I", "1",
+            src_prefix + "src/*", dst_prefix + "dst"])
+    end = time.time()
+    for s, d in zip(srcs, dsts):
+        assert check_same_md5sum(s, d)
+    shutil.rmtree("src")
+    shutil.rmtree("dst")
+    assert((end - start) < 10)
+
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("src, dst", param_single_copy)

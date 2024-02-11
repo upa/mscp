@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _POOL_H_
 #define _POOL_H_
 
@@ -57,6 +58,7 @@ void *pool_pop_lock(pool *p);
 void *pool_get(pool *p, unsigned int idx);
 
 #define pool_size(p) ((p)->num)
+#define pool_is_empty(p) (pool_size(p) == 0)
 
 /*
  * pool->idx indicates next *v in an iteration. This has two
@@ -76,6 +78,11 @@ void *pool_get(pool *p, unsigned int idx);
 #define pool_iter_init(p) (p->idx = 0)
 void *pool_iter_next(pool *p);
 void *pool_iter_next_lock(pool *p);
+
+/* pool_iter_check_next_lock() returns true if pool_iter_next(_lock)
+ * function will retrun a next value, otherwise false, which means
+ * there is no more values in this iteration. */
+bool pool_iter_check_next_lock(pool *p);
 
 #define pool_iter_for_each(p, v) \
 	pool_iter_init(p);       \

@@ -1,4 +1,4 @@
-
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include <string.h>
 #include <stdlib.h>
 #include <pool.h>
@@ -111,4 +111,13 @@ void *pool_iter_next_lock(pool *p)
 	v = pool_iter_next(p);
 	pool_unlock(p);
 	return v;
+}
+
+bool pool_iter_check_next_lock(pool *p)
+{
+	bool next_exist;
+	pool_lock(p);
+	next_exist = (p->idx < p->num);
+	pool_unlock(p);
+	return next_exist;
 }

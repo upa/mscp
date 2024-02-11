@@ -14,84 +14,6 @@
 #include <strerrno.h>
 #include <print.h>
 
-/* chunk pool operations */
-#define CHUNK_POOL_STATE_FILLING 0
-#define CHUNK_POOL_STATE_FILLED 1
-
-void chunk_pool_init(struct chunk_pool *cp)
-{
-	memset(cp, 0, sizeof(*cp));
-	INIT_LIST_HEAD(&cp->list);
-	lock_init(&cp->lock);
-	cp->state = CHUNK_POOL_STATE_FILLING;
-}
-
-static void chunk_pool_add(struct chunk_pool *cp, struct chunk *c)
-{
-	LOCK_ACQUIRE(&cp->lock);
-	list_add_tail(&c->list, &cp->list);
-	cp->count += 1;
-	LOCK_RELEASE();
-}
-
-void chunk_pool_set_filled(struct chunk_pool *cp)
-{
-	cp->state = CHUNK_POOL_STATE_FILLED;
-}
-
-bool chunk_pool_is_filled(struct chunk_pool *cp)
-{
-	return (cp->state == CHUNK_POOL_STATE_FILLED);
-}
-
-size_t chunk_pool_size(struct chunk_pool *cp)
-{
-	return cp->count;
-}
-
-bool chunk_pool_is_empty(struct chunk_pool *cp)
-{
-	return list_empty(&cp->list);
-}
-
-struct chunk *chunk_pool_pop(struct chunk_pool *cp)
-{
-	struct list_head *first;
-	struct chunk *c = NULL;
-
-	LOCK_ACQUIRE(&cp->lock);
-	first = cp->list.next;
-	if (list_empty(&cp->list)) {
-		if (!chunk_pool_is_filled(cp))
-			c = CHUNK_POP_WAIT;
-		else
-			c = NULL; /* no more chunks */
-	} else {
-		c = list_entry(first, struct chunk, list);
-		list_del(first);
-	}
-	LOCK_RELEASE();
-
-	/* return CHUNK_POP_WAIT would be a rare case, because it
-	 * means copying over SSH is faster than traversing
-	 * local/remote file paths.
-	 */
-
-	return c;
-}
-
-static void chunk_free(struct list_head *list)
-{
-	struct chunk *c;
-	c = list_entry(list, typeof(*c), list);
-	free(c);
-}
-
-void chunk_pool_release(struct chunk_pool *cp)
-{
-	list_free_f(&cp->list, chunk_free);
-}
-
 /* paths of copy source resoltion */
 static char *resolve_dst_path(const char *src_file_path, struct path_resolve_args *a)
 {
@@ -169,6 +91,7 @@ static struct chunk *alloc_chunk(struct path *p)
 	c->p = p;
 	c->off = 0;
 	c->len = 0;
+	c->state = CHUNK_STATE_INIT;
 	refcnt_inc(&p->refcnt);
 	return c;
 }
@@ -202,7 +125,10 @@ static int resolve_chunk(struct path *p, struct path_resolve_args *a)
 		c->off = p->size - size;
 		c->len = size < chunk_sz ? size : chunk_sz;
 		size -= c->len;
-		chunk_pool_add(a->cp, c);
+		if (pool_push_lock(a->chunk_pool, c) < 0) {
+			pr_err("pool_push_lock: %s", strerrno());
+			return -1;
+		}
 	} while (size > 0);
 
 	return 0;
@@ -588,6 +514,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 		return -1;
 	}
 
+	c->state = CHUNK_STATE_COPING;
 	pr_debug("copy chunk start: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
@@ -614,6 +541,9 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 		}
 		pr_info("copy done: %s", c->p->path);
 	}
+
+	if (ret == 0)
+		c->state = CHUNK_STATE_DONE;
 
 	return ret;
 }

@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <list.h>
 #include <pool.h>
 #include <atomic.h>
 #include <ssh.h>
@@ -27,43 +26,14 @@ struct path {
 #define FILE_STATE_DONE 2
 
 struct chunk {
-	struct list_head list; /* chunk_pool->list */
-
 	struct path *p;
 	size_t off; /* offset of this chunk on the file on path p */
 	size_t len; /* length of this chunk */
-	size_t done; /* copied bytes for this chunk by a thread */
-};
-
-struct chunk_pool {
-	struct list_head list; /* list of struct chunk */
-	size_t count;
-	lock lock;
 	int state;
+#define CHUNK_STATE_INIT 0
+#define CHUNK_STATE_COPING 1
+#define CHUNK_STATE_DONE 2
 };
-
-/* initialize chunk pool */
-void chunk_pool_init(struct chunk_pool *cp);
-
-/* acquire a chunk from pool. return value is NULL indicates no more
- * chunk, GET_CHUNK_WAIT means caller should waits until a chunk is
- * added, or pointer to chunk.
- */
-struct chunk *chunk_pool_pop(struct chunk_pool *cp);
-#define CHUNK_POP_WAIT ((void *)-1)
-
-/* set and check fillingchunks to this pool has finished */
-void chunk_pool_set_filled(struct chunk_pool *cp);
-bool chunk_pool_is_filled(struct chunk_pool *cp);
-
-/* return number of chunks in the pool */
-size_t chunk_pool_size(struct chunk_pool *cp);
-
-/* return true if chunk pool is empty (all chunks are already poped) */
-bool chunk_pool_is_empty(struct chunk_pool *cp);
-
-/* free chunks in the chunk_pool */
-void chunk_pool_release(struct chunk_pool *cp);
 
 struct path_resolve_args {
 	size_t *total_bytes;
@@ -77,7 +47,7 @@ struct path_resolve_args {
 
 	/* args to resolve chunks for a path */
 	pool *path_pool;
-	struct chunk_pool *cp;
+	pool *chunk_pool;
 	int nr_conn;
 	size_t min_chunk_sz;
 	size_t max_chunk_sz;
