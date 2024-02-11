@@ -91,10 +91,13 @@ endif()
 
 
 # Symbol check
-check_symbol_exists(strlcat string.h HAVE_STRLCAT)
+check_symbol_exists(htonll	arpa/inet.h	HAVE_HTONLL)
+check_symbol_exists(ntohll	arpa/inet.h	HAVE_NTOHLL)
+check_symbol_exists(strlcat	string.h	HAVE_STRLCAT)
 if (NOT HAVE_STRLCAT)
 	list(APPEND OPENBSD_COMPAT_SRC src/openbsd-compat/strlcat.c)
 endif()
+
 
 # generate config.h in build dir
 configure_file(

@@ -22,6 +22,7 @@
 #error unsupported platform
 #endif
 
+#include <config.h>
 #include <platform.h>
 #include <strerrno.h>
 #include <print.h>
@@ -163,3 +164,5 @@ int sem_release(sem_t *sem)
 }
 
 #endif
+
+
