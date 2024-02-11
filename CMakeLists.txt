@@ -155,34 +155,39 @@ enable_testing()
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
-list(APPEND DIST_NAMES	ubuntu	ubuntu	rocky	rocky	almalinux	alpine)
+list(APPEND DIST_IDS	ubuntu	ubuntu	rocky	rocky	almalinux	alpine)
 list(APPEND DIST_VERS	20.04	22.04	8.9	9.3	9.3		3.19)
 list(APPEND DIST_PKGS	deb	deb	rpm	rpm	rpm		static)
 
-list(LENGTH DIST_NAMES _DIST_LISTLEN)
+list(LENGTH DIST_IDS _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
 
 foreach(x RANGE ${DIST_LISTLEN})
-	list(GET DIST_NAMES	${x} DIST_NAME)
+	list(GET DIST_IDS	${x} DIST_ID)
 	list(GET DIST_VERS	${x} DIST_VER)
 	list(GET DIST_PKGS	${x} DIST_PKG)
 
-	set(DOCKER_IMAGE mscp-${DIST_NAME}:${DIST_VER})
-	set(DOCKER_INDEX ${DIST_NAME}-${DIST_VER})
-	set(PKG_FILE_NAME
-		mscp_${DIST_NAME}-${DIST_VER}-${ARCH}.${DIST_PKG})
+	set(DOCKER_IMAGE mscp-${DIST_ID}:${DIST_VER})
+	set(DOCKER_INDEX ${DIST_ID}-${DIST_VER})
+	execute_process(
+		COMMAND ${CMAKE_SOURCE_DIR}/scripts/install-build-deps.sh
+		--dont-install --platform Linux-${DIST_ID}
+		OUTPUT_VARIABLE REQUIREDPKGS
+		OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 	add_custom_target(docker-build-${DOCKER_INDEX}
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build -t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
+		docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS}
+		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-build-${DOCKER_INDEX}-no-cache
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build --no-cache -t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
+		docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS} --no-cache
+		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-test-${DOCKER_INDEX}
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
@@ -204,12 +209,19 @@ add_custom_target(docker-test-all		DEPENDS ${DOCKER_TESTS})
 ### debuild-related definitions
 
 set(DEBBUILDCONTAINER mscp-build-deb)
+execute_process(
+	COMMAND ${CMAKE_SOURCE_DIR}/scripts/install-build-deps.sh
+	--dont-install --platform Linux-ubuntu
+	OUTPUT_VARIABLE REQUIREDPKGS_DEB
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 add_custom_target(build-deb
 	COMMENT "build mscp deb files inside a container"
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/debbuild
 	COMMAND
-	docker build -t ${DEBBUILDCONTAINER} -f Dockerfile/build-deb.Dockerfile .
+	docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS_DEB}
+	-t ${DEBBUILDCONTAINER} -f Dockerfile/build-deb.Dockerfile .
 	COMMAND
 	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DEBBUILDCONTAINER}
 	cp -r /debbuild /out/)
@@ -222,20 +234,28 @@ configure_file(
 	${mscp_SOURCE_DIR}/rpm/mscp.spec.in
 	${mscp_SOURCE_DIR}/rpm/mscp.spec
 	@ONLY)
-configure_file(
-	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile.in
-	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile
-	@ONLY)
+#configure_file(
+#	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile.in
+#	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile
+#	@ONLY)
 
 # Custom target to build mscp as a src.rpm in docker.
 set(RPMBUILDCONTAINER mscp-build-srpm)
 set(SRPMFILE mscp-${MSCP_VERSION}-1.el9.src.rpm)
+execute_process(
+	COMMAND ${CMAKE_SOURCE_DIR}/scripts/install-build-deps.sh
+	--dont-install --platform Linux-rocky
+	OUTPUT_VARIABLE REQUIREDPKGS_RPM
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 add_custom_target(build-srpm
 	COMMENT "Build mscp src.rpm inside a container"
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SRPMFILE}
 	COMMAND
-	docker build -t ${RPMBUILDCONTAINER} -f Dockerfile/build-srpm.Dockerfile .
+	docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS_RPM}
+	--build-arg MSCP_VERSION=${MSCP_VERSION}
+	-t ${RPMBUILDCONTAINER} -f Dockerfile/build-srpm.Dockerfile .
 	COMMAND
 	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
 	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)

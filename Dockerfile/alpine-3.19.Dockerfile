@@ -1,10 +1,15 @@
 FROM alpine:3.19
 
+# do not use REQUIREDPKGS build argument because
+# this Dockerfile compiles mscp with conan,so we do not need
+# libssl-dev and zlib-dev
+
 # Build mscp with conan to create single binary mscp
 
 RUN apk add --no-cache \
-	gcc make cmake python3 py3-pip perl linux-headers libc-dev	\
-	openssh bash python3-dev py3-pytest g++
+	gcc make cmake libc-dev \
+	linux-headers openssh bash perl \
+	python3 py3-pip python3-dev py3-pytest g++
 
 RUN pip3 install --break-system-packages conan
 

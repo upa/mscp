@@ -1,8 +1,12 @@
 FROM rockylinux:8.9
 
+ARG REQUIREDPKGS
+
 # install pytest, sshd for test, and rpm-build
 RUN set -ex && yum -y install \
-	python3 python3-pip python3-devel openssh openssh-server openssh-clients rpm-build
+	${REQUIREDPKGS}	\
+	python3 python3-pip python3-devel \
+	openssh openssh-server openssh-clients rpm-build
 
 RUN python3 -m pip install pytest
 
@@ -28,9 +32,6 @@ RUN rm -rf /run/nologin
 ARG mscpdir="/mscp"
 
 COPY . ${mscpdir}
-
-# install build dependency
-RUN ${mscpdir}/scripts/install-build-deps.sh
 
 # build
 RUN cd ${mscpdir}			\

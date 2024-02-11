@@ -1,15 +1,15 @@
 FROM rockylinux:9
 
-# install pytest, sshd for test, and rpm-build
-RUN set -ex && yum -y install rpm-build rpmdevtools
+ARG REQUIREDPKGS
+ARG MSCP_VERSION
 
-ARG mscpdir="/mscp-@MSCP_VERSION@"
-ARG mscptgz="mscp-@MSCP_VERSION@.tar.gz"
+# install pytest, sshd for test, and rpm-build
+RUN set -ex && yum -y install ${REQUIREDPKGS} rpm-build rpmdevtools
+
+ARG mscpdir="/mscp-${MSCP_VERSION}"
+ARG mscptgz="mscp-${MSCP_VERSION}.tar.gz"
 
 COPY . ${mscpdir}
-
-# install build dependency
-RUN ${mscpdir}/scripts/install-build-deps.sh
 
 # prepare rpmbuild
 RUN rpmdev-setuptree \
