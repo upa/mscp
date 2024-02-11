@@ -631,7 +631,7 @@ void *mscp_copy_thread(void *arg)
 		goto err_out;
 	}
 
-	if ((next_chunk_exist = pool_iter_check_next_lock(m->chunk_pool))) {
+	if ((next_chunk_exist = pool_iter_has_next_lock(m->chunk_pool))) {
 		if (m->opts->interval > 0)
 			wait_for_interval(m->opts->interval);
 		pr_notice("thread[%d]: connecting to %s", t->id, m->remote);

@@ -113,7 +113,7 @@ void *pool_iter_next_lock(pool *p)
 	return v;
 }
 
-bool pool_iter_check_next_lock(pool *p)
+bool pool_iter_has_next_lock(pool *p)
 {
 	bool next_exist;
 	pool_lock(p);

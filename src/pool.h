@@ -16,7 +16,6 @@ struct pool_struct {
 	size_t len; /* length of array */
 	size_t num; /* number of items in the array */
 	size_t idx; /* index used dy iter */
-	int state;
 	lock lock;
 };
 
@@ -25,7 +24,7 @@ typedef struct pool_struct pool;
 /* allocate a new pool */
 pool *pool_new(void);
 
-/* func type applied to each item in a pool*/
+/* func type applied to each item in a pool */
 typedef void (*pool_map_f)(void *v);
 
 /* apply f, which free an item, to all items and set num to 0 */
@@ -79,10 +78,10 @@ void *pool_get(pool *p, unsigned int idx);
 void *pool_iter_next(pool *p);
 void *pool_iter_next_lock(pool *p);
 
-/* pool_iter_check_next_lock() returns true if pool_iter_next(_lock)
+/* pool_iter_has_next_lock() returns true if pool_iter_next(_lock)
  * function will retrun a next value, otherwise false, which means
  * there is no more values in this iteration. */
-bool pool_iter_check_next_lock(pool *p);
+bool pool_iter_has_next_lock(pool *p);
 
 #define pool_iter_for_each(p, v) \
 	pool_iter_init(p);       \
