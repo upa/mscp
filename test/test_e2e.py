@@ -329,7 +329,7 @@ def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
         dsts.append(File("dst/src-{:06d}".format(n)))
     start = time.time()
     run2ok([mscp, "-H", "-v", "-n", "20", "-I", "1",
-            src_prefix + "src/*", dst_prefix + "dst"])
+            src_prefix + "src", dst_prefix + "dst"])
     end = time.time()
     for s, d in zip(srcs, dsts):
         assert check_same_md5sum(s, d)
@@ -504,7 +504,7 @@ def test_10k_files(mscp, src_prefix, dst_prefix):
     for n in range(10000):
         srcs.append(File("src/src-{:06d}".format(n), size=1024).make())
         dsts.append(File("dst/src-{:06d}".format(n)))
-    run2ok([mscp, "-H", "-v", src_prefix + "src/*", dst_prefix + "dst"])
+    run2ok([mscp, "-H", "-v", src_prefix + "src", dst_prefix + "dst"])
     for s, d in zip(srcs, dsts):
         assert check_same_md5sum(s, d)
     shutil.rmtree("src")
