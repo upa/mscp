@@ -51,6 +51,13 @@ if (BUILD_STATIC)
 	endif()
 endif()
 
+option(USE_PODMAN OFF) # use podman instread of docker
+if(USE_PODMAN)
+	message(STATUS "Use podman instead of docker")
+	set(CE podman) # CE means Container Engine
+else()
+	set(CE docker)
+endif()
 
 
 # add libssh static library
@@ -179,21 +186,21 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS}
+		${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS}
 		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-build-${DOCKER_INDEX}-no-cache
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 		COMMAND
-		docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS} --no-cache
+		${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS} --no-cache
 		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-test-${DOCKER_INDEX}
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMAND
-		docker run --init --rm --sysctl net.ipv6.conf.all.disable_ipv6=0
+		${CE} run --init --rm --sysctl net.ipv6.conf.all.disable_ipv6=0
 		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
 	list(APPEND DOCKER_BUILDS		docker-build-${DOCKER_INDEX})
@@ -220,10 +227,10 @@ add_custom_target(build-deb
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/debbuild
 	COMMAND
-	docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS_DEB}
+	${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS_DEB}
 	-t ${DEBBUILDCONTAINER} -f Dockerfile/build-deb.Dockerfile .
 	COMMAND
-	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${DEBBUILDCONTAINER}
+	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out ${DEBBUILDCONTAINER}
 	cp -r /debbuild /out/)
 
 
@@ -253,11 +260,11 @@ add_custom_target(build-srpm
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SRPMFILE}
 	COMMAND
-	docker build --build-arg REQUIREDPKGS=${REQUIREDPKGS_RPM}
+	${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS_RPM}
 	--build-arg MSCP_VERSION=${MSCP_VERSION}
 	-t ${RPMBUILDCONTAINER} -f Dockerfile/build-srpm.Dockerfile .
 	COMMAND
-	docker run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
+	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
 	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)
 
 ### single-binary-build-related definitions
@@ -270,7 +277,7 @@ add_custom_target(build-single-binary
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SINGLEBINARYFILE}
 	DEPENDS docker-build-alpine-3.19
 	COMMAND
-	docker run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-alpine:3.19
+	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-alpine:3.19
 	cp /mscp/build/mscp /out/${SINGLEBINARYFILE})
 
 
