@@ -233,12 +233,12 @@ free_target_out:
 
 struct mscp *m = NULL;
 pthread_t tid_stat = 0;
+bool interrupted = false;
 
 void sigint_handler(int sig)
 {
+	interrupted = true;
 	mscp_stop(m);
-	if (tid_stat > 0)
-		pthread_cancel(tid_stat);
 }
 
 void *print_stat_thread(void *arg);
@@ -251,6 +251,8 @@ void print_cli(const char *fmt, ...)
 	fflush(stdout);
 	va_end(va);
 }
+
+void print_stat(bool final);
 
 int main(int argc, char **argv)
 {
@@ -437,9 +439,14 @@ int main(int argc, char **argv)
 	pthread_cancel(tid_stat);
 	pthread_join(tid_stat, NULL);
 
+	print_stat(true);
+	print_cli("\n"); /* final output */
 out:
 	mscp_cleanup(m);
 	mscp_free(m);
+
+	if (interrupted)
+		ret = 1;
 
 	return ret;
 }
@@ -612,12 +619,6 @@ void print_stat(bool final)
 	}
 }
 
-void print_stat_thread_cleanup(void *arg)
-{
-	print_stat(true);
-	print_cli("\n"); /* final output */
-}
-
 void *print_stat_thread(void *arg)
 {
 	struct mscp_stats s;
@@ -627,15 +628,10 @@ void *print_stat_thread(void *arg)
 	gettimeofday(&x.start, NULL);
 	x.before = x.start;
 
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-	pthread_cleanup_push(print_stat_thread_cleanup, NULL);
-
 	while (true) {
 		print_stat(false);
 		sleep(1);
 	}
 
-	pthread_cleanup_pop(1);
 	return NULL;
 }
