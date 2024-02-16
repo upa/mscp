@@ -164,5 +164,3 @@ int sem_release(sem_t *sem)
 }
 
 #endif
-
-

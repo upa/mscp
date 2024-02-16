@@ -21,28 +21,25 @@ int setutimes(const char *path, struct timespec atime, struct timespec mtime);
 sem_t *sem_create(int value);
 int sem_release(sem_t *sem);
 
-
 #ifdef HAVE_HTONLL
 #include <arpa/inet.h> /* Apple has htonll and ntohll in arpa/inet.h */
 #endif
 
 /* copied from libssh: libssh/include/libssh/priv.h*/
 #ifndef HAVE_HTONLL
-# ifdef WORDS_BIGENDIAN
-#  define htonll(x) (x)
-# else
-#  define htonll(x) \
-    (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-# endif
+#ifdef WORDS_BIGENDIAN
+#define htonll(x) (x)
+#else
+#define htonll(x) (((uint64_t)htonl((x)&0xFFFFFFFF) << 32) | htonl((x) >> 32))
+#endif
 #endif
 
 #ifndef HAVE_NTOHLL
-# ifdef WORDS_BIGENDIAN
-#  define ntohll(x) (x)
-# else
-#  define ntohll(x) \
-    (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
-# endif
+#ifdef WORDS_BIGENDIAN
+#define ntohll(x) (x)
+#else
+#define ntohll(x) (((uint64_t)ntohl((x)&0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
 #endif
 
 #endif /* _PLATFORM_H_ */

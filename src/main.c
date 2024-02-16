@@ -18,7 +18,7 @@
 #include <strerrno.h>
 #include <print.h>
 
-#include "config.h"
+#include <config.h>
 
 void usage(bool print_help)
 {

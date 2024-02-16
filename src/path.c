@@ -78,7 +78,7 @@ static char *resolve_dst_path(const char *src_file_path, struct path_resolve_arg
 }
 
 /* chunk preparation */
-static struct chunk *alloc_chunk(struct path *p)
+struct chunk *alloc_chunk(struct path *p, size_t off, size_t len)
 {
 	struct chunk *c;
 
@@ -89,8 +89,8 @@ static struct chunk *alloc_chunk(struct path *p)
 	memset(c, 0, sizeof(*c));
 
 	c->p = p;
-	c->off = 0;
-	c->len = 0;
+	c->off = off;
+	c->len = len;
 	c->state = CHUNK_STATE_INIT;
 	refcnt_inc(&p->refcnt);
 	return c;
@@ -99,7 +99,7 @@ static struct chunk *alloc_chunk(struct path *p)
 static int resolve_chunk(struct path *p, size_t size, struct path_resolve_args *a)
 {
 	struct chunk *c;
-	size_t chunk_sz;
+	size_t chunk_sz, off, len;
 	size_t remaind;
 
 	if (size <= a->min_chunk_sz)
@@ -119,12 +119,13 @@ static int resolve_chunk(struct path *p, size_t size, struct path_resolve_args *
          */
 	remaind = size;
 	do {
-		c = alloc_chunk(p);
+		off = size - remaind;
+		len = remaind < chunk_sz ? remaind : chunk_sz;
+		c = alloc_chunk(p, off, len);
 		if (!c)
 			return -1;
-		c->off = size - remaind;
-		c->len = remaind < chunk_sz ? remaind : chunk_sz;
-		remaind -= c->len;
+
+		remaind -= len;
 		if (pool_push_lock(a->chunk_pool, c) < 0) {
 			pr_err("pool_push_lock: %s", strerrno());
 			return -1;
@@ -143,28 +144,43 @@ void free_path(struct path *p)
 	free(p);
 }
 
-static int append_path(sftp_session sftp, const char *path, struct stat st,
-		       struct path_resolve_args *a)
+struct path *alloc_path(char *path, char *dst_path)
 {
 	struct path *p;
 
 	if (!(p = malloc(sizeof(*p)))) {
 		pr_err("malloc: %s", strerrno());
+		return NULL;
+	}
+	memset(p, 0, sizeof(*p));
+
+	p->path = path;
+	p->dst_path = dst_path;
+	p->state = FILE_STATE_INIT;
+	lock_init(&p->lock);
+	p->data = 0;
+
+	return p;
+}
+
+static int append_path(sftp_session sftp, const char *path, struct stat st,
+		       struct path_resolve_args *a)
+{
+	struct path *p;
+	char *src, *dst;
+
+	if (!(src = strdup(path))) {
+		pr_err("strdup: %s", strerrno());
 		return -1;
 	}
 
-	memset(p, 0, sizeof(*p));
-	p->path = strndup(path, PATH_MAX);
-	if (!p->path) {
-		pr_err("strndup: %s", strerrno());
-		goto free_out;
+	if (!(dst = resolve_dst_path(src, a))) {
+		free(src);
+		return -1;
 	}
-	p->state = FILE_STATE_INIT;
-	lock_init(&p->lock);
 
-	p->dst_path = resolve_dst_path(p->path, a);
-	if (!p->dst_path)
-		goto free_out;
+	if (!(p = alloc_path(src, dst)))
+		return -1;
 
 	if (resolve_chunk(p, st.st_size, a) < 0)
 		return -1; /* XXX: do not free path becuase chunk(s)

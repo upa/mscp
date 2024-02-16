@@ -15,11 +15,4 @@
 /* Define to 1 if you have the ntohll function. */
 #cmakedefine HAVE_NTOHLL 1
 
-/* Define to 1 if you have the bswap_64 function. */
-#cmakedefine HAVE_BSWAP_64 1
-
-/* Define to 1 if you have the bswap64 function. */
-#cmakedefine HAVE_BSWAP64 1
-
-
 #endif /* _CONFIG_H_ */

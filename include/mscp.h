@@ -45,7 +45,8 @@ struct mscp_opts {
 	int	max_startups;	/** sshd MaxStartups concurrent connections */
 	int     interval;	/** interval between SSH connection attempts */
 	bool	preserve_ts;	/** preserve file timestamps */
-
+	char	*checkpoint;	/** path to checkpoint */
+	int	resume;		/** resume from checkpoint if > 0 */
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
 };
 
@@ -162,14 +163,35 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path);
 int mscp_scan(struct mscp *m);
 
 /**
- * @brief Join scna thread invoked by mscp_scan(). mscp_join()
- * involves this, so that mscp_scan_join() should be called when
- * mscp_scan() is called by mscp_start() is not.
+ * @brief Join scan thread invoked by mscp_scan() if it
+ * runs. mscp_join() involves mscp_can_join(). Thus, there is no need
+ * to call this function alone.
  *
  * @param m	mscp instance.
  * @return	0 on success, < 0 if an error occured.
  */
 int mscp_scan_join(struct mscp *m);
+
+/**
+ * @brief resume transfer from a checkpoint. mscp_load_checkpoint()
+ * loads files and associated chunks from a checkpoint file pointed by
+ * pathname. If you call mscp_load_checkpoint, do not call
+ * mscp_scan().
+ *
+ * @param m		mscp instance.
+ * @param pathname	path to a checkpoint file.
+ * @return		0 on success, < 0 if an error occured.
+ */
+int mscp_load_checkpoint(struct mscp *m, const char *pathname);
+
+/**
+ * @brief save untransferred files and chunks to a checkpoint file.
+ *
+ * @param m		mscp instance.
+ * @param pathname	path to a checkpoint file.
+ * @return		0 on success, < 0 if an error occured.
+ */
+int mscp_save_checkpoint(struct mscp *m, const char *pathname);
 
 /**
  * @brief Start to copy files. mscp_start() returns immediately. You

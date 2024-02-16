@@ -20,7 +20,11 @@ struct path {
 #define FILE_STATE_INIT 0
 #define FILE_STATE_OPENED 1
 #define FILE_STATE_DONE 2
+
+	uint64_t data; /* used by other components, i.e., checkpoint */
 };
+
+struct path *alloc_path(char *path, char *dst_path);
 
 struct chunk {
 	struct path *p;
@@ -31,6 +35,8 @@ struct chunk {
 #define CHUNK_STATE_COPING 1
 #define CHUNK_STATE_DONE 2
 };
+
+struct chunk *alloc_chunk(struct path *p, size_t off, size_t len);
 
 struct path_resolve_args {
 	size_t *total_bytes;
