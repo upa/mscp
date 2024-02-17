@@ -7,10 +7,14 @@
 int checkpoint_save(const char *pathname, int dir, char *remote_host, pool *path_pool,
 		    pool *chunk_pool);
 
-/* checkpoint_load() reads a checkpoint file (pathname). If path_pool
- * and chunk_pool are NULL, This function fills only *remote and *dir.
+/* checkpoint_load_meta() reads a checkpoint file (pathname) and returns
+ * remote host string to *remote and transfer direction to *dir.
  */
-int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
-		    pool *path_pool, pool *chunk_pool);
+int checkpoint_load_remote(const char *pathname, char *remote, size_t len, int *dir);
+
+/* checkpoint_load_paths() reads a checkpoint file (pathname) and
+ * fills path_pool and chunk_pool.
+ */
+int checkpoint_load_paths(const char *pathname, pool *path_pool, pool *chunk_pool);
 
 #endif /* _CHECKPOINT_H_ */

@@ -228,16 +228,13 @@ static int checkpoint_load_meta(struct checkpoint_obj_hdr *hdr, char *remote, si
 	}
 	pr_debug("checkpoint: version %u", meta->version);
 
-	if (dir)
-		*dir = meta->direction;
-
-	if (remote) {
-		if (len < ntohs(hdr->len) - sizeof(*meta)) {
-			priv_set_errv("too short buffer");
-			return -1;
-		}
-		snprintf(remote, len, "%s", meta->remote);
+	if (len < ntohs(hdr->len) - sizeof(*meta)) {
+		priv_set_errv("too short buffer");
+		return -1;
 	}
+	snprintf(remote, len, "%s", meta->remote);
+	*dir = meta->direction;
+
 	pr_info("checkpoint: remote=%s direction=%s", meta->remote,
 		meta->direction == MSCP_DIRECTION_L2R ? "local-to-remote" :
 		meta->direction == MSCP_DIRECTION_R2L ? "remote-to-local" :
@@ -305,8 +302,8 @@ static int checkpoint_load_chunk(struct checkpoint_obj_hdr *hdr, pool *path_pool
 	return 0;
 }
 
-int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
-		    pool *path_pool, pool *chunk_pool)
+static int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
+			   pool *path_pool, pool *chunk_pool)
 {
 	char buf[CHECKPOINT_OBJ_MAXLEN];
 	struct checkpoint_obj_hdr *hdr;
@@ -323,10 +320,12 @@ int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
 	while (checkpoint_read_obj(fd, buf, sizeof(buf)) == 0) {
 		switch (hdr->type) {
 		case OBJ_TYPE_META:
+			if (!remote || !dir)
+				break;
 			if (checkpoint_load_meta(hdr, remote, len, dir) < 0)
 				return -1;
 			if (!path_pool || !chunk_pool)
-				break;
+				goto out;
 			break;
 		case OBJ_TYPE_PATH:
 			if (!path_pool)
@@ -346,7 +345,18 @@ int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
 		}
 	}
 
+out:
 	close(fd);
 
 	return 0;
+}
+
+int checkpoint_load_remote(const char *pathname, char *remote, size_t len, int *dir)
+{
+	return checkpoint_load(pathname, remote, len, dir, NULL, NULL);
+}
+
+int checkpoint_load_paths(const char *pathname, pool *path_pool, pool *chunk_pool)
+{
+	return checkpoint_load(pathname, NULL, 0, NULL, path_pool, chunk_pool);
 }

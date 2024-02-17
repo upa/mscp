@@ -492,34 +492,17 @@ int mscp_scan_join(struct mscp *m)
 	return 0;
 }
 
-int mscp_load_checkpoint(struct mscp *m, const char *pathname)
+int mscp_checkpoint_get_remote(const char *pathname, char *remote, size_t len, int *dir)
 {
-	size_t total_bytes = 0;
-	unsigned int idx;
-	struct chunk *c;
-	char remote[1024];
-
-	if (checkpoint_load(pathname, remote, sizeof(remote), &m->direction, m->path_pool,
-			    m->chunk_pool) < 0)
-		return -1;
-
-	if (!(m->remote = strdup(remote))) {
-		priv_set_errv("malloc: %s", strerrno());
-		return -1;
-	}
-
-	pool_for_each(m->chunk_pool, c, idx) {
-		total_bytes += c->len;
-	}
-	m->total_bytes = total_bytes;
-
-	__sync_synchronize();
-	chunk_pool_set_ready(m, true);
-
-	return 0;
+	return checkpoint_load_remote(pathname, remote, len, dir);
 }
 
-int mscp_save_checkpoint(struct mscp *m, const char *pathname)
+int mscp_checkpoint_load(struct mscp *m, const char *pathname)
+{
+	return checkpoint_load_paths(pathname, m->path_pool, m->chunk_pool);
+}
+
+int mscp_checkpoint_save(struct mscp *m, const char *pathname)
 {
 	return checkpoint_save(pathname, m->direction, m->remote, m->path_pool,
 			       m->chunk_pool);

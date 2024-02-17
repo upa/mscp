@@ -173,25 +173,39 @@ int mscp_scan(struct mscp *m);
 int mscp_scan_join(struct mscp *m);
 
 /**
- * @brief resume transfer from a checkpoint. mscp_load_checkpoint()
- * loads files and associated chunks from a checkpoint file pointed by
- * pathname. If you call mscp_load_checkpoint, do not call
- * mscp_scan().
+ * @brief get information about remote host and copy direction from a
+ * checkpoint file specified by *pathname. This functions returns
+ * remote host name to *renote, and the copy direction into *dir.
+ * Thus, you can call mscp_init with those values.
  *
- * @param m		mscp instance.
  * @param pathname	path to a checkpoint file.
- * @return		0 on success, < 0 if an error occured.
+ * @param remote	char buffer to which remote hostname is stored.
+ * @param len		length of *remote.
+ * @param dir		int to which the copy direction is stored.
  */
-int mscp_load_checkpoint(struct mscp *m, const char *pathname);
+int mscp_checkpoint_get_remote(const char *pathname, char *remote, size_t len, int *dir);
 
 /**
- * @brief save untransferred files and chunks to a checkpoint file.
+ * @brief load information about untransferred files and chunks at the
+ * last transfer . mscp_checkpoint_load() loads files and associated
+ * chunks from the checkpoint file pointed by pathname. If you call
+ * mscp_checkpoint_load(), do not call mscp_scan().
  *
  * @param m		mscp instance.
  * @param pathname	path to a checkpoint file.
  * @return		0 on success, < 0 if an error occured.
  */
-int mscp_save_checkpoint(struct mscp *m, const char *pathname);
+int mscp_checkpoint_load(struct mscp *m, const char *pathname);
+
+/**
+ * @brief save information about untransferred files and chunks to a
+ * checkpoint file.
+ *
+ * @param m		mscp instance.
+ * @param pathname	path to a checkpoint file.
+ * @return		0 on success, < 0 if an error occured.
+ */
+int mscp_checkpoint_save(struct mscp *m, const char *pathname);
 
 /**
  * @brief Start to copy files. mscp_start() returns immediately. You
