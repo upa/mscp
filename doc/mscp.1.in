@@ -139,7 +139,7 @@ determined as an attack. The default value is 0.
 
 .TP
 .B \-W \fICHECKPOINT\fR
-Specifies a checkpoint file path to save the state of a failed
+Specifies a checkpoint file to save the state of a failed
 transfer. When transferring fails due to, for example, connection
 disruption or user interrupt,
 .B mscp
@@ -153,7 +153,7 @@ option with
 
 .TP
 .B \-R \fICHECKPOINT\fR
-Specifies a checkpoint file path to resume a transfer. When this
+Specifies a checkpoint file to resume a transfer. When this
 option with a checkpoint file is passed,
 .B mscp
 loads a remote host, copy direction, and files and their chunks to be
@@ -163,14 +163,12 @@ can resume a past failed transfer from the checkpoint. Resumeing with
 a checkpoint does not require
 .I source ... target
 arguments. Other options for establishing SSH connections, for
-example, username, port number, config file, should be specified as
+example, login_name, port number, config file, should be specified as
 with the failed run. In addition, checkpoint files contain files as
 relative paths. Thus, you must run
 .B mscp
-in the same working directory as the failed run.
-
-
-You can see contents of a checkpoint file with
+in the same working directory as the failed run. You can see contents
+of a checkpoint file with
 .B mscp
 .I \-vvv \-D \-R CHECKOPOINT
 command.

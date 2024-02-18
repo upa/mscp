@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4-19-g5f628b6
+:Date:   v0.1.4-20-g19c73af
 
 NAME
 ====
@@ -71,27 +71,24 @@ OPTIONS
    determined as an attack. The default value is 0.
 
 **-W CHECKPOINT**
-   Specifies a checkpoint file path to save the state of a failed
-   transfer. When transferring fails due to, for example, connection
-   disruption or user interrupt, **mscp** writes the information about
-   remaining files and chunks to the specified checkpoint file. **-W**
-   option with **-D** (dry-run mode) only writes a checkpoint file and
-   exits.
+   Specifies a checkpoint file to save the state of a failed transfer.
+   When transferring fails due to, for example, connection disruption or
+   user interrupt, **mscp** writes the information about remaining files
+   and chunks to the specified checkpoint file. **-W** option with
+   **-D** (dry-run mode) only writes a checkpoint file and exits.
 
 **-R CHECKPOINT**
-   Specifies a checkpoint file path to resume a transfer. When this
-   option with a checkpoint file is passed, **mscp** loads a remote
-   host, copy direction, and files and their chunks to be transferred
-   from the checkpoint file. Namely, **mscp** can resume a past failed
-   transfer from the checkpoint. Resumeing with a checkpoint does not
-   require *source ... target* arguments. Other options for establishing
-   SSH connections, for example, username, port number, config file,
+   Specifies a checkpoint file to resume a transfer. When this option
+   with a checkpoint file is passed, **mscp** loads a remote host, copy
+   direction, and files and their chunks to be transferred from the
+   checkpoint file. Namely, **mscp** can resume a past failed transfer
+   from the checkpoint. Resumeing with a checkpoint does not require
+   *source ... target* arguments. Other options for establishing SSH
+   connections, for example, login_name, port number, config file,
    should be specified as with the failed run. In addition, checkpoint
    files contain files as relative paths. Thus, you must run **mscp** in
-   the same working directory as the failed run.
-
-You can see contents of a checkpoint file with **mscp** *-vvv -D -R
-CHECKOPOINT* command.
+   the same working directory as the failed run. You can see contents of
+   a checkpoint file with **mscp** *-vvv -D -R CHECKOPOINT* command.
 
 **-s MIN_CHUNK_SIZE**
    Specifies the minimum chunk size. **mscp** divides a file into chunks

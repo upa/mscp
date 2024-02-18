@@ -11,6 +11,10 @@
 
 #include <checkpoint.h>
 
+#define MSCP_CHECKPOINT_MAGIC 0x6d736370UL /* mscp in UTF-8 */
+#define MSCP_CHECKPOINT_VERSION 0x1
+
+
 enum {
 	OBJ_TYPE_META = 0x0A,
 	OBJ_TYPE_PATH = 0x0B,
@@ -23,8 +27,6 @@ struct checkpoint_obj_hdr {
 	uint16_t len; /* length of an object including this hdr */
 } __attribute__((packed));
 
-#define MSCP_CHECKPOINT_MAGIC 0x6d736370UL /* mscp in UTF-8 */
-#define MSCP_CHECKPOINT_VERSION 0x1
 
 struct checkpoint_obj_meta {
 	struct checkpoint_obj_hdr hdr;
@@ -41,17 +43,24 @@ struct checkpoint_obj_path {
 	struct checkpoint_obj_hdr hdr;
 
 	uint32_t idx;
-	uint16_t src_off; /* offset to the src path
-					 * string (including \0) from
-					 * the head of this object. */
-
-	uint16_t dst_off; /* offset to the dst path
-					 * string (including \0) from
-					 * the head of this object */
+	uint16_t src_off; /* offset to the src path string (including
+			   * \0) from the head of this object. */
+	uint16_t dst_off; /* offset to the dst path string (including
+			   * \0) from the head of this object */
 } __attribute__((packed));
 
-#define obj_path_src(obj) ((char *)(obj) + ntohs(obj->src_off))
-#define obj_path_dst(obj) ((char *)(obj) + ntohs(obj->dst_off))
+#define obj_path_src(o) ((char *)(o) + ntohs(o->src_off))
+#define obj_path_dst(o) ((char *)(o) + ntohs(o->dst_off))
+
+#define obj_path_src_len(o) (ntohs(o->dst_off) - ntohs(o->src_off))
+#define obj_path_dst_len(o) (ntohs(o->hdr.len) - ntohs(o->dst_off))
+
+#define obj_path_validate(o)				     \
+	((ntohs(o->hdr.len) > ntohs(o->dst_off)) &&	     \
+	 (ntohs(o->dst_off) > ntohs(o->src_off)) &&	     \
+	 (obj_path_src_len(o) < PATH_MAX) &&		     \
+	 (obj_path_dst_len(o) < PATH_MAX))		     \
+
 
 struct checkpoint_obj_chunk {
 	struct checkpoint_obj_hdr hdr;
@@ -213,12 +222,17 @@ static int checkpoint_load_path(struct checkpoint_obj_hdr *hdr, pool *path_pool)
 	struct path *p;
 	char *s, *d;
 
-	if (!(s = strdup(obj_path_src(path)))) {
+	if (!obj_path_validate(path)) {
+		priv_set_errv("invalid path object");
+		return -1;
+	}
+
+	if (!(s = strndup(obj_path_src(path), obj_path_src_len(path)))) {
 		priv_set_errv("strdup: %s", strerrno());
 		return -1;
 	}
 
-	if (!(d = strdup(obj_path_dst(path)))) {
+	if (!(d = strndup(obj_path_dst(path), obj_path_dst_len(path)))) {
 		priv_set_errv("strdup: %s", strerrno());
 		free(s);
 		return -1;
@@ -235,7 +249,7 @@ static int checkpoint_load_path(struct checkpoint_obj_hdr *hdr, pool *path_pool)
 		return -1;
 	}
 
-	pr_info("checkpoint:path: %s -> %s", p->path, p->dst_path);
+	pr_info("checkpoint:file: %s -> %s", p->path, p->dst_path);
 
 	return 0;
 }
