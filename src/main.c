@@ -25,7 +25,7 @@ void usage(bool print_help)
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple SSH connections\n"
 	       "\n"
 	       "Usage: mscp [-46vqDpHdNh] [-n nr_conns] [-m coremask]\n"
-	       "            [-u max_startups] [-I interval]\n"
+	       "            [-u max_startups] [-I interval] [-W checkpoint] [-R checkpoint]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
 	       "            [-l login_name] [-P port] [-F ssh_config] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
@@ -41,6 +41,8 @@ void usage(bool print_help)
 	       "    -u MAX_STARTUPS    number of concurrent SSH connection attempts "
 	       "(default: 8)\n"
 	       "    -I INTERVAL        interval between SSH connection attempts (default: 0)\n"
+	       "    -W CHECKPOINT      write states to the checkpoint if transfer fails\n"
+	       "    -R CHECKPOINT      resume the transfer from the checkpoint\n"
 	       "\n"
 	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
@@ -262,14 +264,14 @@ int main(int argc, char **argv)
 	int pipe_fd[2];
 	int ch, n, i, ret;
 	int direction = 0;
-	char *remote;
-	bool dryrun = false;
+	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
+	bool dryrun = false, resume = false;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:s:S:a:b:46vqDrl:P:i:F:c:M:C:g:pHdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:46vqDrl:P:i:F:c:M:C:g:pHdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -287,6 +289,13 @@ int main(int argc, char **argv)
 			break;
 		case 'I':
 			o.interval = atoi(optarg);
+			break;
+		case 'W':
+			checkpoint_save = optarg;
+			break;
+		case 'R':
+			checkpoint_load = optarg;
+			resume = true;
 			break;
 		case 's':
 			o.min_chunk_sz = atoi(optarg);
@@ -366,53 +375,81 @@ int main(int argc, char **argv)
 	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
 	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
 
-	if (argc - optind < 2) {
-		/* mscp needs at lease 2 (src and target) argument */
-		usage(false);
-		return 1;
-	}
-	i = argc - optind;
-
-	if ((t = validate_targets(argv + optind, i)) == NULL)
-		return -1;
-
-	if (t[0].host) {
-		/* copy remote to local */
-		direction = MSCP_DIRECTION_R2L;
-		remote = t[0].host;
-		s.login_name = s.login_name ? s.login_name : t[0].user;
-	} else {
-		/* copy local to remote */
-		direction = MSCP_DIRECTION_L2R;
-		remote = t[i - 1].host;
-		s.login_name = s.login_name ? s.login_name : t[i - 1].user;
-	}
-
-	if ((m = mscp_init(remote, direction, &o, &s)) == NULL) {
+	if ((m = mscp_init(&o, &s)) == NULL) {
 		pr_err("mscp_init: %s", priv_get_err());
 		return -1;
 	}
 
-	if (mscp_connect(m) < 0) {
-		pr_err("mscp_connect: %s", priv_get_err());
-		return -1;
-	}
+	if (!resume) {
+		/* normal transfer (not resume) */
+		if (argc - optind < 2) {
+			/* mscp needs at lease 2 (src and target) argument */
+			usage(false);
+			return 1;
+		}
+		i = argc - optind;
 
-	for (n = 0; n < i - 1; n++) {
-		if (mscp_add_src_path(m, t[n].path) < 0) {
-			pr_err("mscp_add_src_path: %s", priv_get_err());
+		if ((t = validate_targets(argv + optind, i)) == NULL)
+			return -1;
+
+		if (t[0].host) {
+			/* copy remote to local */
+			direction = MSCP_DIRECTION_R2L;
+			remote = t[0].host;
+			s.login_name = s.login_name ? s.login_name : t[0].user;
+		} else {
+			/* copy local to remote */
+			direction = MSCP_DIRECTION_L2R;
+			remote = t[i - 1].host;
+			s.login_name = s.login_name ? s.login_name : t[i - 1].user;
+		}
+
+		if (mscp_set_remote(m, remote, direction) < 0) {
+			pr_err("mscp_set_remote: %s", priv_get_err());
 			return -1;
 		}
-	}
 
-	if (mscp_set_dst_path(m, t[i - 1].path) < 0) {
-		pr_err("mscp_set_dst_path: %s", priv_get_err());
-		return -1;
-	}
+		if (mscp_connect(m) < 0) {
+			pr_err("mscp_connect: %s", priv_get_err());
+			return -1;
+		}
 
-	if (mscp_scan(m) < 0) {
-		pr_err("mscp_scan: %s", priv_get_err());
-		return -1;
+		for (n = 0; n < i - 1; n++) {
+			if (mscp_add_src_path(m, t[n].path) < 0) {
+				pr_err("mscp_add_src_path: %s", priv_get_err());
+				return -1;
+			}
+		}
+
+		if (mscp_set_dst_path(m, t[i - 1].path) < 0) {
+			pr_err("mscp_set_dst_path: %s", priv_get_err());
+			return -1;
+		}
+
+		/* start to scan source files and resolve their destination paths */
+		if (mscp_scan(m) < 0) {
+			pr_err("mscp_scan: %s", priv_get_err());
+			return -1;
+		}
+	} else {
+		/* resume a transfer from the specified checkpoint */
+		char r[512];
+		int d;
+		if (mscp_checkpoint_get_remote(checkpoint_load, r, sizeof(r), &d) < 0) {
+			pr_err("mscp_checkpoint_get_remote: %s", priv_get_err());
+			return -1;
+		}
+
+		if (mscp_set_remote(m, r, d) < 0) {
+			pr_err("mscp_set_remote: %s", priv_get_err());
+			return -1;
+		}
+
+		/* load paths and chunks to be transferred from checkpoint */
+		if (mscp_checkpoint_load(m, checkpoint_load) < 0) {
+			pr_err("mscp_checkpoint_load: %s", priv_get_err());
+			return -1;
+		}
 	}
 
 	if (dryrun) {
@@ -442,11 +479,18 @@ int main(int argc, char **argv)
 	print_stat(true);
 	print_cli("\n"); /* final output */
 out:
-	mscp_cleanup(m);
-	mscp_free(m);
-
 	if (interrupted)
 		ret = 1;
+
+	if ((dryrun || ret != 0) && checkpoint_save) {
+		if (mscp_checkpoint_save(m, checkpoint_save) < 0) {
+			pr_err("mscp_checkpoint_save: %s", priv_get_err());
+			return -1;
+		}
+	}
+
+	mscp_cleanup(m);
+	mscp_free(m);
 
 	return ret;
 }

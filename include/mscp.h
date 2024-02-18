@@ -16,13 +16,14 @@
  * libmscp is follows:
  *
  * 1. create mscp instance with mscp_init()
- * 2. connect to remote host with mscp_connect()
- * 3. add path to source files with mscp_add_src_path()
- * 4. set path to destination with mscp_set_dst_path()
- * 5. start to scan source files with mscp_scan()
- * 6. start copy with mscp_start()
- * 7. wait for copy finished with mscp_join()
- * 8. cleanup mscp instance with mscp_cleanup() and mscp_free()
+ * 2. set remote host and copy direction with mscp_set_remote()
+ * 3. connect to remote host with mscp_connect()
+ * 4. add path to source files with mscp_add_src_path()
+ * 5. set path to destination with mscp_set_dst_path()
+ * 6. start to scan source files with mscp_scan()
+ * 7. start copy with mscp_start()
+ * 8. wait for copy finished with mscp_join()
+ * 9. cleanup mscp instance with mscp_cleanup() and mscp_free()
  */
 
 #include <stdbool.h>
@@ -45,8 +46,6 @@ struct mscp_opts {
 	int	max_startups;	/** sshd MaxStartups concurrent connections */
 	int     interval;	/** interval between SSH connection attempts */
 	bool	preserve_ts;	/** preserve file timestamps */
-	char	*checkpoint;	/** path to checkpoint */
-	int	resume;		/** resume from checkpoint if > 0 */
 	int	severity; 	/** messaging severity. set MSCP_SERVERITY_* */
 };
 
@@ -102,15 +101,22 @@ struct mscp;
 /**
  * @brief Creates a new mscp instance.
  *
- * @param remote_host	remote host for file transer.
- * @param direction	copy direction, `MSCP_DIRECTION_L2R` or `MSCP_DIRECTION_R2L`
  * @param o		options for configuring mscp.
  * @param s		options for configuring ssh connections.
  *
  * @retrun 		A new mscp instance or NULL on error.
  */
-struct mscp *mscp_init(const char *remote_host, int direction,
-		       struct mscp_opts *o, struct mscp_ssh_opts *s);
+struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s);
+
+/**
+ * @brief Set remote host and copy direction.
+ *
+ * @param remote_host	remote host for file transer.
+ * @param direction	copy direction, `MSCP_DIRECTION_L2R` or `MSCP_DIRECTION_R2L`
+ *
+ * @return              0 on success, < 0 if an error occured.
+ */
+int mscp_set_remote(struct mscp *m, const char *remote_host, int direction);
 
 /**
  * @brief Connect the first SSH connection. mscp_connect connects to

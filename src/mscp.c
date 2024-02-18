@@ -202,21 +202,31 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 	return 0;
 }
 
-struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts *o,
-		       struct mscp_ssh_opts *s)
+int mscp_set_remote(struct mscp *m, const char *remote_host, int direction)
 {
-	struct mscp *m;
-	int n;
-
 	if (!remote_host) {
 		priv_set_errv("empty remote host");
-		return NULL;
+		return -1;
 	}
 
 	if (!(direction == MSCP_DIRECTION_L2R || direction == MSCP_DIRECTION_R2L)) {
 		priv_set_errv("invalid copy direction: %d", direction);
-		return NULL;
+		return -1;
 	}
+
+	if (!(m->remote = strdup(remote_host))) {
+		priv_set_errv("strdup: %s", strerrno());
+		return -1;
+	}
+	m->direction = direction;
+
+	return 0;
+}
+
+struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s)
+{
+	struct mscp *m;
+	int n;
 
 	set_print_severity(o->severity);
 
@@ -229,7 +239,6 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 		return NULL;
 	}
 	memset(m, 0, sizeof(*m));
-	m->direction = direction;
 	m->opts = o;
 	m->ssh_opts = s;
 	chunk_pool_set_ready(m, false);
@@ -256,11 +265,6 @@ struct mscp *mscp_init(const char *remote_host, int direction, struct mscp_opts 
 
 	if ((m->sem = sem_create(o->max_startups)) == NULL) {
 		priv_set_errv("sem_create: %s", strerrno());
-		goto free_out;
-	}
-
-	if (!(m->remote = strdup(remote_host))) {
-		priv_set_errv("strdup: %s", strerrno());
 		goto free_out;
 	}
 
@@ -499,7 +503,21 @@ int mscp_checkpoint_get_remote(const char *pathname, char *remote, size_t len, i
 
 int mscp_checkpoint_load(struct mscp *m, const char *pathname)
 {
-	return checkpoint_load_paths(pathname, m->path_pool, m->chunk_pool);
+	struct chunk *c;
+	unsigned int i;
+
+	if (checkpoint_load_paths(pathname, m->path_pool, m->chunk_pool) < 0)
+		return -1;
+
+	/* totaling up bytes to be transferred and set chunk_pool is
+	 * ready instead of the mscp_scan thread */
+	m->total_bytes = 0;
+	pool_for_each(m->chunk_pool, c, i) {
+		m->total_bytes += c->len;
+	}
+	chunk_pool_set_ready(m, true);
+
+	return 0;
 }
 
 int mscp_checkpoint_save(struct mscp *m, const char *pathname)

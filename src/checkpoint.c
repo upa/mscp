@@ -12,9 +12,9 @@
 #include <checkpoint.h>
 
 enum {
-	OBJ_TYPE_META = 1,
-	OBJ_TYPE_PATH = 2,
-	OBJ_TYPE_CHUNK = 3,
+	OBJ_TYPE_META = 0x0A,
+	OBJ_TYPE_PATH = 0x0B,
+	OBJ_TYPE_CHUNK = 0x0C,
 };
 
 struct checkpoint_obj_hdr {
@@ -123,7 +123,7 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 	struct iovec iov[2];
 	struct chunk *c;
 	struct path *p;
-	unsigned int i;
+	unsigned int i, nr_paths, nr_chunks;
 	int fd;
 
 	fd = open(pathname, O_WRONLY | O_CREAT | O_TRUNC,
@@ -132,6 +132,8 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 		priv_set_errv("open: %s: %s", pathname, strerrno());
 		return -1;
 	}
+
+	pr_notice("checkppoint: save to %s", pathname);
 
 	/* write meta */
 	memset(&meta, 0, sizeof(meta));
@@ -152,62 +154,26 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 	}
 
 	/* write paths */
+	nr_paths = 0;
 	pool_for_each(path_pool, p, i) {
 		if (p->state == FILE_STATE_DONE)
 			continue;
 		if (checkpoint_write_path(fd, p, i) < 0)
 			return -1;
+		nr_paths++;
 	}
 
 	/* write chunks */
+	nr_chunks = 0;
 	pool_for_each(chunk_pool, c, i) {
 		if (c->state == CHUNK_STATE_DONE)
 			continue;
 		if (checkpoint_write_chunk(fd, c) < 0)
 			return -1;
+		nr_chunks++;
 	}
 
-	return 0;
-}
-
-static ssize_t readw(int fd, void *buf, size_t count)
-{
-	size_t ret;
-
-	ret = read(fd, buf, count);
-	if (ret < 0) {
-		priv_set_errv("read: %s", strerrno());
-		return -1;
-	}
-	if (ret < count) {
-		priv_set_errv("read truncated");
-		return -1;
-	}
-
-	return 0;
-}
-
-static int checkpoint_read_obj(int fd, void *buf, size_t count)
-{
-	struct checkpoint_obj_hdr *hdr = (struct checkpoint_obj_hdr *)buf;
-	size_t ret, objlen;
-
-	if (count < sizeof(*hdr)) {
-		priv_set_errv("too short buffer");
-		return -1;
-	}
-
-	if (readw(fd, hdr, sizeof(*hdr)) < 0)
-		return -1;
-
-	objlen = ntohs(hdr->len);
-	if (count < objlen) {
-		priv_set_errv("too short buffer");
-		return -1;
-	}
-
-	if (readw(fd, hdr + 1, objlen - sizeof(*hdr)) < 0)
-		return -1;
+	pr_info("checkpoint: %u paths and %u chunks saved", nr_paths, nr_chunks);
 
 	return 0;
 }
@@ -235,10 +201,10 @@ static int checkpoint_load_meta(struct checkpoint_obj_hdr *hdr, char *remote, si
 	snprintf(remote, len, "%s", meta->remote);
 	*dir = meta->direction;
 
-	pr_info("checkpoint: remote=%s direction=%s", meta->remote,
-		meta->direction == MSCP_DIRECTION_L2R ? "local-to-remote" :
-		meta->direction == MSCP_DIRECTION_R2L ? "remote-to-local" :
-							"invalid");
+	pr_notice("checkpoint: loaded, remote=%s direction=%s", meta->remote,
+		  meta->direction == MSCP_DIRECTION_L2R ? "local-to-remote" :
+		  meta->direction == MSCP_DIRECTION_R2L ? "remote-to-local" :
+							  "invalid");
 
 	return 0;
 }
@@ -271,7 +237,7 @@ static int checkpoint_load_path(struct checkpoint_obj_hdr *hdr, pool *path_pool)
 		return -1;
 	}
 
-	pr_debug("checkpoint: %s -> %s\n", p->path, p->dst_path);
+	pr_info("checkpoint: %s -> %s", p->path, p->dst_path);
 
 	return 0;
 }
@@ -302,14 +268,46 @@ static int checkpoint_load_chunk(struct checkpoint_obj_hdr *hdr, pool *path_pool
 	return 0;
 }
 
+static int checkpoint_read_obj(int fd, void *buf, size_t count)
+{
+	struct checkpoint_obj_hdr *hdr = (struct checkpoint_obj_hdr *)buf;
+	ssize_t ret, objlen, objbuflen;
+
+	memset(buf, 0, count);
+
+	if (count < sizeof(*hdr)) {
+		priv_set_errv("too short buffer");
+		return -1;
+	}
+
+	ret = read(fd, hdr, sizeof(*hdr));
+	if (ret == 0)
+		return 0; /* no more objects */
+	if (ret < 0)
+		return -1;
+
+	objlen = ntohs(hdr->len) - sizeof(*hdr);
+	objbuflen = count - sizeof(*hdr);
+	if (objbuflen < objlen) {
+		priv_set_errv("too short buffer");
+		return -1;
+	}
+
+	ret = read(fd, buf + sizeof(*hdr), objlen);
+	if (ret < objlen) {
+		priv_set_errv("checkpoint truncated");
+		return -1;
+	}
+
+	return 1;
+}
+
 static int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
 			   pool *path_pool, pool *chunk_pool)
 {
 	char buf[CHECKPOINT_OBJ_MAXLEN];
 	struct checkpoint_obj_hdr *hdr;
-	int fd;
-
-	pr_notice("load checkpoint %s", pathname);
+	int fd, ret;
 
 	if ((fd = open(pathname, O_RDONLY)) < 0) {
 		priv_set_errv("open: %s: %s", pathname, strerrno());
@@ -317,7 +315,7 @@ static int checkpoint_load(const char *pathname, char *remote, size_t len, int *
 	}
 
 	hdr = (struct checkpoint_obj_hdr *)buf;
-	while (checkpoint_read_obj(fd, buf, sizeof(buf)) == 0) {
+	while ((ret = checkpoint_read_obj(fd, buf, sizeof(buf))) > 0) {
 		switch (hdr->type) {
 		case OBJ_TYPE_META:
 			if (!remote || !dir)
