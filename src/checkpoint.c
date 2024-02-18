@@ -133,8 +133,6 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 		return -1;
 	}
 
-	pr_notice("checkppoint: save to %s", pathname);
-
 	/* write meta */
 	memset(&meta, 0, sizeof(meta));
 	meta.hdr.type = OBJ_TYPE_META;
@@ -173,7 +171,7 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 		nr_chunks++;
 	}
 
-	pr_info("checkpoint: %u paths and %u chunks saved", nr_paths, nr_chunks);
+	pr_notice("checkpoint: %u paths and %u chunks saved", nr_paths, nr_chunks);
 
 	return 0;
 }
@@ -201,7 +199,7 @@ static int checkpoint_load_meta(struct checkpoint_obj_hdr *hdr, char *remote, si
 	snprintf(remote, len, "%s", meta->remote);
 	*dir = meta->direction;
 
-	pr_notice("checkpoint: loaded, remote=%s direction=%s", meta->remote,
+	pr_notice("checkpoint: remote=%s direction=%s", meta->remote,
 		  meta->direction == MSCP_DIRECTION_L2R ? "local-to-remote" :
 		  meta->direction == MSCP_DIRECTION_R2L ? "remote-to-local" :
 							  "invalid");
@@ -237,7 +235,7 @@ static int checkpoint_load_path(struct checkpoint_obj_hdr *hdr, pool *path_pool)
 		return -1;
 	}
 
-	pr_info("checkpoint: %s -> %s", p->path, p->dst_path);
+	pr_info("checkpoint:path: %s -> %s", p->path, p->dst_path);
 
 	return 0;
 }
@@ -263,7 +261,7 @@ static int checkpoint_load_chunk(struct checkpoint_obj_hdr *hdr, pool *path_pool
 		return -1;
 	}
 
-	pr_debug("checkpoint: %s 0x%lx-0x%lx", p->path, c->off, c->off + c->len);
+	pr_debug("checkpoint:chunk: %s 0x%lx-0x%lx", p->path, c->off, c->off + c->len);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4
+:Date:   v0.1.4-19-g5f628b6
 
 NAME
 ====
@@ -14,6 +14,7 @@ SYNOPSIS
 
 **mscp** [**-46vqDpHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
 **-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
+**-W**\ *CHECKPOINT* ] [ **-R**\ *CHECKPOINT* ] [
 **-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
 **-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-l**\ *LOGIN_NAME* ] [
 **-P**\ *PORT* ] [ **-F**\ *CONFIG* ] [ **-i**\ *IDENTITY* ] [
@@ -68,6 +69,29 @@ OPTIONS
    source IP address for a short period as a brute force attack. This
    option inserts intervals between the attempts to avoid being
    determined as an attack. The default value is 0.
+
+**-W CHECKPOINT**
+   Specifies a checkpoint file path to save the state of a failed
+   transfer. When transferring fails due to, for example, connection
+   disruption or user interrupt, **mscp** writes the information about
+   remaining files and chunks to the specified checkpoint file. **-W**
+   option with **-D** (dry-run mode) only writes a checkpoint file and
+   exits.
+
+**-R CHECKPOINT**
+   Specifies a checkpoint file path to resume a transfer. When this
+   option with a checkpoint file is passed, **mscp** loads a remote
+   host, copy direction, and files and their chunks to be transferred
+   from the checkpoint file. Namely, **mscp** can resume a past failed
+   transfer from the checkpoint. Resumeing with a checkpoint does not
+   require *source ... target* arguments. Other options for establishing
+   SSH connections, for example, username, port number, config file,
+   should be specified as with the failed run. In addition, checkpoint
+   files contain files as relative paths. Thus, you must run **mscp** in
+   the same working directory as the failed run.
+
+You can see contents of a checkpoint file with **mscp** *-vvv -D -R
+CHECKOPOINT* command.
 
 **-s MIN_CHUNK_SIZE**
    Specifies the minimum chunk size. **mscp** divides a file into chunks
@@ -198,6 +222,22 @@ Copy a local file and a directory to /tmp at a remote host:
 ::
 
        $ mscp ~/src-file dir1 10.0.0.1:/tmp
+
+Save a checkpoint if transfer fails:
+
+::
+
+       $ mscp -W checkpoint srcdir 10.0.0.1:dst/
+
+Check remaining files and chunkes, and resume a failed transfer:
+
+::
+
+       # dump a checkpoint and exit (dry-run mode)
+       $ mscp -vvv -D -R checkpoint
+
+       # resume transferring from the checkpoint
+       $ mscp -R checkpoint
 
 In a long fat network, following options might improve performance:
 

@@ -20,6 +20,12 @@ mscp \- copy files over multiple SSH connections
 .BI \-I \ INTERVAL\c
 ]
 [\c
+.BI \-W \ CHECKPOINT\c
+]
+[\c
+.BI \-R \ CHECKPOINT\c
+]
+[\c
 .BI \-s \ MIN_CHUNK_SIZE\c
 ]
 [\c
@@ -130,6 +136,47 @@ attempts. Some firewall products treat SSH connection attempts from a
 single source IP address for a short period as a brute force attack.
 This option inserts intervals between the attempts to avoid being
 determined as an attack. The default value is 0.
+
+.TP
+.B \-W \fICHECKPOINT\fR
+Specifies a checkpoint file path to save the state of a failed
+transfer. When transferring fails due to, for example, connection
+disruption or user interrupt,
+.B mscp
+writes the information about remaining files and chunks to the
+specified checkpoint file.
+.B \-W
+option with
+.B \-D
+(dry-run mode) only writes a checkpoint file and exits.
+
+
+.TP
+.B \-R \fICHECKPOINT\fR
+Specifies a checkpoint file path to resume a transfer. When this
+option with a checkpoint file is passed,
+.B mscp
+loads a remote host, copy direction, and files and their chunks to be
+transferred from the checkpoint file. Namely,
+.B mscp
+can resume a past failed transfer from the checkpoint. Resumeing with
+a checkpoint does not require
+.I source ... target
+arguments. Other options for establishing SSH connections, for
+example, username, port number, config file, should be specified as
+with the failed run. In addition, checkpoint files contain files as
+relative paths. Thus, you must run
+.B mscp
+in the same working directory as the failed run.
+
+
+You can see contents of a checkpoint file with
+.B mscp
+.I \-vvv \-D \-R CHECKOPOINT
+command.
+
+
+
 
 .TP
 .B \-s \fIMIN_CHUNK_SIZE\fR
@@ -307,6 +354,24 @@ Copy a local file and a directory to /tmp at a remote host:
 .fi
 
 .PP
+Save a checkpoint if transfer fails:
+
+.nf
+    $ mscp -W checkpoint srcdir 10.0.0.1:dst/
+.fi
+
+.PP
+Check remaining files and chunkes, and resume a failed transfer:
+
+.nf
+    # dump a checkpoint and exit (dry-run mode)
+    $ mscp -vvv -D -R checkpoint
+
+    # resume transferring from the checkpoint
+    $ mscp -R checkpoint
+.fi
+
+.PP
 In a long fat network, following options might improve performance:
 
 .nf
@@ -322,7 +387,6 @@ increases asynchronous inflight SFTP WRITE/READ commands, and
 .B -c aes128-gcm@openssh.com
 will be faster than the default chacha20-poly1305 cipher, particularly
 on hosts that support AES-NI.
-
 
 
 .SH "SEE ALSO"

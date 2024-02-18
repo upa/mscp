@@ -483,6 +483,7 @@ out:
 		ret = 1;
 
 	if ((dryrun || ret != 0) && checkpoint_save) {
+		print_cli("save checkpoint to %s\n", checkpoint_save);
 		if (mscp_checkpoint_save(m, checkpoint_save) < 0) {
 			pr_err("mscp_checkpoint_save: %s", priv_get_err());
 			return -1;
