@@ -4,8 +4,8 @@
 #include <pool.h>
 
 /* checkpoint_save() stores states to a checkponint file (pathname) */
-int checkpoint_save(const char *pathname, int dir, char *remote_host, pool *path_pool,
-		    pool *chunk_pool);
+int checkpoint_save(const char *pathname, int dir, const char *user, const char *remote,
+		    pool *path_pool, pool *chunk_pool);
 
 /* checkpoint_load_meta() reads a checkpoint file (pathname) and returns
  * remote host string to *remote and transfer direction to *dir.

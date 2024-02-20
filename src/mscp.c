@@ -522,8 +522,8 @@ int mscp_checkpoint_load(struct mscp *m, const char *pathname)
 
 int mscp_checkpoint_save(struct mscp *m, const char *pathname)
 {
-	return checkpoint_save(pathname, m->direction, m->remote, m->path_pool,
-			       m->chunk_pool);
+	return checkpoint_save(pathname, m->direction, m->ssh_opts->login_name,
+			       m->remote, m->path_pool, m->chunk_pool);
 }
 
 static void *mscp_copy_thread(void *arg);

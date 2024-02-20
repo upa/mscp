@@ -126,16 +126,17 @@ static int checkpoint_write_chunk(int fd, struct chunk *c)
 	return 0;
 }
 
-int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool,
-		    pool *chunk_pool)
+int checkpoint_save(const char *pathname, int dir, const char *user, const char *remote,
+		    pool *path_pool, pool *chunk_pool)
 {
 	struct checkpoint_file_hdr hdr;
 	struct checkpoint_obj_meta meta;
 	struct iovec iov[3];
 	struct chunk *c;
 	struct path *p;
+	char buf[1024];
 	unsigned int i, nr_paths, nr_chunks;
-	int fd;
+	int fd, ret;
 
 	fd = open(pathname, O_WRONLY | O_CREAT | O_TRUNC,
 		  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
@@ -149,17 +150,26 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 	hdr.version = MSCP_CHECKPOINT_VERSION;
 
 	/* write meta */
+	if (user)
+		ret = snprintf(buf, sizeof(buf), "%s@%s", user, remote);
+	else
+		ret = snprintf(buf, sizeof(buf), "%s", remote);
+	if (ret >= sizeof(buf)) {
+		priv_set_errv("too long username and/or remote");
+		return -1;
+	}
+
 	memset(&meta, 0, sizeof(meta));
 	meta.hdr.type = OBJ_TYPE_META;
-	meta.hdr.len = htons(sizeof(meta) + strlen(remote) + 1);
+	meta.hdr.len = htons(sizeof(meta) + strlen(buf) + 1);
 	meta.direction = dir;
 
 	iov[0].iov_base = &hdr;
 	iov[0].iov_len = sizeof(hdr);
 	iov[1].iov_base = &meta;
 	iov[1].iov_len = sizeof(meta);
-	iov[2].iov_base = remote;
-	iov[2].iov_len = strlen(remote) + 1;
+	iov[2].iov_base = buf;
+	iov[2].iov_len = strlen(buf) + 1;
 
 	if (writev(fd, iov, 3) < 0) {
 		priv_set_errv("writev: %s", strerrno());
