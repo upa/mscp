@@ -10,7 +10,7 @@ import time
 import os
 import shutil
 
-from subprocess import check_call, CalledProcessError, PIPE
+from subprocess import check_call, PIPE, CalledProcessError
 from util import File, check_same_md5sum
 
 
@@ -19,11 +19,14 @@ def run2ok(args, env = None):
     print("cmd: {}".format(" ".join(cmd)))
     check_call(cmd, env = env)
 
-def run2ng(args, env = None):
+def run2ng(args, env = None, timeout = None):
+    if timeout:
+        args = ["timeout", "-s", "INT", timeout] + args
     cmd = list(map(str, args))
     print("cmd: {}".format(" ".join(cmd)))
     with pytest.raises(CalledProcessError) as e:
         check_call(cmd, env = env)
+
 
 
 """ usage test """
@@ -509,3 +512,44 @@ def test_10k_files(mscp, src_prefix, dst_prefix):
         assert check_same_md5sum(s, d)
     shutil.rmtree("src")
     shutil.rmtree("dst")
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
+    src1 = File("src1", size = 512 * 1024 * 1024).make()
+    src2 = File("src2", size = 512 * 1024 * 1024).make()
+    dst1 = File("dst/src1")
+    dst2 = File("dst/src2")
+    run2ok([mscp, "-H", "-vvv", "-W", "checkpoint", "-D",
+            src_prefix + "src1", src_prefix + "src2", dst_prefix + "dst"])
+    assert os.path.exists("checkpoint")
+
+    run2ok([mscp, "-H", "-vvv", "-R", "checkpoint"])
+    assert check_same_md5sum(src1, dst1)
+    assert check_same_md5sum(src2, dst2)
+    src1.cleanup()
+    src2.cleanup()
+    dst1.cleanup()
+    dst2.cleanup()
+    os.remove("checkpoint")
+
+@pytest.mark.parametrize("timeout", [1,2,3])
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
+    src1 = File("src1", size = 512 * 1024 * 1024).make()
+    src2 = File("src2", size = 512 * 1024 * 1024).make()
+    dst1 = File("dst/src1")
+    dst2 = File("dst/src2")
+    run2ng([mscp, "-H", "-vv", "-W", "checkpoint",
+            "-n", 1, "-s", 8192, "-S", 16384,
+            src_prefix + "src1", src_prefix + "src2", dst_prefix + "dst"],
+           timeout = timeout)
+    assert os.path.exists("checkpoint")
+
+    run2ok([mscp, "-H", "-vv", "-R", "checkpoint"])
+    assert check_same_md5sum(src1, dst1)
+    assert check_same_md5sum(src2, dst2)
+    src1.cleanup()
+    src2.cleanup()
+    dst1.cleanup()
+    dst2.cleanup()
+    os.remove("checkpoint")

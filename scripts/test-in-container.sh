@@ -19,4 +19,4 @@ ssh-keyscan 127.0.0.1 >> ${HOME}/.ssh/known_hosts
 ssh-keyscan ::1 >> ${HOME}/.ssh/known_hosts
 
 # Run test
-python3 -m pytest ../test -v
+python3 -m pytest -v ../test 
