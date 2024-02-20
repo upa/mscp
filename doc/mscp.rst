@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4-20-g19c73af
+:Date:   v0.1.4-24-g426c3d6
 
 NAME
 ====
@@ -73,22 +73,25 @@ OPTIONS
 **-W CHECKPOINT**
    Specifies a checkpoint file to save the state of a failed transfer.
    When transferring fails due to, for example, connection disruption or
-   user interrupt, **mscp** writes the information about remaining files
-   and chunks to the specified checkpoint file. **-W** option with
+   user interrupt, **mscp** writes the information about the remaining
+   files and chunks to the specified checkpoint file. **-W** option with
    **-D** (dry-run mode) only writes a checkpoint file and exits.
 
 **-R CHECKPOINT**
-   Specifies a checkpoint file to resume a transfer. When this option
-   with a checkpoint file is passed, **mscp** loads a remote host, copy
-   direction, and files and their chunks to be transferred from the
-   checkpoint file. Namely, **mscp** can resume a past failed transfer
-   from the checkpoint. Resumeing with a checkpoint does not require
-   *source ... target* arguments. Other options for establishing SSH
-   connections, for example, login_name, port number, config file,
-   should be specified as with the failed run. In addition, checkpoint
-   files contain files as relative paths. Thus, you must run **mscp** in
-   the same working directory as the failed run. You can see contents of
-   a checkpoint file with **mscp** *-vvv -D -R CHECKOPOINT* command.
+   Specifies a checkpoint file to resume a transfer. When a checkpoint
+   file is passed, **mscp** reads the checkpoint to load a remote host,
+   copy direction, and files and their chunks to be transferred. Namely,
+   **mscp** can resume a past failed transfer from the checkpoint.
+   Resumeing with a checkpoint does not require *source ... target*
+   arguments. Other SSH connection options, such as port number and
+   config file, should be specified as with the failed run. In addition,
+   checkpoint files have file paths as relative paths. Thus, you must
+   run **mscp** in the same working directory as the failed run. You can
+   see the contents of a checkpoint file with the **mscp -vv -D -R
+   CHECKOPOINT** command (Dry-run mode). Note that the checkpoint file
+   is not automatically removed after the resumed transfer ends
+   successfully. Users should check the return value of **mscp** and
+   remove the checkpoint if it returns 0.
 
 **-s MIN_CHUNK_SIZE**
    Specifies the minimum chunk size. **mscp** divides a file into chunks
@@ -224,17 +227,17 @@ Save a checkpoint if transfer fails:
 
 ::
 
-       $ mscp -W checkpoint srcdir 10.0.0.1:dst/
+       $ mscp -W mscp.checkpoint many-large-files 10.0.0.1:dst/
 
-Check remaining files and chunkes, and resume a failed transfer:
+Check the remaining files and chunkes, and resume the failed transfer:
 
 ::
 
-       # dump a checkpoint and exit (dry-run mode)
-       $ mscp -vvv -D -R checkpoint
+       # Dump the content of a checkpoint and exit (dry-run mode)
+       $ mscp -vv -D -R mscp.checkpoint
 
        # resume transferring from the checkpoint
-       $ mscp -R checkpoint
+       $ mscp -R mscp.checkpoint
 
 In a long fat network, following options might improve performance:
 

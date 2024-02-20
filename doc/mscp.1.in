@@ -143,7 +143,7 @@ Specifies a checkpoint file to save the state of a failed
 transfer. When transferring fails due to, for example, connection
 disruption or user interrupt,
 .B mscp
-writes the information about remaining files and chunks to the
+writes the information about the remaining files and chunks to the
 specified checkpoint file.
 .B \-W
 option with
@@ -153,27 +153,27 @@ option with
 
 .TP
 .B \-R \fICHECKPOINT\fR
-Specifies a checkpoint file to resume a transfer. When this
-option with a checkpoint file is passed,
+Specifies a checkpoint file to resume a transfer. When a checkpoint
+file is passed,
 .B mscp
-loads a remote host, copy direction, and files and their chunks to be
-transferred from the checkpoint file. Namely,
+reads the checkpoint to load a remote host, copy direction, and files
+and their chunks to be transferred. Namely,
 .B mscp
 can resume a past failed transfer from the checkpoint. Resumeing with
 a checkpoint does not require
 .I source ... target
-arguments. Other options for establishing SSH connections, for
-example, login_name, port number, config file, should be specified as
-with the failed run. In addition, checkpoint files contain files as
-relative paths. Thus, you must run
+arguments. Other SSH connection options, such as port number and
+config file, should be specified as with the failed run. In addition,
+checkpoint files have file paths as relative paths. Thus, you must run
 .B mscp
-in the same working directory as the failed run. You can see contents
-of a checkpoint file with
+in the same working directory as the failed run. You can see the
+contents of a checkpoint file with the
+.B mscp \-vv \-D \-R CHECKOPOINT
+command (Dry-run mode).  Note that the checkpoint file is not
+automatically removed after the resumed transfer ends
+successfully. Users should check the return value of
 .B mscp
-.I \-vvv \-D \-R CHECKOPOINT
-command.
-
-
+and remove the checkpoint if it returns 0.
 
 
 .TP
@@ -355,18 +355,18 @@ Copy a local file and a directory to /tmp at a remote host:
 Save a checkpoint if transfer fails:
 
 .nf
-    $ mscp -W checkpoint srcdir 10.0.0.1:dst/
+    $ mscp -W mscp.checkpoint many-large-files 10.0.0.1:dst/
 .fi
 
 .PP
-Check remaining files and chunkes, and resume a failed transfer:
+Check the remaining files and chunkes, and resume the failed transfer:
 
 .nf
-    # dump a checkpoint and exit (dry-run mode)
-    $ mscp -vvv -D -R checkpoint
+    # Dump the content of a checkpoint and exit (dry-run mode)
+    $ mscp -vv -D -R mscp.checkpoint
 
     # resume transferring from the checkpoint
-    $ mscp -R checkpoint
+    $ mscp -R mscp.checkpoint
 .fi
 
 .PP
