@@ -11,7 +11,7 @@
 
 #include <checkpoint.h>
 
-#define MSCP_CHECKPOINT_MAGIC 0x6d736370UL /* mscp in UTF-8 */
+#define MSCP_CHECKPOINT_MAGIC 0x7063736dUL /* mscp in ascii*/
 #define MSCP_CHECKPOINT_VERSION 0x1
 
 
@@ -20,6 +20,11 @@ enum {
 	OBJ_TYPE_PATH = 0x0B,
 	OBJ_TYPE_CHUNK = 0x0C,
 };
+
+struct checkpoint_file_hdr {
+	uint32_t magic;
+	uint8_t version;
+} __attribute__((packed));
 
 struct checkpoint_obj_hdr {
 	uint8_t type;
@@ -30,10 +35,6 @@ struct checkpoint_obj_hdr {
 
 struct checkpoint_obj_meta {
 	struct checkpoint_obj_hdr hdr;
-
-	uint32_t magic;
-	uint8_t version;
-	uint16_t reserved;
 	uint8_t direction; /* L2R or R2L */
 
 	char remote[0];
@@ -128,8 +129,9 @@ static int checkpoint_write_chunk(int fd, struct chunk *c)
 int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool,
 		    pool *chunk_pool)
 {
+	struct checkpoint_file_hdr hdr;
 	struct checkpoint_obj_meta meta;
-	struct iovec iov[2];
+	struct iovec iov[3];
 	struct chunk *c;
 	struct path *p;
 	unsigned int i, nr_paths, nr_chunks;
@@ -142,20 +144,24 @@ int checkpoint_save(const char *pathname, int dir, char *remote, pool *path_pool
 		return -1;
 	}
 
+	/* write file hdr */
+	hdr.magic = htonl(MSCP_CHECKPOINT_MAGIC);
+	hdr.version = MSCP_CHECKPOINT_VERSION;
+
 	/* write meta */
 	memset(&meta, 0, sizeof(meta));
 	meta.hdr.type = OBJ_TYPE_META;
 	meta.hdr.len = htons(sizeof(meta) + strlen(remote) + 1);
-	meta.magic = htonl(MSCP_CHECKPOINT_MAGIC);
-	meta.version = MSCP_CHECKPOINT_VERSION;
 	meta.direction = dir;
 
-	iov[0].iov_base = &meta;
-	iov[0].iov_len = sizeof(meta);
-	iov[1].iov_base = remote;
-	iov[1].iov_len = strlen(remote) + 1;
+	iov[0].iov_base = &hdr;
+	iov[0].iov_len = sizeof(hdr);
+	iov[1].iov_base = &meta;
+	iov[1].iov_len = sizeof(meta);
+	iov[2].iov_base = remote;
+	iov[2].iov_len = strlen(remote) + 1;
 
-	if (writev(fd, iov, 2) < 0) {
+	if (writev(fd, iov, 3) < 0) {
 		priv_set_errv("writev: %s", strerrno());
 		return -1;
 	}
@@ -189,17 +195,6 @@ static int checkpoint_load_meta(struct checkpoint_obj_hdr *hdr, char *remote, si
 				int *dir)
 {
 	struct checkpoint_obj_meta *meta = (struct checkpoint_obj_meta *)hdr;
-
-	if (ntohl(meta->magic) != MSCP_CHECKPOINT_MAGIC) {
-		priv_set_errv("checkpoint: invalid megic code");
-		return -1;
-	}
-
-	if (meta->version != MSCP_CHECKPOINT_VERSION) {
-		priv_set_errv("checkpoint: unknown version %u", meta->version);
-		return -1;
-	}
-	pr_debug("checkpoint: version %u", meta->version);
 
 	if (len < ntohs(hdr->len) - sizeof(*meta)) {
 		priv_set_errv("too short buffer");
@@ -314,6 +309,34 @@ static int checkpoint_read_obj(int fd, void *buf, size_t count)
 	return 1;
 }
 
+static int checkpoint_read_file_hdr(int fd)
+{
+	struct checkpoint_file_hdr hdr;
+	ssize_t ret;
+
+	ret = read(fd, &hdr, sizeof(hdr));
+	if (ret < 0) {
+		priv_set_errv("read: %s", strerrno());
+		return -1;
+	}
+	if (ret < sizeof(hdr)) {
+		priv_set_errv("checkpoint truncated");
+		return -1;
+	}
+
+	if (ntohl(hdr.magic) != MSCP_CHECKPOINT_MAGIC) {
+		priv_set_errv("checkpoint: invalid megic code");
+		return -1;
+	}
+
+	if (hdr.version != MSCP_CHECKPOINT_VERSION) {
+		priv_set_errv("checkpoint: unknown version %u", hdr.version);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int checkpoint_load(const char *pathname, char *remote, size_t len, int *dir,
 			   pool *path_pool, pool *chunk_pool)
 {
@@ -325,6 +348,9 @@ static int checkpoint_load(const char *pathname, char *remote, size_t len, int *
 		priv_set_errv("open: %s: %s", pathname, strerrno());
 		return -1;
 	}
+
+	if (checkpoint_read_file_hdr(fd) < 0)
+		return -1;
 
 	hdr = (struct checkpoint_obj_hdr *)buf;
 	while ((ret = checkpoint_read_obj(fd, buf, sizeof(buf))) > 0) {
