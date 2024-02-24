@@ -217,10 +217,9 @@ Quiet mode: turns off all outputs.
 .TP
 .B \-D
 Dry-run mode: it scans source files to be copied, calculates chunks,
-and resolves destination file paths. Dry-run mode with
+resolves destination file paths, and exits. Dry-run mode with
 .B -vv
-option enables confirming files to be copied and their destination
-paths.
+option can confirm files to be copied and their destination paths.
 
 .TP
 .B \-r

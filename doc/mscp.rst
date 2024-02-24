@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4-24-g426c3d6
+:Date:   v0.1.4-25-gf3a24e0
 
 NAME
 ====
@@ -125,8 +125,8 @@ OPTIONS
 
 **-D**
    Dry-run mode: it scans source files to be copied, calculates chunks,
-   and resolves destination file paths. Dry-run mode with **-vv** option
-   enables confirming files to be copied and their destination paths.
+   resolves destination file paths, and exits. Dry-run mode with **-vv**
+   option can confirm files to be copied and their destination paths.
 
 **-r**
    No effect. **mscp** copies recursively if a source path is a
