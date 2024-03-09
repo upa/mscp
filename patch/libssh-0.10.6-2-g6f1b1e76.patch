@@ -392,10 +392,10 @@ index 8c509699..307388e5 100644
      session->opts.flags = SSH_OPT_FLAG_PASSWORD_AUTH |
                            SSH_OPT_FLAG_PUBKEY_AUTH |
 diff --git a/src/sftp.c b/src/sftp.c
-index e01012a8..702623a0 100644
+index e01012a8..3b86c3c6 100644
 --- a/src/sftp.c
 +++ b/src/sftp.c
-@@ -2228,6 +2228,132 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
+@@ -2228,6 +2228,135 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
    return -1; /* not reached */
  }
  
@@ -434,7 +434,8 @@ index e01012a8..702623a0 100644
 +
 +  buffer = ssh_buffer_new_size(buf_sz, HEADROOM);
 +  if (buffer == NULL) {
-+    ssh_set_error_oom(sftp->session);
++    ssh_set_error(sftp->session, SSH_FATAL,
++		  "ssh_buffer_new_size failed: Out of Memory");
 +    return -1;
 +  }
 +
@@ -448,14 +449,16 @@ index e01012a8..702623a0 100644
 +                       count); /* len of datastring */
 +
 +  if (rc != SSH_OK){
-+    ssh_set_error_oom(sftp->session);
++    ssh_set_error(sftp->session, SSH_FATAL,
++		  "ssh_buffer_pack failed: Out of Memory");
 +    ssh_buffer_free(buffer);
 +    return SSH_ERROR;
 +  }
 +
 +  actual = ssh_buffer_add_func(buffer, f, count, userdata);
 +  if (actual < 0){
-+    ssh_set_error_oom(sftp->session);
++    ssh_set_error(sftp->session, SSH_FATAL,
++		  "ssh_buffer_add_func failed: %s", strerror(errno));
 +    ssh_buffer_free(buffer);
 +    return SSH_ERROR;
 +  }

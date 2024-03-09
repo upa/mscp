@@ -366,8 +366,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
 						 &reqs[idx].id);
 		if (reqs[idx].len < 0) {
-			priv_set_errv("sftp_async_write: %s or %s",
-				      sftp_get_ssh_error(sf->sftp), strerrno());
+			priv_set_errv("sftp_async_write: %s",
+				      sftp_get_ssh_error(sf->sftp));
 			return -1;
 		}
 		thrown -= reqs[idx].len;
@@ -394,8 +394,8 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 		reqs[idx].len = sftp_async_write(sf, read_to_buf, reqs[idx].len, &fd,
 						 &reqs[idx].id);
 		if (reqs[idx].len < 0) {
-			priv_set_errv("sftp_async_write: %s or %s",
-				      sftp_get_ssh_error(sf->sftp), strerrno());
+			priv_set_errv("sftp_async_write: %s",
+				      sftp_get_ssh_error(sf->sftp));
 			return -1;
 		}
 		thrown -= reqs[idx].len;
