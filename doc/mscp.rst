@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4-25-gf3a24e0
+:Date:   v0.1.4-28-g0d248c5
 
 NAME
 ====
@@ -82,14 +82,14 @@ OPTIONS
    file is passed, **mscp** reads the checkpoint to load a remote host,
    copy direction, and files and their chunks to be transferred. Namely,
    **mscp** can resume a past failed transfer from the checkpoint.
-   Resumeing with a checkpoint does not require *source ... target*
+   Resuming with a checkpoint does not require *source ... target*
    arguments. Other SSH connection options, such as port number and
    config file, should be specified as with the failed run. In addition,
    checkpoint files have file paths as relative paths. Thus, you must
    run **mscp** in the same working directory as the failed run. You can
    see the contents of a checkpoint file with the **mscp -vv -D -R
-   CHECKOPOINT** command (Dry-run mode). Note that the checkpoint file
-   is not automatically removed after the resumed transfer ends
+   CHECKPOINT** command (Dry-run mode). Note that the checkpoint file is
+   not automatically removed after the resumed transfer ends
    successfully. Users should check the return value of **mscp** and
    remove the checkpoint if it returns 0.
 
@@ -229,7 +229,7 @@ Save a checkpoint if transfer fails:
 
        $ mscp -W mscp.checkpoint many-large-files 10.0.0.1:dst/
 
-Check the remaining files and chunkes, and resume the failed transfer:
+Check the remaining files and chunks, and resume the failed transfer:
 
 ::
 
@@ -264,10 +264,10 @@ File Transfer over SSH. In Practice and Experience in Advanced Research
 Computing (PEARC '23). Association for Computing Machinery, New York,
 NY, USA, 320–323. `DOI <https://doi.org/10.1145/3569951.3597582>`__.
 
-CONTACT INFROMATION
+CONTACT INFORMATION
 ===================
 
-For pathces, bug reports, or feature requests, please open an issue on
+For patches, bug reports, or feature requests, please open an issue on
 `GitHub <https://github.com/upa/mscp>`__.
 
 AUTHORS
