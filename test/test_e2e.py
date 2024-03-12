@@ -10,7 +10,7 @@ import time
 import os
 import shutil
 
-from subprocess import check_call, PIPE, CalledProcessError
+from subprocess import check_call, CalledProcessError
 from util import File, check_same_md5sum
 
 
@@ -343,10 +343,16 @@ def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("src, dst", param_single_copy)
-def test_set_port(mscp, src_prefix, dst_prefix, src, dst):
+def test_set_port_ng(mscp, src_prefix, dst_prefix, src, dst):
     src.make()
-    run2ng([mscp, "-H", "-vvv", "-p", 21, src_prefix + src.path, dst_prefix + dst.path])
     run2ng([mscp, "-H", "-vvv", "-P", 21, src_prefix + src.path, dst_prefix + dst.path])
+    src.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("src, dst", param_single_copy)
+def test_set_port_ok(mscp, src_prefix, dst_prefix, src, dst):
+    src.make()
+    run2ok([mscp, "-H", "-vvv", "-P", 8022, src_prefix + src.path, dst_prefix + dst.path])
     src.cleanup()
 
 def test_v4only(mscp):
@@ -361,7 +367,7 @@ def test_v4only(mscp):
 def test_v6only(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
-    dst_prefix = "localhost:{}/".format(os.getcwd())
+    dst_prefix = "ip6-localhost:{}/".format(os.getcwd())
     run2ok([mscp, "-H", "-vvv", "-6", src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
     src.cleanup()
@@ -535,8 +541,8 @@ def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
 @pytest.mark.parametrize("timeout", [1,2,3])
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
-    src1 = File("src1", size = 512 * 1024 * 1024).make()
-    src2 = File("src2", size = 512 * 1024 * 1024).make()
+    src1 = File("src1", size = 1024 * 1024 * 1024).make()
+    src2 = File("src2", size = 1024 * 1024 * 1024).make()
     dst1 = File("dst/src1")
     dst2 = File("dst/src2")
     run2ng([mscp, "-H", "-vv", "-W", "checkpoint",

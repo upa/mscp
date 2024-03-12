@@ -8,6 +8,10 @@ cd $script_dir
 
 set -x
 
+# sshd Linsten on 22 and 8022
+echo "Port 22" > /etc/ssh/sshd_config.d/mscp-test.conf
+echo "Port 8022" >> /etc/ssh/sshd_config.d/mscp-test.conf
+
 # Run sshd
 if [ ! -e /var/run/sshd.pid ]; then
 	/usr/sbin/sshd
