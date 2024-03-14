@@ -1,4 +1,4 @@
-
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <arpa/inet.h>
@@ -11,9 +11,106 @@
 
 #include <checkpoint.h>
 
-#define MSCP_CHECKPOINT_MAGIC 0x7063736dUL /* mscp in ascii*/
+#define MSCP_CHECKPOINT_MAGIC 0x7063736dUL /* mscp in ascii */
 #define MSCP_CHECKPOINT_VERSION 0x1
 
+/**
+ * mscp checkpoint file format. All values are network byte order.
+ *
+ * The file starts with the File header:
+ * 0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +---------------------------------------------------------------+
+ * |                          Magic Code                           |
+ * +---------------+-----------------------------------------------+
+ * |     Version   |
+ * +---------------+
+ *
+ * Magic code: 0x7063736dUL
+ *
+ * Version: 1.
+ *
+ *
+ * Each object in a checkpoint always starts with an object header:
+ * +---------------+---------------+-------------------------------+
+ * |     Type      |      rsv      |             Length            |
+ * +---------------+---------------+-------------------------------+
+ *
+ * Type: 0x0A (meta), 0x0B (path), or 0x0C (chunk)
+ *
+ * Rsv: reserved
+ *
+ * Length: Length of this object including the object header.
+ *
+ *
+ * Meta object provides generaic information for the failed copy:
+ * +---------------+---------------+-------------------------------+
+ * |     Type      |      rsv      |             Length            |
+ * +---------------+---------------+-------------------------------+
+ * |  Direction    | Remote string ...
+ * +---------------+------------------
+ *
+ * Direction: 1 (Local-to-Remote copy) or 2 (Remote-to-Local copy)
+ *
+ * Remote string: Remote host, e.g., user@hostname and IP address,
+ * string including '\0'.
+ *
+ *
+ * Path object represnts a file with sourcen and destination paths:
+ * +---------------+---------------+-------------------------------+
+ * |     Type      |      rsv      |             Length            |
+ * +---------------+---------------+-------------------------------+
+ * |                             Index                             |
+ * +-------------------------------+-------------------------------+
+ * |         Source offset         |      Destination offset       |
+ * +-------------------------------+-------------------------------+
+ * //                                                             //
+ * //                     Source path string                      //
+ * //                                                             //
+ * +---------------------------------------------------------------+
+ * //                                                             //
+ * //                   Destination path string                   //
+ * //                                                             //
+ * +---------------------------------------------------------------+
+ *
+ * Index: 32-bit unsigned int indicating this path (used by chunks)
+ *
+ * Source offset: Offset of the Source path string from the head of
+ * this object. It is identical to the end of the Destination offset
+ * filed.
+ *
+ * Destination offset: Offset of the Destnation path string from the
+ * head of this object. It also indicates the end of the Source path
+ * string.
+ *
+ * Source path string: String of copy source path (including '\0').
+ *
+ * Destination path string: string of copy destination path (including
+ * '\0').
+ *
+ *
+ * Chunk object represents a chunk associated with a path object:
+ * +---------------+---------------+-------------------------------+
+ * |     Type      |      rsv      |             Length            |
+ * +---------------+---------------+-------------------------------+
+ * |                             Index                             |
+ * +---------------------------------------------------------------+
+ * |                             Chunk                             |
+ * |                             offset                            |
+ * +---------------------------------------------------------------+
+ * |                             Chunk                             |
+ * |                             length                            |
+ * +---------------------------------------------------------------+
+ *
+ * Index: 32 bit unsigned int indicating the index of a path object
+ * this chunk associated with.
+ *
+ * Chunk offset: 64 bit unsigned int indicating the offset of this
+ * chunk from the head of the associating a file.
+ *
+ * Chunk length: 64 bit unsigned int indicating the length (bytes) of
+ * this chunk.
+ */
 
 enum {
 	OBJ_TYPE_META = 0x0A,
@@ -31,7 +128,6 @@ struct checkpoint_obj_hdr {
 	uint8_t rsv;
 	uint16_t len; /* length of an object including this hdr */
 } __attribute__((packed));
-
 
 struct checkpoint_obj_meta {
 	struct checkpoint_obj_hdr hdr;
@@ -56,12 +152,11 @@ struct checkpoint_obj_path {
 #define obj_path_src_len(o) (ntohs(o->dst_off) - ntohs(o->src_off))
 #define obj_path_dst_len(o) (ntohs(o->hdr.len) - ntohs(o->dst_off))
 
-#define obj_path_validate(o)				     \
-	((ntohs(o->hdr.len) > ntohs(o->dst_off)) &&	     \
-	 (ntohs(o->dst_off) > ntohs(o->src_off)) &&	     \
-	 (obj_path_src_len(o) < PATH_MAX) &&		     \
-	 (obj_path_dst_len(o) < PATH_MAX))		     \
-
+#define obj_path_validate(o)				\
+	((ntohs(o->hdr.len) > ntohs(o->dst_off)) &&	\
+	 (ntohs(o->dst_off) > ntohs(o->src_off)) &&	\
+	 (obj_path_src_len(o) < PATH_MAX) &&		\
+	 (obj_path_dst_len(o) < PATH_MAX))
 
 struct checkpoint_obj_chunk {
 	struct checkpoint_obj_hdr hdr;

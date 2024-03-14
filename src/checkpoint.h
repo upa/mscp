@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef _CHECKPOINT_H_
 #define _CHECKPOINT_H_
 
