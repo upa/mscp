@@ -1,4 +1,13 @@
-mscp (0.1.4) UNRELEASED; urgency=medium
+mscp (0.1.5) UNRELEASED; urgency=medium
+
+  * add support for resuming failed transfer (#5 and #10)
+  * remove the list structure derived from the linux kernel and refactoring
+    for this change.
+  * add and fix test cases (changing port number and number of connections)
+
+ -- Ryo Nakamura <upa@haeena.net>  Thu, 14 Mar 2024 12:51:23 +0900
+
+mscp (0.1.4) unstable; urgency=medium
 
   * add a test for builds on FreeBSD
   * updat container images for tests

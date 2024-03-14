@@ -24,7 +24,7 @@ mscp_0.1.4_source.build  mscp_0.1.4_source.changes
 
 1. write changes in `debian/changelog` at main branch (the date command needed here is `date -R`)
 2. switch to `ppa-focal` or `ppa-jammy` branch
-3. reblase to the `main` branch and modify `debian/changes`:
+3. rebase to the `main` branch and modify `debian/changes`:
    * change `UNRELEASED` to the release name (`focal` or `jammy`).
 4. run `make build-deb` at the build directory and `cd debbuild`
 5. sign the files with `debsign -k [GPGKEYID] mscp_X.X.X~X_source.changes`
@@ -52,7 +52,8 @@ mscp-0.1.3-1.el9.src.rpm
 
 ### To publish mscp in COPR:
 
-1. update `changelog` in `rpm/mscp.spec` (the date command needed here is `date "+%a %b %d %Y"`)
+1. update `rpm/mscp.spec.in`, the `changelog` section (the date
+   command needed here is `date "+%a %b %d %Y"`)
 2. run `make build-srpm`
 3. download `mscp-X.X.X-1.yyy.src.rpm`
 4. upload the src.rpm to Build page at COPR.
