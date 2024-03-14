@@ -31,6 +31,7 @@ Differences from `scp` on usage:
 
 - Remote-to-remote copy is not supported.
 - `-r` option is not needed to transfer directories.
+- Checkpointing for resuming failed transfer is supported.
 - and any other differences I have not implemented and noticed.
 
 Paper:
