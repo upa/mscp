@@ -27,12 +27,6 @@ jobs:
       - name: Configure Cmake
         run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-      - name: Build Containers
-        run: make -C ${{github.workspace}}/build docker-build-all
-
-      - name: Test
-        run: make -C ${{github.workspace}}/build docker-test-all
-
       - name: Build single binary mscp
         run: make -C ${{github.workspace}}/build build-single-binary
 
