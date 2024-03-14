@@ -323,12 +323,14 @@ int mscp_setstat(const char *path, struct stat *st, bool preserve_ts, sftp_sessi
 		ret = sftp_setstat(sftp, path, &attr);
 		sftp_err_to_errno(sftp);
 	} else {
-		if ((ret = chmod(path, st->st_mode)) < 0)
-			return ret;
 		if ((ret = truncate(path, st->st_size)) < 0)
 			return ret;
-		if (preserve_ts)
-			ret = setutimes(path, st->st_atim, st->st_mtim);
+		if (preserve_ts) {
+			if ((ret = setutimes(path, st->st_atim, st->st_mtim)) < 0)
+				return ret;
+		}
+		if ((ret = chmod(path, st->st_mode)) < 0)
+			return ret;
 	}
 
 	return ret;

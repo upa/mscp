@@ -322,6 +322,21 @@ def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     f.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_copy_readonly_file(mscp, src_prefix, dst_prefix):
+    """When a source file permission is r--r--r--, if chmod(r--r--r--)
+    runs first on the remote side, following truncate() and setutime()
+    fail due to permission deneid. So, run chmod() after truncate()
+    and setutime()
+
+    """
+    src = File("src", size = 1024 * 1024 * 128, perm = 0o444).make()
+    dst = File("dst")
+    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
     # copy 100 files with -n 20 -I 1 options. if mscp creates 20 SSH
     # connections although all files have been copied, it is error.
