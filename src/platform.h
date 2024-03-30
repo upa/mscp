@@ -2,6 +2,8 @@
 #ifndef _PLATFORM_H_
 #define _PLATFORM_H_
 
+#include <config.h>
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdint.h>
@@ -25,7 +27,7 @@ int sem_release(sem_t *sem);
 #include <arpa/inet.h> /* Apple has htonll and ntohll in arpa/inet.h */
 #endif
 
-/* copied from libssh: libssh/include/libssh/priv.h*/
+/* copied from libssh: libssh/include/libssh/priv.h */
 #ifndef HAVE_HTONLL
 #ifdef WORDS_BIGENDIAN
 #define htonll(x) (x)
