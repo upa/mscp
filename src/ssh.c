@@ -11,6 +11,7 @@
 #include <strerrno.h>
 
 static int ssh_verify_known_hosts(ssh_session session);
+static int ssh_authenticate_kbdint(ssh_session session);
 
 static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 {
@@ -100,17 +101,18 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return 0;
 
 	auth_bit_mask = ssh_userauth_list(ssh, NULL);
-
 	if (auth_bit_mask & SSH_AUTH_METHOD_NONE &&
 	    ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
 		return 0;
 
+	auth_bit_mask = ssh_userauth_list(ssh, NULL);
 	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
 		char *p = opts->passphrase ? opts->passphrase : NULL;
 		if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
 			return 0;
 	}
 
+	auth_bit_mask = ssh_userauth_list(ssh, NULL);
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
 		if (!opts->password) {
 			char buf[128] = {};
@@ -125,6 +127,12 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 		}
 
 		if (ssh_userauth_password(ssh, NULL, opts->password) == SSH_AUTH_SUCCESS)
+			return 0;
+	}
+
+	auth_bit_mask = ssh_userauth_list(ssh, NULL);
+	if (auth_bit_mask & SSH_AUTH_METHOD_INTERACTIVE) {
+		if (ssh_authenticate_kbdint(ssh) == SSH_AUTH_SUCCESS)
 			return 0;
 	}
 
@@ -317,6 +325,54 @@ static int ssh_verify_known_hosts(ssh_session session)
 
 	ssh_clean_pubkey_hash(&hash);
 	return 0;
+}
+
+static int ssh_authenticate_kbdint(ssh_session ssh)
+{
+	/* Copied and bit modified from
+	 * https://api.libssh.org/stable/libssh_tutor_authentication.html */
+	int rc;
+
+	rc = ssh_userauth_kbdint(ssh, NULL, NULL);
+	while (rc == SSH_AUTH_INFO) {
+		const char *name, *instruction;
+		int nprompts, iprompt;
+
+		name = ssh_userauth_kbdint_getname(ssh);
+		instruction = ssh_userauth_kbdint_getinstruction(ssh);
+		nprompts = ssh_userauth_kbdint_getnprompts(ssh);
+
+		if (strlen(name) > 0)
+			printf("%s\n", name);
+		if (strlen(instruction) > 0)
+			printf("%s\n", instruction);
+		for (iprompt = 0; iprompt < nprompts; iprompt++) {
+			const char *prompt;
+			char echo;
+
+			prompt = ssh_userauth_kbdint_getprompt(ssh, iprompt, &echo);
+			if (echo) {
+				char buf[128], *ptr;
+
+				printf("%s", prompt);
+				if (fgets(buf, sizeof(buf), stdin) == NULL)
+					return SSH_AUTH_ERROR;
+				buf[sizeof(buf) - 1] = '\0';
+				if ((ptr = strchr(buf, '\n')) != NULL)
+					*ptr = '\0';
+				if (ssh_userauth_kbdint_setanswer(ssh, iprompt, buf) < 0)
+					return SSH_AUTH_ERROR;
+				memset(buf, 0, strlen(buf));
+			} else {
+				char *ptr;
+				ptr = getpass(prompt);
+				if (ssh_userauth_kbdint_setanswer(ssh, iprompt, ptr) < 0)
+					return SSH_AUTH_ERROR;
+			}
+		}
+		rc = ssh_userauth_kbdint(ssh, NULL, NULL);
+	}
+	return rc;
 }
 
 void ssh_sftp_close(sftp_session sftp)
