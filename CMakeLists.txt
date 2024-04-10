@@ -167,7 +167,6 @@ enable_testing()
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
 list(APPEND DIST_IDS	ubuntu	ubuntu	rocky	rocky	almalinux	alpine)
 list(APPEND DIST_VERS	20.04	22.04	8.9	9.3	9.3		3.19)
-list(APPEND DIST_PKGS	deb	deb	rpm	rpm	rpm		static)
 
 list(LENGTH DIST_IDS _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
@@ -175,7 +174,6 @@ math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
 foreach(x RANGE ${DIST_LISTLEN})
 	list(GET DIST_IDS	${x} DIST_ID)
 	list(GET DIST_VERS	${x} DIST_VER)
-	list(GET DIST_PKGS	${x} DIST_PKG)
 
 	set(DOCKER_IMAGE mscp-${DIST_ID}:${DIST_VER})
 	set(DOCKER_INDEX ${DIST_ID}-${DIST_VER})
@@ -203,7 +201,9 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMAND
-		${CE} run --init --rm --sysctl net.ipv6.conf.all.disable_ipv6=0
+		${CE} run --init --rm
+		--sysctl net.ipv6.conf.all.disable_ipv6=0
+		--add-host=ip6-localhost:::1
 		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
 	list(APPEND DOCKER_BUILDS		docker-build-${DOCKER_INDEX})
