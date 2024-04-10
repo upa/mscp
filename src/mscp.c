@@ -17,6 +17,7 @@
 #include <print.h>
 #include <strerrno.h>
 #include <mscp.h>
+#include <bwlimit.h>
 
 #include <openbsd-compat/openbsd-compat.h>
 
@@ -55,6 +56,8 @@ struct mscp {
 	bool chunk_pool_ready;
 #define chunk_pool_is_ready(m) ((m)->chunk_pool_ready)
 #define chunk_pool_set_ready(m, b) ((m)->chunk_pool_ready = b)
+
+	struct bwlimit bw; /* bandwidth limit mechanism */
 
 	struct mscp_thread scan; /* mscp_thread for mscp_scan_thread() */
 };
@@ -280,6 +283,12 @@ struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s)
 		}
 		pr_notice("usable cpu cores:%s", b);
 	}
+
+	if (bwlimit_init(&m->bw, o->bitrate, 100) < 0) { /* 100ms window (hardcoded) */
+		priv_set_errv("bwlimit_init: %s", strerrno());
+		goto free_out;
+	}
+	pr_notice("bitrate limit: %lu bps", o->bitrate);
 
 	return m;
 
@@ -522,8 +531,8 @@ int mscp_checkpoint_load(struct mscp *m, const char *pathname)
 
 int mscp_checkpoint_save(struct mscp *m, const char *pathname)
 {
-	return checkpoint_save(pathname, m->direction, m->ssh_opts->login_name,
-			       m->remote, m->path_pool, m->chunk_pool);
+	return checkpoint_save(pathname, m->direction, m->ssh_opts->login_name, m->remote,
+			       m->path_pool, m->chunk_pool);
 }
 
 static void *mscp_copy_thread(void *arg);
@@ -712,7 +721,7 @@ void *mscp_copy_thread(void *arg)
 		}
 
 		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead,
-					 m->opts->buf_sz, m->opts->preserve_ts,
+					 m->opts->buf_sz, m->opts->preserve_ts, &m->bw,
 					 &t->copied_bytes)) < 0)
 			break;
 	}

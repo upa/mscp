@@ -26,7 +26,8 @@ void usage(bool print_help)
 	       "\n"
 	       "Usage: mscp [-46vqDpHdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-u max_startups] [-I interval] [-W checkpoint] [-R checkpoint]\n"
-	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead] [-b buf_sz]\n"
+	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
+	       "            [-b buf_sz] [-L limit_bitrate]\n"
 	       "            [-l login_name] [-P port] [-F ssh_config] [-i identity_file]\n"
 	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
 	       "            source ... target\n"
@@ -48,6 +49,7 @@ void usage(bool print_help)
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
+	       "    -L LIMIT_BITRATE   Limit the bitrate, n[KMG] (default: 0, no limit)\n"
 	       "\n"
 	       "    -4                 use IPv4\n"
 	       "    -6                 use IPv6\n"
@@ -266,12 +268,14 @@ int main(int argc, char **argv)
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
 	bool dryrun = false, resume = false;
+	char *u;
+	size_t mag = 0;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:W:R:s:S:a:b:46vqDrl:P:i:F:c:M:C:g:pHdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:c:M:C:g:pHdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -308,6 +312,25 @@ int main(int argc, char **argv)
 			break;
 		case 'b':
 			o.buf_sz = atoi(optarg);
+			break;
+		case 'L':
+			u = optarg + (strlen(optarg) - 1);
+			if (*u == 'k' || *u == 'K') {
+				mag = 1000;
+				*u = '\0';
+			} else if (*u == 'm' || *u == 'M') {
+				mag = 1000000;
+				*u = '\0';
+			} else if (*u == 'g' || *u == 'G') {
+				mag = 1000000000;
+				*u = '\0';
+			}
+			o.bitrate = atol(optarg);
+			if (o.bitrate == 0) {
+				pr_err("invalid bitrate: %s", optarg);
+				return 1;
+			}
+			o.bitrate *= mag;
 			break;
 		case '4':
 			s.ai_family = AF_INET;

@@ -6,6 +6,7 @@ test_e2e.py: End-to-End test for mscp executable.
 import platform
 import pytest
 import getpass
+import datetime
 import time
 import os
 import shutil
@@ -357,6 +358,21 @@ def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
 
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_bwlimit(mscp, src_prefix, dst_prefix):
+    """Copy 100MB file with 100Mbps bitrate, this requires 8 seconds."""
+    src = File("src", size = 100 * 1024 * 1024).make()
+    dst = File("dst")
+
+    start = datetime.datetime.now().timestamp()
+    run2ok([mscp, "-H", "-vvv", "-L", "100m", src_prefix + "src", dst_prefix + "dst"])
+    end = datetime.datetime.now().timestamp()
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+    assert end - start > 7
+
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("src, dst", param_single_copy)
 def test_set_port_ng(mscp, src_prefix, dst_prefix, src, dst):
     src.make()
@@ -553,15 +569,15 @@ def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
     dst2.cleanup()
     os.remove("checkpoint")
 
-@pytest.mark.parametrize("timeout", [1,2,3])
+@pytest.mark.parametrize("timeout", [1, 2, 3, 4, 5, 6])
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
-    src1 = File("src1", size = 1024 * 1024 * 1024).make()
-    src2 = File("src2", size = 1024 * 1024 * 1024).make()
+    """Copy two 100MB files with 200Mbps -> 4 sec + 4 sec """
+    src1 = File("src1", size = 100 * 1024 * 1024).make()
+    src2 = File("src2", size = 100 * 1024 * 1024).make()
     dst1 = File("dst/src1")
     dst2 = File("dst/src2")
-    run2ng([mscp, "-H", "-vv", "-W", "checkpoint",
-            "-n", 1, "-s", 8192, "-S", 16384,
+    run2ng([mscp, "-H", "-vv", "-W", "checkpoint", "-L", "200m",
             src_prefix + "src1", src_prefix + "src2", dst_prefix + "dst"],
            timeout = timeout)
     assert os.path.exists("checkpoint")
@@ -574,3 +590,4 @@ def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
     dst1.cleanup()
     dst2.cleanup()
     os.remove("checkpoint")
+

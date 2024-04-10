@@ -38,6 +38,9 @@ mscp \- copy files over multiple SSH connections
 .BI \-b \ BUF_SIZE\c
 ]
 [\c
+.BI \-L \ LIMIT_BITRATE\c
+]
+[\c
 .BI \-l \ LOGIN_NAME\c
 ]
 [\c
@@ -197,6 +200,11 @@ Specifies the number of inflight SFTP commands. The default value is
 Specifies the buffer size for I/O and transfer over SFTP. The default
 value is 16384. Note that the SSH specification restricts buffer size
 delivered over SSH. Changing this value is not recommended at present.
+
+.TP
+.B \-L \fILIMIT_BITRATE\fR
+Limits the bitrate, specified with k (K), m (M), and g (G), e.g., 100m
+indicates 100 Mbps.
 
 .TP
 .B \-4

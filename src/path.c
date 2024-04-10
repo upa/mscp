@@ -348,7 +348,7 @@ static ssize_t read_to_buf(void *ptr, size_t len, void *userdata)
 }
 
 static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, int buf_sz,
-			  size_t *counter)
+			  struct bwlimit *bw, size_t *counter)
 {
 	ssize_t read_bytes, remaind, thrown;
 	int idx, ret;
@@ -371,6 +371,7 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 			return -1;
 		}
 		thrown -= reqs[idx].len;
+		bwlimit_wait(bw, reqs[idx].len);
 	}
 
 	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
@@ -399,6 +400,7 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 			return -1;
 		}
 		thrown -= reqs[idx].len;
+		bwlimit_wait(bw, reqs[idx].len);
 	}
 
 	if (remaind < 0) {
@@ -412,7 +414,7 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 }
 
 static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, int buf_sz,
-			  size_t *counter)
+			  struct bwlimit *bw, size_t *counter)
 {
 	ssize_t read_bytes, write_bytes, remaind, thrown;
 	char buf[buf_sz];
@@ -436,6 +438,7 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, i
 			return -1;
 		}
 		thrown -= reqs[idx].len;
+		bwlimit_wait(bw, reqs[idx].len);
 	}
 
 	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
@@ -449,6 +452,7 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, i
 			reqs[idx].len = min(thrown, sizeof(buf));
 			reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
 			thrown -= reqs[idx].len;
+			bwlimit_wait(bw, reqs[idx].len);
 		}
 
 		write_bytes = write(fd, buf, read_bytes);
@@ -477,19 +481,22 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, i
 }
 
 static int _copy_chunk(struct chunk *c, mf *s, mf *d, int nr_ahead, int buf_sz,
-		       size_t *counter)
+		       struct bwlimit *bw, size_t *counter)
 {
 	if (s->local && d->remote) /* local to remote copy */
-		return copy_chunk_l2r(c, s->local, d->remote, nr_ahead, buf_sz, counter);
+		return copy_chunk_l2r(c, s->local, d->remote, nr_ahead, buf_sz, bw,
+				      counter);
 	else if (s->remote && d->local) /* remote to local copy */
-		return copy_chunk_r2l(c, s->remote, d->local, nr_ahead, buf_sz, counter);
+		return copy_chunk_r2l(c, s->remote, d->local, nr_ahead, buf_sz, bw,
+				      counter);
 
 	assert(false);
 	return -1; /* not reached */
 }
 
 int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
-	       int nr_ahead, int buf_sz, bool preserve_ts, size_t *counter)
+	       int nr_ahead, int buf_sz, bool preserve_ts, struct bwlimit *bw,
+	       size_t *counter)
 {
 	mode_t mode;
 	int flags;
@@ -529,7 +536,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	c->state = CHUNK_STATE_COPING;
 	pr_debug("copy chunk start: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 
-	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, counter);
+	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, bw, counter);
 
 	pr_debug("copy chunk done: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 

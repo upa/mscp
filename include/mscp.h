@@ -42,7 +42,8 @@ struct mscp_opts {
 	size_t	min_chunk_sz;	/** minimum chunk size (default 64MB) */
 	size_t	max_chunk_sz;	/** maximum chunk size (default file size/nr_threads) */
 	size_t	buf_sz;		/** buffer size, default 16k. */
-	char	*coremask; /** hex to specifiy usable cpu cores */
+	size_t	bitrate;	/** bits-per-seconds to limit bandwidth */
+	char	*coremask;	/** hex to specifiy usable cpu cores */
 	int	max_startups;	/** sshd MaxStartups concurrent connections */
 	int     interval;	/** interval between SSH connection attempts */
 	bool	preserve_ts;	/** preserve file timestamps */

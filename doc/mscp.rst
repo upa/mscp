@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.1.4-28-g0d248c5
+:Date: v0.1.5-4-g9b8ba69
 
 NAME
 ====
@@ -12,14 +12,14 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-46vqDpHdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
-**-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
-**-W**\ *CHECKPOINT* ] [ **-R**\ *CHECKPOINT* ] [
-**-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
-**-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-l**\ *LOGIN_NAME* ] [
-**-P**\ *PORT* ] [ **-F**\ *CONFIG* ] [ **-i**\ *IDENTITY* ] [
-**-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] [
-**-g**\ *CONGESTION* ] *source ... target*
+**mscp** [**-46vqDpHdNh**] [ **-n** *NR_CONNECTIONS* ] [ **-m**
+*COREMASK* ] [ **-u** *MAX_STARTUPS* ] [ **-I** *INTERVAL* ] [ **-W**
+*CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
+**-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
+**-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
+**-F** *CONFIG* ] [ **-i** *IDENTITY* ] [ **-c** *CIPHER* ] [ **-M**
+*HMAC* ] [ **-C** *COMPRESS* ] [ **-g** *CONGESTION* ] *source ...
+target*
 
 DESCRIPTION
 ===========
@@ -110,6 +110,10 @@ OPTIONS
    value is 16384. Note that the SSH specification restricts buffer size
    delivered over SSH. Changing this value is not recommended at
    present.
+
+**-L LIMIT_BITRATE**
+   Limits the bitrate, specified with k (K), m (M), and g (G), e.g.,
+   100m indicates 100 Mbps.
 
 **-4**
    Uses IPv4 addresses only.

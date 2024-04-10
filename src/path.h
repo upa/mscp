@@ -9,6 +9,7 @@
 #include <pool.h>
 #include <atomic.h>
 #include <ssh.h>
+#include <bwlimit.h>
 
 struct path {
 	char *path; /* file path */
@@ -66,6 +67,7 @@ void free_path(struct path *p);
 
 /* copy a chunk. either src_sftp or dst_sftp is not null, and another is null */
 int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
-	       int nr_ahead, int buf_sz, bool preserve_ts, size_t *counter);
+	       int nr_ahead, int buf_sz, bool preserve_ts, struct bwlimit *bw,
+	       size_t *counter);
 
 #endif /* _PATH_H_ */
