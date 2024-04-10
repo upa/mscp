@@ -268,8 +268,8 @@ int main(int argc, char **argv)
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
 	bool dryrun = false, resume = false;
-	char *u;
-	size_t mag = 0;
+	size_t factor = 1;
+	char *unit;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
@@ -314,23 +314,24 @@ int main(int argc, char **argv)
 			o.buf_sz = atoi(optarg);
 			break;
 		case 'L':
-			u = optarg + (strlen(optarg) - 1);
-			if (*u == 'k' || *u == 'K') {
-				mag = 1000;
-				*u = '\0';
-			} else if (*u == 'm' || *u == 'M') {
-				mag = 1000000;
-				*u = '\0';
-			} else if (*u == 'g' || *u == 'G') {
-				mag = 1000000000;
-				*u = '\0';
+			factor = 1;
+			unit = optarg + (strlen(optarg) - 1);
+			if (*unit == 'k' || *unit == 'K') {
+				factor = 1000;
+				*unit = '\0';
+			} else if (*unit == 'm' || *unit == 'M') {
+				factor = 1000000;
+				*unit = '\0';
+			} else if (*unit == 'g' || *unit == 'G') {
+				factor = 1000000000;
+				*unit = '\0';
 			}
 			o.bitrate = atol(optarg);
 			if (o.bitrate == 0) {
 				pr_err("invalid bitrate: %s", optarg);
 				return 1;
 			}
-			o.bitrate *= mag;
+			o.bitrate *= factor;
 			break;
 		case '4':
 			s.ai_family = AF_INET;
