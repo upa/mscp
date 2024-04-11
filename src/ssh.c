@@ -199,7 +199,7 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 		goto disconnect_out;
 	}
 
-	if (!opts->no_hostkey_check && ssh_verify_known_hosts(ssh) != 0) {
+	if (ssh_verify_known_hosts(ssh) != 0) {
 		priv_set_errv("ssh_veriy_known_hosts failed");
 		goto disconnect_out;
 	}

@@ -19,6 +19,7 @@ if [ ! -e /var/run/sshd.pid ]; then
 fi
 
 ssh-keyscan localhost >> ${HOME}/.ssh/known_hosts
+ssh-keyscan ip6-localhost >> ${HOME}/.ssh/known_hosts
 ssh-keyscan 127.0.0.1 >> ${HOME}/.ssh/known_hosts
 ssh-keyscan ::1 >> ${HOME}/.ssh/known_hosts
 

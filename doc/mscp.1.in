@@ -6,7 +6,7 @@ mscp \- copy files over multiple SSH connections
 .SH SYNOPSIS
 
 .B mscp
-.RB [ \-46vqDpHdNh ]
+.RB [ \-46vqDpdNh ]
 [\c
 .BI \-n \ NR_CONNECTIONS\c
 ]
@@ -287,10 +287,6 @@ Specifies the TCP congestion control algorithm to use (Linux only).
 .B \-p
 Preserves modification times and access times (file mode bits are
 preserved by default).
-
-.TP
-.B \-H
-Disables hostkey checking.
 
 .TP
 .B \-d

@@ -71,7 +71,6 @@ struct mscp_ssh_opts {
 	char	*passphrase;	/** passphrase for private key */
 
 	int	debug_level;		/** inclirement libssh debug output level */
-	bool	no_hostkey_check;	/** do not check host keys */
 	bool	enable_nagle;		/** enable Nagle's algorithm if true */
 };
 

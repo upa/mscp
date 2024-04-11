@@ -24,7 +24,7 @@ void usage(bool print_help)
 {
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple SSH connections\n"
 	       "\n"
-	       "Usage: mscp [-46vqDpHdNh] [-n nr_conns] [-m coremask]\n"
+	       "Usage: mscp [-46vqDpdNh] [-n nr_conns] [-m coremask]\n"
 	       "            [-u max_startups] [-I interval] [-W checkpoint] [-R checkpoint]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
 	       "            [-b buf_sz] [-L limit_bitrate]\n"
@@ -68,7 +68,6 @@ void usage(bool print_help)
 	       "yes, no, zlib, zlib@openssh.com\n"
 	       "    -g CONGESTION      specify TCP congestion control algorithm\n"
 	       "    -p                 preserve timestamps of files\n"
-	       "    -H                 disable hostkey check\n"
 	       "    -d                 increment ssh debug output level\n"
 	       "    -N                 enable Nagle's algorithm (default disabled)\n"
 	       "    -h                 print this help\n"
@@ -275,7 +274,7 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:c:M:C:g:pHdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:c:M:C:g:pdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -377,9 +376,6 @@ int main(int argc, char **argv)
 			break;
 		case 'p':
 			o.preserve_ts = true;
-			break;
-		case 'H':
-			s.no_hostkey_check = true;
 			break;
 		case 'd':
 			s.debug_level++;

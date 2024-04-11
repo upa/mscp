@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.1.5-4-g9b8ba69
+:Date: v0.1.5-10-g00fa2c7
 
 NAME
 ====
@@ -12,7 +12,7 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-46vqDpHdNh**] [ **-n** *NR_CONNECTIONS* ] [ **-m**
+**mscp** [**-46vqDpdNh**] [ **-n** *NR_CONNECTIONS* ] [ **-m**
 *COREMASK* ] [ **-u** *MAX_STARTUPS* ] [ **-I** *INTERVAL* ] [ **-W**
 *CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
 **-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
@@ -170,9 +170,6 @@ OPTIONS
 **-p**
    Preserves modification times and access times (file mode bits are
    preserved by default).
-
-**-H**
-   Disables hostkey checking.
 
 **-d**
    Increments the ssh debug output level.

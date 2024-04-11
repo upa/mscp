@@ -68,7 +68,7 @@ param_single_copy = [
 @pytest.mark.parametrize("src, dst", param_single_copy)
 def test_single_copy(mscp, src_prefix, dst_prefix, src, dst):
     src.make()
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -77,7 +77,7 @@ def test_single_copy(mscp, src_prefix, dst_prefix, src, dst):
 def test_failed_to_copy_nonexistent_file(mscp, src_prefix, dst_prefix):
     src = "nonexistent_src"
     dst = "nonexistent_dst"
-    run2ng([mscp, "-H", "-vvv", src_prefix + src, dst_prefix + dst])
+    run2ng([mscp, "-vvv", src_prefix + src, dst_prefix + dst])
 
 param_double_copy = [
     (File("src1", size = 1024 * 1024), File("src2", size = 1024 * 1024),
@@ -89,7 +89,7 @@ param_double_copy = [
 def test_double_copy(mscp, src_prefix, dst_prefix, s1, s2, d1, d2):
     s1.make()
     s2.make()
-    run2ok([mscp, "-H", "-vvv", src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
     assert check_same_md5sum(s1, d1)
     assert check_same_md5sum(s2, d2)
     s1.cleanup()
@@ -107,7 +107,7 @@ param_remote_v6_prefix = [
 def test_double_copy_with_ipv6_notation(mscp, src_prefix, dst_prefix, s1, s2, d1, d2):
     s1.make()
     s2.make()
-    run2ok([mscp, "-H", "-vvv",
+    run2ok([mscp, "-vvv",
             src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
     assert check_same_md5sum(s1, d1)
     assert check_same_md5sum(s2, d2)
@@ -127,7 +127,7 @@ def test_double_copy_with_user_and_ipv6_notation(mscp, src_prefix, dst_prefix,
                                                  s1, s2, d1, d2):
     s1.make()
     s2.make()
-    run2ok([mscp, "-H", "-vvv",
+    run2ok([mscp, "-vvv",
             src_prefix + s1.path, src_prefix + s2.path, dst_prefix + "dst"])
     assert check_same_md5sum(s1, d1)
     assert check_same_md5sum(s2, d2)
@@ -167,11 +167,11 @@ def test_dir_copy(mscp, src_prefix, dst_prefix, src_dir, dst_dir, src, dst, twic
     for f in src:
         f.make()
 
-    run2ok([mscp, "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
+    run2ok([mscp, "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
     for sf, df in zip(src, dst):
         assert check_same_md5sum(sf, df)
 
-    run2ok([mscp, "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
+    run2ok([mscp, "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
     for sf, df in zip(src, twice):
         assert check_same_md5sum(sf, df)
 
@@ -192,7 +192,7 @@ param_dir_copy_single = [
 def test_dir_copy_single(mscp, src_prefix, dst_prefix, src_dir, dst_dir, src, dst):
     src.make()
     os.mkdir(dst_dir)
-    run2ok([mscp, "-H", "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
+    run2ok([mscp, "-vvv", src_prefix + src_dir, dst_prefix + dst_dir])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -203,7 +203,7 @@ def test_override_single_file(mscp, src_prefix, dst_prefix):
     dst = File("dst", size = 128).make()
     assert not check_same_md5sum(src, dst)
 
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
 
     src.cleanup()
@@ -218,7 +218,7 @@ def test_copy_file_under_root_to_dir(mscp, src_prefix, dst_prefix):
     src = File("/mscp-test-src", size = 1024).make()
     dst = File("/tmp/mscp-test-src")
 
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path,
+    run2ok([mscp, "-vvv", src_prefix + src.path,
             dst_prefix + os.path.dirname(dst.path)])
     assert check_same_md5sum(src, dst)
     src.cleanup()
@@ -230,7 +230,7 @@ def test_min_chunk(mscp, src_prefix, dst_prefix):
     src = File("src", size = 16 * 1024).make()
     dst = File("dst")
 
-    run2ok([mscp, "-H", "-vvv", "-s", 32768, src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", "-s", 32768, src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
 
     src.cleanup()
@@ -267,7 +267,7 @@ def test_glob_src_path(mscp, src_prefix, dst_prefix,
     for src in srcs:
         src.make(size = 1024 * 1024)
 
-    run2ok([mscp, "-H", "-vvv", src_prefix + src_glob_path, dst_prefix + dst_path])
+    run2ok([mscp, "-vvv", src_prefix + src_glob_path, dst_prefix + dst_path])
     for src, dst in zip(srcs, dsts):
         assert check_same_md5sum(src, dst)
         src.cleanup()
@@ -278,7 +278,7 @@ def test_thread_affinity(mscp, src_prefix, dst_prefix):
     src = File("src", size = 64 * 1024).make()
     dst = File("dst")
 
-    run2ok([mscp, "-H", "-vvv", "-n", 4, "-m", "0x01",
+    run2ok([mscp, "-vvv", "-n", 4, "-m", "0x01",
             src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
 
@@ -290,7 +290,7 @@ def test_cannot_override_file_with_dir(mscp, src_prefix, dst_prefix):
     src = File("src", size = 128).make()
     dst = File("dst").make()
 
-    run2ng([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + "dst/src"])
+    run2ng([mscp, "-vvv", src_prefix + src.path, dst_prefix + "dst/src"])
 
     src.cleanup()
     dst.cleanup()
@@ -299,7 +299,7 @@ def test_cannot_override_file_with_dir(mscp, src_prefix, dst_prefix):
 def test_transfer_zero_bytes(mscp, src_prefix, dst_prefix):
     src = File("src", size = 0).make()
     dst = File("dst")
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + "dst"])
     assert os.path.exists("dst")
     src.cleanup()
     dst.cleanup()
@@ -308,7 +308,7 @@ def test_transfer_zero_bytes(mscp, src_prefix, dst_prefix):
 def test_override_dst_having_larger_size(mscp, src_prefix, dst_prefix):
     src = File("src", size = 1024 * 1024).make()
     dst = File("dst", size = 1024 * 1024 * 2).make()
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + "dst"])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -317,7 +317,7 @@ def test_override_dst_having_larger_size(mscp, src_prefix, dst_prefix):
 def test_dont_truncate_dst(mscp, src_prefix, dst_prefix):
     f = File("srcanddst", size = 1024 * 1024 * 128).make()
     md5_before = f.md5sum()
-    run2ok([mscp, "-H", "-vvv", src_prefix + f.path, dst_prefix + f.path])
+    run2ok([mscp, "-vvv", src_prefix + f.path, dst_prefix + f.path])
     md5_after = f.md5sum()
     assert md5_before == md5_after
     f.cleanup()
@@ -332,7 +332,7 @@ def test_copy_readonly_file(mscp, src_prefix, dst_prefix):
     """
     src = File("src", size = 1024 * 1024 * 128, perm = 0o444).make()
     dst = File("dst")
-    run2ok([mscp, "-H", "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -347,7 +347,7 @@ def test_dont_make_conns_more_than_chunks(mscp, src_prefix, dst_prefix):
         srcs.append(File("src/src-{:06d}".format(n), size=1024).make())
         dsts.append(File("dst/src-{:06d}".format(n)))
     start = time.time()
-    run2ok([mscp, "-H", "-v", "-n", "20", "-I", "1",
+    run2ok([mscp, "-v", "-n", "20", "-I", "1",
             src_prefix + "src", dst_prefix + "dst"])
     end = time.time()
     for s, d in zip(srcs, dsts):
@@ -364,7 +364,7 @@ def test_bwlimit(mscp, src_prefix, dst_prefix):
     dst = File("dst")
 
     start = datetime.datetime.now().timestamp()
-    run2ok([mscp, "-H", "-vvv", "-L", "100m", src_prefix + "src", dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", "-L", "100m", src_prefix + "src", dst_prefix + "dst"])
     end = datetime.datetime.now().timestamp()
     assert check_same_md5sum(src, dst)
     src.cleanup()
@@ -376,21 +376,21 @@ def test_bwlimit(mscp, src_prefix, dst_prefix):
 @pytest.mark.parametrize("src, dst", param_single_copy)
 def test_set_port_ng(mscp, src_prefix, dst_prefix, src, dst):
     src.make()
-    run2ng([mscp, "-H", "-vvv", "-P", 21, src_prefix + src.path, dst_prefix + dst.path])
+    run2ng([mscp, "-vvv", "-P", 21, src_prefix + src.path, dst_prefix + dst.path])
     src.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 @pytest.mark.parametrize("src, dst", param_single_copy)
 def test_set_port_ok(mscp, src_prefix, dst_prefix, src, dst):
     src.make()
-    run2ok([mscp, "-H", "-vvv", "-P", 8022, src_prefix + src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", "-P", 8022, src_prefix + src.path, dst_prefix + dst.path])
     src.cleanup()
 
 def test_v4only(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
     dst_prefix = "localhost:{}/".format(os.getcwd())
-    run2ok([mscp, "-H", "-vvv", "-4", src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", "-4", src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -399,7 +399,7 @@ def test_v6only(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
     dst_prefix = "ip6-localhost:{}/".format(os.getcwd())
-    run2ok([mscp, "-H", "-vvv", "-6", src.path, dst_prefix + dst.path])
+    run2ok([mscp, "-vvv", "-6", src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -408,14 +408,14 @@ def test_v4_to_v6_should_fail(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
     dst_prefix = "[::1]:{}/".format(os.getcwd())
-    run2ng([mscp, "-H", "-vvv", "-4", src.path, dst_prefix + dst.path])
+    run2ng([mscp, "-vvv", "-4", src.path, dst_prefix + dst.path])
     src.cleanup()
 
 def test_v6_to_v4_should_fail(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
     dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
-    run2ng([mscp, "-H", "-vvv", "-6", src.path, dst_prefix + dst.path])
+    run2ng([mscp, "-vvv", "-6", src.path, dst_prefix + dst.path])
     src.cleanup()
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
@@ -425,7 +425,7 @@ def test_set_conn_interval(mscp, src_prefix, dst_prefix):
     for x in range(500):
         srcs.append(File("src/file{}".format(x), size = 128).make())
         dsts.append(File("dst/file{}".format(x)))
-    run2ok([mscp, "-H", "-vvv", "-I", 1, src_prefix + "src", dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", "-I", 1, src_prefix + "src", dst_prefix + "dst"])
 
     for src, dst in zip(srcs, dsts):
         assert check_same_md5sum(src, dst)
@@ -438,7 +438,7 @@ compressions = ["yes", "no", "none"]
 def test_compression(mscp, src_prefix, dst_prefix, compress):
     src = File("src", size = 1024 * 1024).make()
     dst = File("dst", size = 1024 * 1024 * 2).make()
-    run2ok([mscp, "-H", "-vvv", "-C", compress, src_prefix + src.path, dst_prefix + "dst"])
+    run2ok([mscp, "-vvv", "-C", compress, src_prefix + src.path, dst_prefix + "dst"])
     assert check_same_md5sum(src, dst)
     src.cleanup()
     dst.cleanup()
@@ -456,7 +456,7 @@ def test_ccalgo(mscp, src_prefix, dst_prefix):
         with open("/proc/sys/net/ipv4/tcp_allowed_congestion_control", "r") as f:
             algo = f.read().strip().split().pop()
         run = run2ok
-    run([mscp, "-H", "-vvv", "-g", algo, src_prefix + src.path, dst_prefix + "dst"])
+    run([mscp, "-vvv", "-g", algo, src_prefix + src.path, dst_prefix + "dst"])
 
 
 testhost = "mscptestlocalhost"
@@ -473,7 +473,7 @@ def test_config_ok(mscp, src_prefix, dst_prefix):
 
     src = File("src", size = 1024 * 1024).make()
     dst = File("dst", size = 1024 * 1024 * 2).make()
-    run2ok([mscp, "-H", "-vvv", "-F", config,
+    run2ok([mscp, "-vvv", "-F", config,
             src_prefix + src.path, dst_prefix + "dst"])
 
     os.remove(config)
@@ -489,7 +489,7 @@ def test_config_ng(mscp, src_prefix, dst_prefix):
 
     src = File("src", size = 1024 * 1024).make()
     dst = File("dst", size = 1024 * 1024 * 2).make()
-    run2ng([mscp, "-H", "-vvv", "-F", config,
+    run2ng([mscp, "-vvv", "-F", config,
             src_prefix + src.path, dst_prefix + "dst"])
 
     os.remove(config)
@@ -502,7 +502,7 @@ def test_specify_passphrase_via_env(mscp):
     dst = File("/home/test/dst")
     env = os.environ
     env["MSCP_SSH_AUTH_PASSPHRASE"]  = "keypassphrase"
-    run2ok([mscp, "-H", "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
+    run2ok([mscp, "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
             src.path, "localhost:" + dst.path], env = env)
     assert check_same_md5sum(src, dst)
     src.cleanup()
@@ -513,7 +513,7 @@ def test_specify_invalid_passphrase_via_env(mscp):
     dst = File("/home/test/dst")
     env = os.environ
     env["MSCP_SSH_AUTH_PASSPHRASE"]  = "invalid-keypassphrase"
-    run2ng([mscp, "-H", "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
+    run2ng([mscp, "-vvv", "-l", "test", "-i", "/home/test/.ssh/id_rsa_test",
             src.path, "localhost:" + dst.path], env = env)
     src.cleanup()
 
@@ -522,7 +522,7 @@ def test_specify_password_via_env(mscp):
     dst = File("/home/test/dst")
     env = os.environ
     env["MSCP_SSH_AUTH_PASSWORD"]  = "userpassword"
-    run2ok([mscp, "-H", "-vvv", "-l", "test",
+    run2ok([mscp, "-vvv", "-l", "test",
             src.path, "localhost:" + dst.path], env = env)
     assert check_same_md5sum(src, dst)
     src.cleanup()
@@ -533,7 +533,7 @@ def test_specify_invalid_password_via_env(mscp):
     dst = File("/home/test/dst")
     env = os.environ
     env["MSCP_SSH_AUTH_PASSWORD"]  = "invalid-userpassword"
-    run2ng([mscp, "-H", "-vvv", "-l", "test",
+    run2ng([mscp, "-vvv", "-l", "test",
             src.path, "localhost:" + dst.path], env = env)
     src.cleanup()
 
@@ -544,7 +544,7 @@ def test_10k_files(mscp, src_prefix, dst_prefix):
     for n in range(10000):
         srcs.append(File("src/src-{:06d}".format(n), size=1024).make())
         dsts.append(File("dst/src-{:06d}".format(n)))
-    run2ok([mscp, "-H", "-v", src_prefix + "src", dst_prefix + "dst"])
+    run2ok([mscp, "-v", src_prefix + "src", dst_prefix + "dst"])
     for s, d in zip(srcs, dsts):
         assert check_same_md5sum(s, d)
     shutil.rmtree("src")
@@ -556,11 +556,11 @@ def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
     src2 = File("src2", size = 512 * 1024 * 1024).make()
     dst1 = File("dst/src1")
     dst2 = File("dst/src2")
-    run2ok([mscp, "-H", "-vvv", "-W", "checkpoint", "-D",
+    run2ok([mscp, "-vvv", "-W", "checkpoint", "-D",
             src_prefix + "src1", src_prefix + "src2", dst_prefix + "dst"])
     assert os.path.exists("checkpoint")
 
-    run2ok([mscp, "-H", "-vvv", "-R", "checkpoint"])
+    run2ok([mscp, "-vvv", "-R", "checkpoint"])
     assert check_same_md5sum(src1, dst1)
     assert check_same_md5sum(src2, dst2)
     src1.cleanup()
@@ -577,12 +577,12 @@ def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
     src2 = File("src2", size = 100 * 1024 * 1024).make()
     dst1 = File("dst/src1")
     dst2 = File("dst/src2")
-    run2ng([mscp, "-H", "-vv", "-W", "checkpoint", "-L", "200m",
+    run2ng([mscp, "-vv", "-W", "checkpoint", "-L", "200m",
             src_prefix + "src1", src_prefix + "src2", dst_prefix + "dst"],
            timeout = timeout)
     assert os.path.exists("checkpoint")
 
-    run2ok([mscp, "-H", "-vv", "-R", "checkpoint"])
+    run2ok([mscp, "-vv", "-R", "checkpoint"])
     assert check_same_md5sum(src1, dst1)
     assert check_same_md5sum(src2, dst2)
     src1.cleanup()
