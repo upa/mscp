@@ -1,0 +1,37 @@
+FROM ubuntu:24.04
+
+ARG REQUIREDPKGS
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
+	${REQUIREDPKGS} ca-certificates openssh-server \
+	python3 python3-pip python3-dev python3-pytest
+
+
+# preparation for sshd
+RUN mkdir /var/run/sshd        \
+	&& ssh-keygen -A	\
+	&& ssh-keygen -f /root/.ssh/id_rsa -N ""                \
+	&& cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
+
+# create test user
+RUN useradd -m -d /home/test test	\
+	&& echo "test:userpassword" | chpasswd \
+	&& mkdir -p /home/test/.ssh	\
+	&& ssh-keygen -f /home/test/.ssh/id_rsa_test -N "keypassphrase"	\
+	&& cat /home/test/.ssh/id_rsa_test.pub >> /home/test/.ssh/authorized_keys \
+	&& chown -R test:test /home/test \
+	&& chown -R test:test /home/test/.ssh
+
+
+ARG mscpdir="/mscp"
+
+COPY . ${mscpdir}
+
+# build
+RUN cd ${mscpdir}			\
+	&& rm -rf build			\
+	&& cmake -B build		\
+	&& cd ${mscpdir}/build		\
+	&& make	-j 2			\
+	&& make install
