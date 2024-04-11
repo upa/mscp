@@ -18,10 +18,12 @@ if [ ! -e /var/run/sshd.pid ]; then
 	sleep 1
 fi
 
-ssh-keyscan localhost >> ${HOME}/.ssh/known_hosts
-ssh-keyscan ip6-localhost >> ${HOME}/.ssh/known_hosts
-ssh-keyscan 127.0.0.1 >> ${HOME}/.ssh/known_hosts
-ssh-keyscan ::1 >> ${HOME}/.ssh/known_hosts
+for port in 22 8022; do
+	ssh-keyscan -p $port localhost >> ${HOME}/.ssh/known_hosts
+	ssh-keyscan -p $port ip6-localhost >> ${HOME}/.ssh/known_hosts
+	ssh-keyscan -p $port 127.0.0.1 >> ${HOME}/.ssh/known_hosts
+	ssh-keyscan -p $port ::1 >> ${HOME}/.ssh/known_hosts
+done
 
 # Run test
 python3 -m pytest -v ../test 
