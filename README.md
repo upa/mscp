@@ -15,7 +15,7 @@ transfer time for a lot of/large files over networks.
 You can use `mscp` like `scp`, for example:
 
 ```shell-session
-$ mscp user@example.com:srcfile /tmp/dstfile
+$ mscp srcfile user@example.com:dstfile
 ```
 
 Remote hosts only need to run standard `sshd` supporting the SFTP
@@ -27,7 +27,7 @@ https://github.com/upa/mscp/assets/184632/19230f57-be7f-4ef0-98dd-cb4c460f570d
 
 --------------------------------------------------------------------
 
-Differences from `scp` on usage:
+Major differences from `scp` on usage:
 
 - Remote-to-remote copy is not supported.
 - `-r` option is not needed to transfer directories.
@@ -102,7 +102,7 @@ make install
 ```
 
 Source tar balls (`mscp-X.X.X.tar.gz`, not `Source code`) in
-[Releases page](https://github.com/upa/mscp/releases) contains the patched version
+[Releases page](https://github.com/upa/mscp/releases) contain the patched version
 of libssh. So you can start from cmake with it.
 
 
