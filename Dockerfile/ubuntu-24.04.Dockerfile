@@ -4,7 +4,7 @@ ARG REQUIREDPKGS
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN set -ex && apt-get update && apt-get install -y --no-install-recommends \
-	${REQUIREDPKGS} ca-certificates openssh-server \
+	${REQUIREDPKGS} ca-certificates openssh-server vim-tiny \
 	python3 python3-pip python3-dev python3-pytest
 
 
