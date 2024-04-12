@@ -4,11 +4,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "libssh/callbacks.h"
-
 #include <ssh.h>
 #include <mscp.h>
 #include <strerrno.h>
+
+#include "libssh/callbacks.h"
+#include "libssh/options.h"
 
 static int ssh_verify_known_hosts(ssh_session session);
 static int ssh_authenticate_kbdint(ssh_session session);
@@ -85,6 +86,17 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 	if (opts->config && ssh_options_parse_config(ssh, opts->config) < 0) {
 		priv_set_errv("failed to parse ssh_config: %s", opts->config);
 		return -1;
+	}
+
+	if (opts->options) {
+		int n;
+		for (n = 0; opts->options[n]; n++) {
+			if (ssh_config_parse_string(ssh, opts->options[n]) != SSH_OK) {
+				priv_set_errv("failed to set ssh option %s: %s",
+					      opts->options[n]);
+				return -1;
+			}
+		}
 	}
 
 	return 0;

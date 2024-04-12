@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.1.5-10-g00fa2c7
+:Date: v0.1.5-13-gf2f0dab
 
 NAME
 ====
@@ -17,9 +17,9 @@ SYNOPSIS
 *CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
 **-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
 **-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
-**-F** *CONFIG* ] [ **-i** *IDENTITY* ] [ **-c** *CIPHER* ] [ **-M**
-*HMAC* ] [ **-C** *COMPRESS* ] [ **-g** *CONGESTION* ] *source ...
-target*
+**-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [ **-i** *IDENTITY* ] [
+**-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C** *COMPRESS* ] [ **-g**
+*CONGESTION* ] *source ... target*
 
 DESCRIPTION
 ===========
@@ -144,10 +144,14 @@ OPTIONS
    Specifies the port number to connect to on the remote machine as with
    ssh(1) and scp(1).
 
-**-F CONFIG**
+**-F SSH_CONFIG**
    Specifies an alternative per-user ssh configuration file. Note that
    acceptable options in the configuration file are what *libssh*
    supports.
+
+**-o SSH_OPTION**
+   Specifies ssh options in the format used in ssh_config. Note that
+   acceptable options are what *libssh* supports.
 
 **-i IDENTITY**
    Specifies the identity file for public key authentication.

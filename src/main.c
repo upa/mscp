@@ -28,8 +28,9 @@ void usage(bool print_help)
 	       "            [-u max_startups] [-I interval] [-W checkpoint] [-R checkpoint]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
 	       "            [-b buf_sz] [-L limit_bitrate]\n"
-	       "            [-l login_name] [-P port] [-F ssh_config] [-i identity_file]\n"
-	       "            [-c cipher_spec] [-M hmac_spec] [-C compress] [-g congestion]\n"
+	       "            [-l login_name] [-P port] [-F ssh_config] [-o ssh_option]\n"
+	       "            [-i identity_file] [-c cipher_spec] [-M hmac_spec]\n"
+	       "            [-C compress] [-g congestion]\n"
 	       "            source ... target\n"
 	       "\n");
 
@@ -60,7 +61,8 @@ void usage(bool print_help)
 	       "\n"
 	       "    -l LOGIN_NAME      login name\n"
 	       "    -P PORT            port number\n"
-	       "    -F CONFIG          path to user ssh config (default ~/.ssh/config)\n"
+	       "    -F SSH_CONFIG      path to user ssh config (default ~/.ssh/config)\n"
+	       "    -o SSH_OPTION      ssh_config option\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
@@ -267,6 +269,7 @@ int main(int argc, char **argv)
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
 	bool dryrun = false, resume = false;
+	int nr_options = 0;
 	size_t factor = 1;
 	char *unit;
 
@@ -274,7 +277,7 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:c:M:C:g:pdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:o:c:M:C:g:pdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -358,6 +361,16 @@ int main(int argc, char **argv)
 			break;
 		case 'F':
 			s.config = optarg;
+			break;
+		case 'o':
+			nr_options++;
+			s.options = realloc(s.options, sizeof(char *) * (nr_options + 1));
+			if (!s.options) {
+				pr_err("realloc: %s", strerrno());
+				return 1;
+			}
+			s.options[nr_options - 1] = optarg;
+			s.options[nr_options] = NULL;
 			break;
 		case 'i':
 			s.identity = optarg;

@@ -47,7 +47,10 @@ mscp \- copy files over multiple SSH connections
 .BI \-P \ PORT\c
 ]
 [\c
-.BI \-F \ CONFIG\c
+.BI \-F \ SSH_CONFIG\c
+]
+[\c
+.BI \-o \ SSH_OPTION\c
 ]
 [\c
 .BI \-i \ IDENTITY\c
@@ -247,9 +250,16 @@ Specifies the port number to connect to on the remote machine as with
 ssh(1) and scp(1).
 
 .TP
-.B \-F \fICONFIG\fR
+.B \-F \fISSH_CONFIG\fR
 Specifies an alternative per-user ssh configuration file. Note that
 acceptable options in the configuration file are what
+.I libssh
+supports.
+
+.TP
+.B \-o \fISSH_OPTION\fR
+Specifies ssh options in the format used in ssh_config. Note that
+acceptable options are what
 .I libssh
 supports.
 

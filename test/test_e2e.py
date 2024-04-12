@@ -496,6 +496,40 @@ def test_config_ng(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup()
 
+
+param_valid_option_ok = [
+    [ "-o", "Port=8022" ],
+    [ "-o", "Port=8022", "-o", "User=root" ],
+    [ "-o", "unknown-option-is-silently-ignored" ],
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("option", param_valid_option_ok)
+def test_inline_option_ok(mscp, src_prefix, dst_prefix, option):
+    """ change port number with -o option. it should be ok. """
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst")
+    run2ok([mscp, "-vvv"] + option +
+           [src_prefix + src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+
+param_valid_option_ng = [
+    [ "-o", "Port=8023" ],
+    [ "-o", "User=invaliduser" ],
+]
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+@pytest.mark.parametrize("option", param_valid_option_ng)
+def test_inline_option_ng(mscp, src_prefix, dst_prefix, option):
+    """ change port number with -o option. it should be ng. """
+    src = File("src", size = 1024 * 1024).make()
+    dst = File("dst")
+    run2ng([mscp, "-vvv"] + option +
+           [src_prefix + src.path, dst_prefix + dst.path])
+    src.cleanup()
+
+
 # username test assumes that this test runs inside a container, see Dockerfiles
 def test_specify_passphrase_via_env(mscp):
     src = File(os.getcwd() + "/src", size = 1024).make()
@@ -552,8 +586,8 @@ def test_10k_files(mscp, src_prefix, dst_prefix):
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
-    src1 = File("src1", size = 512 * 1024 * 1024).make()
-    src2 = File("src2", size = 512 * 1024 * 1024).make()
+    src1 = File("src1", size = 64 * 1024 * 1024).make()
+    src2 = File("src2", size = 64 * 1024 * 1024).make()
     dst1 = File("dst/src1")
     dst2 = File("dst/src2")
     run2ok([mscp, "-vvv", "-W", "checkpoint", "-D",
