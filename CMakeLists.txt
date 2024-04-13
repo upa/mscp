@@ -251,7 +251,6 @@ configure_file(
 
 # Custom target to build mscp as a src.rpm in docker.
 set(RPMBUILDCONTAINER mscp-build-srpm)
-set(SRPMFILE mscp-${MSCP_VERSION}-1.el9.src.rpm)
 execute_process(
 	COMMAND ${CMAKE_SOURCE_DIR}/scripts/install-build-deps.sh
 	--dont-install --platform Linux-rocky
@@ -261,14 +260,13 @@ execute_process(
 add_custom_target(build-srpm
 	COMMENT "Build mscp src.rpm inside a container"
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
-	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SRPMFILE}
 	COMMAND
 	${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS_RPM}
 	--build-arg MSCP_VERSION=${MSCP_VERSION}
 	-t ${RPMBUILDCONTAINER} -f Dockerfile/build-srpm.Dockerfile .
 	COMMAND
 	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out ${RPMBUILDCONTAINER}
-	cp /root/rpmbuild/SRPMS/${SRPMFILE} /out/)
+	bash -c "cp /root/rpmbuild/SRPMS/mscp-*.src.rpm /out/")
 
 ### single-binary-build-related definitions
 

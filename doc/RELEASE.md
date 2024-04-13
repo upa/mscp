@@ -22,10 +22,12 @@ mscp_0.1.4_source.build  mscp_0.1.4_source.changes
 
 ### To publush mscp in launchpad PPA:
 
-1. write changes in `debian/changelog` at main branch (the date command needed here is `date -R`)
+1. write changes in `debian/changelog` at main branch (the date
+   command needed here is `date -R`)
 2. switch to `ppa-focal` or `ppa-jammy` branch
 3. rebase to the `main` branch and modify `debian/changes`:
-   * change `UNRELEASED` to the release name (`focal` or `jammy`).
+   * change `mscp (X.X.X) UNRELEASED;` to `mscp (X.X.X-1~RELEASENAME) RELEASENAME;`
+	 where `RELEASENAME` is `focal` or `jammy`.
 4. run `make build-deb` at the build directory and `cd debbuild`
 5. sign the files with `debsign -k [GPGKEYID] mscp_X.X.X~X_source.changes`
 5. upload the files with `dput ppa:upaa/mscp mscp_X.X.X~X_source.changes`
