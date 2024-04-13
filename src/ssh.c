@@ -92,7 +92,7 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		int n;
 		for (n = 0; opts->options[n]; n++) {
 			if (ssh_config_parse_string(ssh, opts->options[n]) != SSH_OK) {
-				priv_set_errv("failed to set ssh option %s: %s",
+				priv_set_errv("failed to set ssh option: %s",
 					      opts->options[n]);
 				return -1;
 			}
