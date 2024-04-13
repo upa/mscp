@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.1.5-13-gf2f0dab
+:Date: v0.1.5-16-ga1ba6f1
 
 NAME
 ====
@@ -29,7 +29,7 @@ threads. It enables transferring (1) multiple files simultaneously and
 (2) a large file in parallel, reducing the transfer time for a lot
 of/large files over networks.
 
-The usage of **mscp** imitates the **scp** command of *OpenSSH,* for
+The usage of **mscp** follows the **scp** command of *OpenSSH,* for
 example:
 
 ::
@@ -54,8 +54,10 @@ OPTIONS
    following formula: floor(log(nr_cores)*2)+1.
 
 **-m COREMASK**
-   Configures CPU cores to be used by the hexadecimal bitmask. All CPU
-   cores are used by default.
+   Configures CPU cores to be used by the hexadecimal bitmask. For
+   example, -m 0x25 pins threads onto CPU cores 0, 2, and 5. The default
+   value is not specified: all CPU cores are used and no threads are
+   pinned to any cores.
 
 **-u MAX_STARTUPS**
    Specifies the number of concurrent outgoing SSH connections. **sshd**
@@ -94,8 +96,9 @@ OPTIONS
    remove the checkpoint if it returns 0.
 
 **-s MIN_CHUNK_SIZE**
-   Specifies the minimum chunk size. **mscp** divides a file into chunks
-   and copies the chunks in parallel.
+   Specifies the minimum chunk size. **mscp** divides a single file into
+   chunks and copies the chunks in parallel. The default value is
+   67108864 (64MB).
 
 **-S MAX_CHUNK_SIZE**
    Specifies the maximum chunk size. The default is file size divided by
@@ -142,7 +145,7 @@ OPTIONS
 
 **-P PORT**
    Specifies the port number to connect to on the remote machine as with
-   ssh(1) and scp(1).
+   *scp(1).*
 
 **-F SSH_CONFIG**
    Specifies an alternative per-user ssh configuration file. Note that

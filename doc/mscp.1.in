@@ -81,7 +81,7 @@ of/large files over networks.
 .PP
 The usage of
 .B mscp
-imitates the
+follows the
 .B scp
 command of
 .I OpenSSH,
@@ -120,8 +120,10 @@ formula: floor(log(nr_cores)*2)+1.
 
 .TP
 .B \-m \fICOREMASK\fR
-Configures CPU cores to be used by the hexadecimal bitmask.  All CPU
-cores are used by default.
+Configures CPU cores to be used by the hexadecimal bitmask. For
+example, -m 0x25 pins threads onto CPU cores 0, 2, and 5. The default
+value is not specified: all CPU cores are used and no threads are
+pinned to any cores.
 
 .TP
 .B \-u \fIMAX_STARTUPS\fR
@@ -186,7 +188,8 @@ and remove the checkpoint if it returns 0.
 .B \-s \fIMIN_CHUNK_SIZE\fR
 Specifies the minimum chunk size.
 .B mscp
-divides a file into chunks and copies the chunks in parallel.
+divides a single file into chunks and copies the chunks in
+parallel. The default value is 67108864 (64MB).
 
 .TP
 .B \-S \fIMAX_CHUNK_SIZE\fR
@@ -247,7 +250,7 @@ Specifies the username to log in on the remote machine as with
 .TP
 .B \-P \fIPORT\fR
 Specifies the port number to connect to on the remote machine as with
-ssh(1) and scp(1).
+.I scp(1).
 
 .TP
 .B \-F \fISSH_CONFIG\fR
