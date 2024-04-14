@@ -12,6 +12,9 @@ set -x
 echo "Port 22" >> /etc/ssh/sshd_config
 echo "Port 8022" >> /etc/ssh/sshd_config
 
+## Alpine default sshd disables TcpForwarding, which is required for proxyjump test
+sed -i -e 's/AllowTcpForwarding no/AllowTcpForwarding yes/' /etc/ssh/sshd_config
+
 # Run sshd
 if [ ! -e /var/run/sshd.pid ]; then
 	/usr/sbin/sshd

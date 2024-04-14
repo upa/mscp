@@ -88,6 +88,16 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 		return -1;
 	}
 
+	if (opts->proxyjump) {
+		char buf[256];
+		memset(buf, 0, sizeof(buf));
+		snprintf(buf, sizeof(buf), "proxyjump=%s", opts->proxyjump);
+		if (ssh_config_parse_string(ssh, buf) != SSH_OK) {
+			priv_set_errv("failed to set ssh option: %s", buf);
+			return -1;
+		}
+	}
+
 	if (opts->options) {
 		int n;
 		for (n = 0; opts->options[n]; n++) {

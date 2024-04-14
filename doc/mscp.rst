@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.1.5-16-ga1ba6f1
+:Date: v0.1.5-18-ge47d5b7
 
 NAME
 ====
@@ -18,8 +18,8 @@ SYNOPSIS
 **-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
 **-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
 **-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [ **-i** *IDENTITY* ] [
-**-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C** *COMPRESS* ] [ **-g**
-*CONGESTION* ] *source ... target*
+**-J** *DESTINATION* ] [ **-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C**
+*COMPRESS* ] [ **-g** *CONGESTION* ] *source ... target*
 
 DESCRIPTION
 ===========
@@ -158,6 +158,11 @@ OPTIONS
 
 **-i IDENTITY**
    Specifies the identity file for public key authentication.
+
+**-J DESTINATION**
+   A shortcut to define a **ProxyJump** configuration directive. Each
+   SFTP session of **mscp** connects to the target host by first making
+   an **ssh** connection to the jump host described by *destination.*
 
 **-c CIPHER**
    Selects the cipher to use for encrypting the data transfer. See

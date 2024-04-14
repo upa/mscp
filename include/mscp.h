@@ -63,6 +63,7 @@ struct mscp_ssh_opts {
 	char	*config;	/** path to ssh_config, default ~/.ssh/config*/
 	char	**options;	/** array of ssh_config options, terminated by NULL */
 	char	*identity;	/** path to private key */
+	char	*proxyjump;	/** ProxyJump configuration directive (shortcut) */
 	char	*cipher;	/** cipher spec */
 	char	*hmac;		/** hmacp spec */
 	char	*compress;	/** yes, no, zlib@openssh.com */

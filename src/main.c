@@ -24,12 +24,12 @@ void usage(bool print_help)
 {
 	printf("mscp " MSCP_BUILD_VERSION ": copy files over multiple SSH connections\n"
 	       "\n"
-	       "Usage: mscp [-46vqDpdNh] [-n nr_conns] [-m coremask]\n"
-	       "            [-u max_startups] [-I interval] [-W checkpoint] [-R checkpoint]\n"
+	       "Usage: mscp [-46vqDpdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
+	       "            [-I interval] [-W checkpoint] [-R checkpoint]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
 	       "            [-b buf_sz] [-L limit_bitrate]\n"
 	       "            [-l login_name] [-P port] [-F ssh_config] [-o ssh_option]\n"
-	       "            [-i identity_file] [-c cipher_spec] [-M hmac_spec]\n"
+	       "            [-i identity_file] [-J destination] [-c cipher_spec] [-M hmac_spec]\n"
 	       "            [-C compress] [-g congestion]\n"
 	       "            source ... target\n"
 	       "\n");
@@ -64,6 +64,7 @@ void usage(bool print_help)
 	       "    -F SSH_CONFIG      path to user ssh config (default ~/.ssh/config)\n"
 	       "    -o SSH_OPTION      ssh_config option\n"
 	       "    -i IDENTITY        identity file for public key authentication\n"
+	       "    -J DESTINATION     ProxyJump destination\n"
 	       "    -c CIPHER          cipher spec\n"
 	       "    -M HMAC            hmac spec\n"
 	       "    -C COMPRESS        enable compression: "
@@ -277,7 +278,7 @@ int main(int argc, char **argv)
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:i:F:o:c:M:C:g:pdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:F:o:i:J:c:M:C:g:pdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -374,6 +375,9 @@ int main(int argc, char **argv)
 			break;
 		case 'i':
 			s.identity = optarg;
+			break;
+		case 'J':
+			s.proxyjump = optarg;
 			break;
 		case 'c':
 			s.cipher = optarg;

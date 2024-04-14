@@ -530,6 +530,31 @@ def test_inline_option_ng(mscp, src_prefix, dst_prefix, option):
     src.cleanup()
 
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_porxyjump_ok(mscp, src_prefix, dst_prefix):
+    """ test -J proxyjump option"""
+    src = File("src", size = 10 * 1024 * 1024).make()
+    dst = File("dst")
+    # use small min-chunk-size to use multiple connections
+    run2ok([mscp, "-n", 4, "-s", 1024 * 1024, "-vvv",
+            "-J", "localhost:8022",
+            src_prefix + src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_porxyjump_ng(mscp, src_prefix, dst_prefix):
+    """ test -J proxyjump option, invalid jump node causes fail"""
+    src = File("src", size = 10 * 1024 * 1024).make()
+    dst = File("dst")
+    # use small min-chunk-size to use multiple connections
+    run2ng([mscp, "-n", 4, "-s", 1024 * 1024, "-vvv",
+            "-J", "invaliduser@localhost:8022",
+            src_prefix + src.path, dst_prefix + dst.path])
+    src.cleanup()
+
 # username test assumes that this test runs inside a container, see Dockerfiles
 def test_specify_passphrase_via_env(mscp):
     src = File(os.getcwd() + "/src", size = 1024).make()
