@@ -201,7 +201,7 @@ foreach(x RANGE ${DIST_LISTLEN})
 		COMMENT "Test mscp in ${DOCKER_IMAGE} container"
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMAND
-		${CE} run --init --rm
+		${CE} run --init --rm --privileged
 		--sysctl net.ipv6.conf.all.disable_ipv6=0
 		--add-host=ip6-localhost:::1
 		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
