@@ -1,4 +1,19 @@
-mscp (0.1.5) UNRELEASED; urgency=medium
+mscp (0.2.0) UNRELEASED; urgency=medium
+
+  * add -J DESTINATION option for ProxyJump (#15)
+  * add -o SSH_OPTION option
+  * add -L LIMIT_BITRATE option (#14)
+  * add keyboard interactive authentication support. Also, we have manually
+    tested that mscp works with cisco DUO MFA (#2)
+  * remove -H disable host key check option (ssh_config or -o option can do
+    this instead)
+  * fix copying files of permission r--r--r--
+  * update github actions: checkout v3 to v4, and codeql from v2 to v3
+  * add ubuntu 24.04 test
+
+ -- Ryo Nakamura <upa@haeena.net>  Mon, 15 Apr 2024 00:05:20 +0900
+
+mscp (0.1.5) unstable; urgency=medium
 
   * add support for resuming failed transfer (#5 and #10)
   * remove the list structure derived from the linux kernel and refactoring
