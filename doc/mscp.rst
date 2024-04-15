@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.1.5-18-ge47d5b7
+:Date:   v0.2.0
 
 NAME
 ====
@@ -12,14 +12,15 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-46vqDpdNh**] [ **-n** *NR_CONNECTIONS* ] [ **-m**
-*COREMASK* ] [ **-u** *MAX_STARTUPS* ] [ **-I** *INTERVAL* ] [ **-W**
-*CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
-**-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
-**-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
-**-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [ **-i** *IDENTITY* ] [
-**-J** *DESTINATION* ] [ **-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C**
-*COMPRESS* ] [ **-g** *CONGESTION* ] *source ... target*
+**mscp** [**-46vqDpdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
+**-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
+**-W**\ *CHECKPOINT* ] [ **-R**\ *CHECKPOINT* ] [
+**-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
+**-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-L**\ *LIMIT_BITRATE* ]
+[ **-l**\ *LOGIN_NAME* ] [ **-P**\ *PORT* ] [ **-F**\ *SSH_CONFIG* ] [
+**-o**\ *SSH_OPTION* ] [ **-i**\ *IDENTITY* ] [ **-J**\ *DESTINATION* ]
+[ **-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] [
+**-g**\ *CONGESTION* ] *source ... target*
 
 DESCRIPTION
 ===========
