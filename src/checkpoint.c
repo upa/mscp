@@ -276,7 +276,7 @@ int checkpoint_save(const char *pathname, int dir, const char *user, const char 
 	pool_for_each(path_pool, p, i) {
 		if (p->state == FILE_STATE_DONE)
 			continue;
-		if (checkpoint_write_path(fd, p, i) < 0)
+		if (checkpoint_write_path(fd, p, nr_paths) < 0)
 			return -1;
 		nr_paths++;
 	}
@@ -349,7 +349,8 @@ static int checkpoint_load_path(struct checkpoint_obj_hdr *hdr, pool *path_pool)
 		return -1;
 	}
 
-	pr_info("checkpoint:file: %s -> %s", p->path, p->dst_path);
+	pr_info("checkpoint:file: idx=%u %s -> %s", ntohl(path->idx),
+		p->path, p->dst_path);
 
 	return 0;
 }
@@ -375,7 +376,8 @@ static int checkpoint_load_chunk(struct checkpoint_obj_hdr *hdr, pool *path_pool
 		return -1;
 	}
 
-	pr_debug("checkpoint:chunk: %s 0x%lx-0x%lx", p->path, c->off, c->off + c->len);
+	pr_debug("checkpoint:chunk: idx=%u %s 0x%lx-0x%lx", ntohl(chunk->idx),
+		 p->path, c->off, c->off + c->len);
 
 	return 0;
 }

@@ -628,9 +628,9 @@ def test_checkpoint_dump_and_resume(mscp, src_prefix, dst_prefix):
     dst2.cleanup()
     os.remove("checkpoint")
 
-@pytest.mark.parametrize("timeout", [1, 2, 3, 4, 5, 6])
+@pytest.mark.parametrize("timeout", [ 1, 2, 3, 4, 5 ])
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
-def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
+def test_checkpoint_interrupt_large_file(mscp, timeout, src_prefix, dst_prefix):
     """Copy two 100MB files with 200Mbps -> 4 sec + 4 sec """
     src1 = File("src1", size = 100 * 1024 * 1024).make()
     src2 = File("src2", size = 100 * 1024 * 1024).make()
@@ -648,5 +648,33 @@ def test_checkpoint_interrupt_and_resume(mscp, timeout, src_prefix, dst_prefix):
     src2.cleanup()
     dst1.cleanup()
     dst2.cleanup()
+    os.remove("checkpoint")
+
+@pytest.mark.parametrize("timeout", [ 1, 2, 3, 4, 5 ])
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_checkpoint_interrupt_many_files(mscp, timeout, src_prefix, dst_prefix):
+    """Copy 100 1-MB files with 4 connections, and interrupt and
+    resume the transfer
+    """
+
+    files = []
+    for x in range(100):
+        files.append((
+            File("src/{:03d}".format(x), size = 1024 * 1024).make(),
+            File("dst/{:03d}".format(x))
+        ))
+
+    run2ng([mscp, "-vv", "-W", "checkpoint", "-L", "80m", "-n", 4,
+            src_prefix + "src",  dst_prefix + "dst"],
+           timeout = timeout)
+    assert os.path.exists("checkpoint")
+
+    run2ok([mscp, "-vv", "-R", "checkpoint"])
+
+    for src, dst in files:
+        assert check_same_md5sum(src, dst)
+        src.cleanup()
+        dst.cleanup()
+
     os.remove("checkpoint")
 
