@@ -487,6 +487,18 @@ int main(int argc, char **argv)
 			pr_err("mscp_checkpoint_load: %s", priv_get_err());
 			return -1;
 		}
+
+		if (dryrun)
+			goto out;
+
+		/* create the first ssh connection to get password or
+		 * passphrase. The sftp session over it will be not
+		 * used for resume transfer in actuality. ToDo:
+		 * connectin managemnet should be improved. */
+		if (mscp_connect(m) < 0) {
+			pr_err("mscp_connect: %s", priv_get_err());
+			return -1;
+		}
 	}
 
 	if (dryrun) {
