@@ -260,6 +260,37 @@ void print_cli(const char *fmt, ...)
 
 void print_stat(bool final);
 
+long atol_with_unit(char *value, bool i)
+{
+	/* value must be "\d+[kKmMgG]?" */
+
+	char *u = value + (strlen(optarg) - 1);
+	long k = i ? 1024 : 1000;
+	long factor = 1;
+	long v;
+
+	switch (*u) {
+	case 'k':
+	case 'K':
+		factor = k;
+		*u = '\0';
+		break;
+	case 'm':
+	case 'M':
+		factor = k * k;
+		*u = '\0';
+		break;
+	case 'g':
+	case 'G':
+		factor = k * k * k;
+		*u = '\0';
+		break;
+	}
+
+	v = atol(value);
+	return v * factor;
+}
+
 int main(int argc, char **argv)
 {
 	struct mscp_ssh_opts s;
@@ -271,8 +302,6 @@ int main(int argc, char **argv)
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
 	bool dryrun = false, resume = false;
 	int nr_options = 0;
-	size_t factor = 1;
-	char *unit;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
@@ -305,36 +334,19 @@ int main(int argc, char **argv)
 			resume = true;
 			break;
 		case 's':
-			o.min_chunk_sz = atoi(optarg);
+			o.min_chunk_sz = atol_with_unit(optarg, true);
 			break;
 		case 'S':
-			o.max_chunk_sz = atoi(optarg);
+			o.max_chunk_sz = atol_with_unit(optarg, true);
 			break;
 		case 'a':
 			o.nr_ahead = atoi(optarg);
 			break;
 		case 'b':
-			o.buf_sz = atoi(optarg);
+			o.buf_sz = atol_with_unit(optarg, true);
 			break;
 		case 'L':
-			factor = 1;
-			unit = optarg + (strlen(optarg) - 1);
-			if (*unit == 'k' || *unit == 'K') {
-				factor = 1000;
-				*unit = '\0';
-			} else if (*unit == 'm' || *unit == 'M') {
-				factor = 1000000;
-				*unit = '\0';
-			} else if (*unit == 'g' || *unit == 'G') {
-				factor = 1000000000;
-				*unit = '\0';
-			}
-			o.bitrate = atol(optarg);
-			if (o.bitrate == 0) {
-				pr_err("invalid bitrate: %s", optarg);
-				return 1;
-			}
-			o.bitrate *= factor;
+			o.bitrate = atol_with_unit(optarg, false);
 			break;
 		case '4':
 			s.ai_family = AF_INET;
