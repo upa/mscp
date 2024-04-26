@@ -62,7 +62,7 @@ struct mscp {
 	struct mscp_thread scan; /* mscp_thread for mscp_scan_thread() */
 };
 
-#define DEFAULT_MIN_CHUNK_SZ (64 << 20) /* 64MB */
+#define DEFAULT_MIN_CHUNK_SZ (16 << 20) /* 16MB */
 #define DEFAULT_NR_AHEAD 32
 #define DEFAULT_BUF_SZ 16384
 /* XXX: we use 16384 byte buffer pointed by

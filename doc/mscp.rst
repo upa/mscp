@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date:   v0.2.0
+:Date: v0.2.0-5-g08660bb
 
 NAME
 ====
@@ -12,15 +12,14 @@ mscp - copy files over multiple SSH connections
 SYNOPSIS
 ========
 
-**mscp** [**-46vqDpdNh**] [ **-n**\ *NR_CONNECTIONS* ] [
-**-m**\ *COREMASK* ] [ **-u**\ *MAX_STARTUPS* ] [ **-I**\ *INTERVAL* ] [
-**-W**\ *CHECKPOINT* ] [ **-R**\ *CHECKPOINT* ] [
-**-s**\ *MIN_CHUNK_SIZE* ] [ **-S**\ *MAX_CHUNK_SIZE* ] [
-**-a**\ *NR_AHEAD* ] [ **-b**\ *BUF_SIZE* ] [ **-L**\ *LIMIT_BITRATE* ]
-[ **-l**\ *LOGIN_NAME* ] [ **-P**\ *PORT* ] [ **-F**\ *SSH_CONFIG* ] [
-**-o**\ *SSH_OPTION* ] [ **-i**\ *IDENTITY* ] [ **-J**\ *DESTINATION* ]
-[ **-c**\ *CIPHER* ] [ **-M**\ *HMAC* ] [ **-C**\ *COMPRESS* ] [
-**-g**\ *CONGESTION* ] *source ... target*
+**mscp** [**-46vqDpdNh**] [ **-n** *NR_CONNECTIONS* ] [ **-m**
+*COREMASK* ] [ **-u** *MAX_STARTUPS* ] [ **-I** *INTERVAL* ] [ **-W**
+*CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
+**-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
+**-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
+**-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [ **-i** *IDENTITY* ] [
+**-J** *DESTINATION* ] [ **-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C**
+*COMPRESS* ] [ **-g** *CONGESTION* ] *source ... target*
 
 DESCRIPTION
 ===========
@@ -98,8 +97,8 @@ OPTIONS
 
 **-s MIN_CHUNK_SIZE**
    Specifies the minimum chunk size. **mscp** divides a single file into
-   chunks and copies the chunks in parallel. The default value is
-   67108864 (64MB).
+   chunks and copies the chunks in parallel. The default value is 16M
+   bytes.
 
 **-S MAX_CHUNK_SIZE**
    Specifies the maximum chunk size. The default is file size divided by

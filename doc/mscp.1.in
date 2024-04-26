@@ -192,7 +192,7 @@ and remove the checkpoint if it returns 0.
 Specifies the minimum chunk size.
 .B mscp
 divides a single file into chunks and copies the chunks in
-parallel. The default value is 67108864 (64MB).
+parallel. The default value is 16M bytes.
 
 .TP
 .B \-S \fIMAX_CHUNK_SIZE\fR

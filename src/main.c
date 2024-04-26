@@ -46,7 +46,7 @@ void usage(bool print_help)
 	       "    -W CHECKPOINT      write states to the checkpoint if transfer fails\n"
 	       "    -R CHECKPOINT      resume transferring from the checkpoint\n"
 	       "\n"
-	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 64MB)\n"
+	       "    -s MIN_CHUNK_SIZE  min chunk size (default: 16M bytes)\n"
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn)\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
