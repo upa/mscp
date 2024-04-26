@@ -158,23 +158,8 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 
 	if (o->min_chunk_sz == 0)
 		o->min_chunk_sz = DEFAULT_MIN_CHUNK_SZ;
-	else {
-		if (o->min_chunk_sz < getpagesize() ||
-		    o->min_chunk_sz % getpagesize() != 0) {
-			priv_set_errv("min chunk size must be "
-				      "larget than and multiple of page size %d: %lu",
-				      getpagesize(), o->min_chunk_sz);
-			return -1;
-		}
-	}
 
 	if (o->max_chunk_sz) {
-		if (o->max_chunk_sz < getpagesize() ||
-		    o->max_chunk_sz % getpagesize() != 0) {
-			priv_set_errv("min chunk size must be larget than and "
-				      "multiple of page size %d: %lu",
-				      getpagesize(), o->max_chunk_sz);
-		}
 		if (o->min_chunk_sz > o->max_chunk_sz) {
 			priv_set_errv("smaller max chunk size than "
 				      "min chunk size: %lu < %lu",
