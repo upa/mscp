@@ -294,4 +294,15 @@ enum {
 };
 
 
+/**
+ * @brief Return available ciphers.
+ */
+const char **mscp_ssh_ciphers(void);
+
+/**
+ * @brief Return available hmacs.
+ */
+ const char **mscp_ssh_hmacs(void);
+
+
 #endif /* _MSCP_H_ */

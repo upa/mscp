@@ -75,6 +75,26 @@ void usage(bool print_help)
 	       "    -N                 enable Nagle's algorithm (default disabled)\n"
 	       "    -h                 print this help\n"
 	       "\n");
+
+	const char **ciphers = mscp_ssh_ciphers();
+	const char **hmacs = mscp_ssh_hmacs();
+	int n;
+
+	printf("Available ciphers: ");
+	for (n = 0; ciphers[n] != NULL; n++) {
+		printf("%s", ciphers[n]);
+		if (ciphers[n + 1])
+			printf(", ");
+	}
+	printf("\n\n");
+
+	printf("Available hmacs: ");
+	for (n = 0; hmacs[n] != NULL; n++) {
+		printf("%s", hmacs[n]);
+		if (hmacs[n + 1])
+			printf(", ");
+	}
+	printf("\n\n");
 }
 
 char *strip_brackets(char *s)

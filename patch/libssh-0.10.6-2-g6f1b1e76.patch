@@ -37,7 +37,7 @@ index 1fce7b76..b64d1455 100644
  int ssh_buffer_validate_length(struct ssh_buffer_struct *buffer, size_t len);
  
 diff --git a/include/libssh/libssh.h b/include/libssh/libssh.h
-index 669a0a96..da5b4099 100644
+index 669a0a96..26b20f3f 100644
 --- a/include/libssh/libssh.h
 +++ b/include/libssh/libssh.h
 @@ -368,6 +368,7 @@ enum ssh_options_e {
@@ -64,11 +64,14 @@ index 669a0a96..da5b4099 100644
  LIBSSH_API void ssh_buffer_free(ssh_buffer buffer);
  #define SSH_BUFFER_FREE(x) \
      do { if ((x) != NULL) { ssh_buffer_free(x); x = NULL; } } while(0)
-@@ -843,6 +846,8 @@ LIBSSH_API void *ssh_buffer_get(ssh_buffer buffer);
+@@ -843,6 +846,11 @@ LIBSSH_API void *ssh_buffer_get(ssh_buffer buffer);
  LIBSSH_API uint32_t ssh_buffer_get_len(ssh_buffer buffer);
  LIBSSH_API int ssh_session_set_disconnect_message(ssh_session session, const char *message);
  
 +typedef ssize_t (*ssh_add_func) (void *ptr, size_t max_bytes, void *userdata);
++
++LIBSSH_API const char **ssh_ciphers(void);
++LIBSSH_API const char **ssh_hmacs(void);
 +
  #ifndef LIBSSH_LEGACY_0_4
  #include "libssh/legacy.h"
@@ -299,6 +302,60 @@ index 15cae644..02ef43b4 100644
          errno = 0;
          rc = connect(s, itr->ai_addr, itr->ai_addrlen);
          if (rc == -1 && (errno != 0) && (errno != EINPROGRESS)) {
+diff --git a/src/misc.c b/src/misc.c
+index 7081f12a..e3879fe4 100644
+--- a/src/misc.c
++++ b/src/misc.c
+@@ -71,6 +71,8 @@
+ #include "libssh/priv.h"
+ #include "libssh/misc.h"
+ #include "libssh/session.h"
++#include "libssh/wrapper.h"
++#include "libssh/crypto.h"
+ 
+ #ifdef HAVE_LIBGCRYPT
+ #define GCRYPT_STRING "/gnutls"
+@@ -2074,4 +2076,40 @@ int ssh_check_hostname_syntax(const char *hostname)
+     return SSH_OK;
+ }
+ 
++/**
++ * @brief Return supported cipher names
++ * @return	The list of cipher names.
++ */
++const char **ssh_ciphers(void)
++{
++     struct ssh_cipher_struct *tab=ssh_get_ciphertab();
++     static const char *ciphers[32];
++     int n;
++
++     memset(ciphers, 0, sizeof(*ciphers));
++
++     for (n = 0; tab[n].name != NULL; n++) {
++	  ciphers[n] = tab[n].name;
++     }
++     return ciphers;
++}
++
++/**
++ * @brief Return supported hmac names
++ * @return	The list of hmac names.
++ */
++const char **ssh_hmacs(void)
++{
++     struct ssh_hmac_struct *tab=ssh_get_hmactab();
++     static const char *hmacs[32];
++     int n;
++
++     memset(hmacs, 0, sizeof(*hmacs));
++
++     for (n = 0; tab[n].name != NULL; n++) {
++	  hmacs[n] = tab[n].name;
++     }
++     return hmacs;
++}
++
+ /** @} */
 diff --git a/src/options.c b/src/options.c
 index b3ecffe1..8de24ed6 100644
 --- a/src/options.c
@@ -392,10 +449,10 @@ index 8c509699..307388e5 100644
      session->opts.flags = SSH_OPT_FLAG_PASSWORD_AUTH |
                            SSH_OPT_FLAG_PUBKEY_AUTH |
 diff --git a/src/sftp.c b/src/sftp.c
-index e01012a8..3b86c3c6 100644
+index e01012a8..702623a0 100644
 --- a/src/sftp.c
 +++ b/src/sftp.c
-@@ -2228,6 +2228,135 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
+@@ -2228,6 +2228,132 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
    return -1; /* not reached */
  }
  
@@ -434,8 +491,7 @@ index e01012a8..3b86c3c6 100644
 +
 +  buffer = ssh_buffer_new_size(buf_sz, HEADROOM);
 +  if (buffer == NULL) {
-+    ssh_set_error(sftp->session, SSH_FATAL,
-+		  "ssh_buffer_new_size failed: Out of Memory");
++    ssh_set_error_oom(sftp->session);
 +    return -1;
 +  }
 +
@@ -449,16 +505,14 @@ index e01012a8..3b86c3c6 100644
 +                       count); /* len of datastring */
 +
 +  if (rc != SSH_OK){
-+    ssh_set_error(sftp->session, SSH_FATAL,
-+		  "ssh_buffer_pack failed: Out of Memory");
++    ssh_set_error_oom(sftp->session);
 +    ssh_buffer_free(buffer);
 +    return SSH_ERROR;
 +  }
 +
 +  actual = ssh_buffer_add_func(buffer, f, count, userdata);
 +  if (actual < 0){
-+    ssh_set_error(sftp->session, SSH_FATAL,
-+		  "ssh_buffer_add_func failed: %s", strerror(errno));
++    ssh_set_error_oom(sftp->session);
 +    ssh_buffer_free(buffer);
 +    return SSH_ERROR;
 +  }

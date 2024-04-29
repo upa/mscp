@@ -407,3 +407,13 @@ void ssh_sftp_close(sftp_session sftp)
 	ssh_disconnect(ssh);
 	ssh_free(ssh);
 }
+
+const char **mscp_ssh_ciphers(void)
+{
+	return ssh_ciphers();
+}
+
+const char **mscp_ssh_hmacs(void)
+{
+	return ssh_hmacs();
+}
