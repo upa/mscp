@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.0-5-g08660bb
+:Date: v0.2.0-7-gab6649f
 
 NAME
 ====
@@ -166,11 +166,12 @@ OPTIONS
 
 **-c CIPHER**
    Selects the cipher to use for encrypting the data transfer. See
-   `libssh features <https://www.libssh.org/features/>`__.
+   **mscp -h** or **Ciphers** in `libssh
+   features <https://www.libssh.org/features/>`__.
 
 **-M HMAC**
-   Specifies MAC hash algorithms. See `libssh
-   features <https://www.libssh.org/features/>`__.
+   Specifies MAC hash algorithms. See **mscp -h** or **MAC hashes** in
+   `libssh features <https://www.libssh.org/features/>`__.
 
 **-C COMPRESS**
    Enables compression: yes, no, zlib, zlib@openssh.com. The default is
@@ -178,6 +179,8 @@ OPTIONS
 
 **-g CONGESTION**
    Specifies the TCP congestion control algorithm to use (Linux only).
+   See **sysctl net.ipv4.tcp_allowed_congestion_control** for available
+   values.
 
 **-p**
    Preserves modification times and access times (file mode bits are
