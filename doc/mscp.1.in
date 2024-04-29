@@ -130,7 +130,8 @@ pinned to any cores.
 
 .TP
 .B \-u \fIMAX_STARTUPS\fR
-Specifies the number of concurrent outgoing SSH connections.
+Specifies the number of concurrent unauthenticated SSH connection
+attempts.
 .B sshd
 limits the number of simultaneous SSH connection attempts by
 .I MaxStartups

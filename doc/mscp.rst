@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.0-7-gab6649f
+:Date: v0.2.0-8-gef2dd55
 
 NAME
 ====
@@ -60,10 +60,10 @@ OPTIONS
    pinned to any cores.
 
 **-u MAX_STARTUPS**
-   Specifies the number of concurrent outgoing SSH connections. **sshd**
-   limits the number of simultaneous SSH connection attempts by
-   *MaxStartups* in *sshd_config.* The default *MaxStartups* is 10;
-   thus, we set the default MAX_STARTUPS 8.
+   Specifies the number of concurrent unauthenticated SSH connection
+   attempts. **sshd** limits the number of simultaneous SSH connection
+   attempts by *MaxStartups* in *sshd_config.* The default *MaxStartups*
+   is 10; thus, we set the default MAX_STARTUPS 8.
 
 **-I INTERVAL**
    Specifies the interval (in seconds) between SSH connection attempts.

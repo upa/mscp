@@ -40,7 +40,7 @@ void usage(bool print_help)
 	printf("    -n NR_CONNECTIONS  number of connections "
 	       "(default: floor(log(cores)*2)+1)\n"
 	       "    -m COREMASK        hex value to specify cores where threads pinned\n"
-	       "    -u MAX_STARTUPS    number of concurrent SSH connection attempts "
+	       "    -u MAX_STARTUPS    number of concurrent unauthed SSH attempts "
 	       "(default: 8)\n"
 	       "    -I INTERVAL        interval between SSH connection attempts (default: 0)\n"
 	       "    -W CHECKPOINT      write states to the checkpoint if transfer fails\n"
