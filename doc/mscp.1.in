@@ -198,7 +198,11 @@ parallel. The default value is 16M bytes.
 .TP
 .B \-S \fIMAX_CHUNK_SIZE\fR
 Specifies the maximum chunk size. The default is file size divided by
-the number of connections.
+the number of connections and devided by 4. If the calculated value
+is smarller than the
+.B MIN_CHUNK_SIZE
+value,
+MIN_CHUNK_SIZE is used.
 
 .TP
 .B \-a \fINR_AHEAD\fR

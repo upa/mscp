@@ -102,13 +102,10 @@ static int resolve_chunk(struct path *p, size_t size, struct path_resolve_args *
 	size_t chunk_sz, off, len;
 	size_t remaind;
 
-	if (size <= a->min_chunk_sz)
-		chunk_sz = size;
-	else if (a->max_chunk_sz)
+	if (a->max_chunk_sz)
 		chunk_sz = a->max_chunk_sz;
 	else {
-		chunk_sz = (size - (size % a->nr_conn)) / a->nr_conn;
-		chunk_sz &= ~a->chunk_align; /* align with page_sz */
+		chunk_sz = (size / (a->nr_conn * 4)) & a->chunk_align;
 		if (chunk_sz <= a->min_chunk_sz)
 			chunk_sz = a->min_chunk_sz;
 	}

@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.0-8-gef2dd55
+:Date: v0.2.0-9-g675126a
 
 NAME
 ====
@@ -102,7 +102,9 @@ OPTIONS
 
 **-S MAX_CHUNK_SIZE**
    Specifies the maximum chunk size. The default is file size divided by
-   the number of connections.
+   the number of connections and devided by 4. If the calculated value
+   is smarller than the **MIN_CHUNK_SIZE** value, MIN_CHUNK_SIZE is
+   used.
 
 **-a NR_AHEAD**
    Specifies the number of inflight SFTP commands. The default value is

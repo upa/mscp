@@ -330,18 +330,10 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 	return 0;
 }
 
-static int get_page_mask(void)
+static size_t get_page_mask(void)
 {
-	long page_sz = sysconf(_SC_PAGESIZE);
-	size_t page_mask = 0;
-	int n;
-
-	for (n = 0; page_sz > 0; page_sz >>= 1, n++) {
-		page_mask <<= 1;
-		page_mask |= 1;
-	}
-
-	return page_mask >> 1;
+	size_t page_sz = sysconf(_SC_PAGESIZE);
+	return ~(page_sz - 1);
 }
 
 static void mscp_stop_copy_thread(struct mscp *m)
