@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.0-9-g675126a
+:Date: v0.2.1
 
 NAME
 ====
