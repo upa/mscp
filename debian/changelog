@@ -1,4 +1,16 @@
-mscp (0.2.0) UNRELEASED; urgency=medium
+mscp (0.2.1) UNRELEASED; urgency=medium
+
+  * fix broken checkpoint files when copying multiple files (#16)
+  * fix broken password inputs for resume transfers (#17 and #18)
+  * add support [kKmMgG] units for -s, -S, and -b options (#20)
+  * change the default min chunk size to 16MB (#20)
+  * change the default max chunk size to filesize / (nr_conn * 4) (#20)
+  * -s and -S accept integers other than multiples of page sizes (#20)
+  * help now shows available ciphers and HMACs (#20)
+
+ -- Ryo Nakamura <upa@haeena.net>  Sat, 11 May 2024 14:49:52 +0900
+
+mscp (0.2.0) unstable; urgency=medium
 
   * add -J DESTINATION option for ProxyJump (#15)
   * add -o SSH_OPTION option
