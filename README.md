@@ -42,7 +42,11 @@ Paper:
 - macOS
 
 ```console
+# Homebrew
 brew install upa/tap/mscp
+
+# MacPorts
+sudo port install mscp
 ```
 
 - Ubuntu
