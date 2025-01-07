@@ -55,6 +55,10 @@ case $platform in
 		cmd="yum install -y"
 		pkgs="gcc make cmake zlib-devel openssl-devel rpm-build"
 		;;
+	Linux-arch*)
+		cmd="pacman --no-confirm -S"
+		pkgs="gcc make cmake"
+		;;
 	FreeBSD-freebsd)
 		cmd="pkg install"
 		pkgs="cmake"
