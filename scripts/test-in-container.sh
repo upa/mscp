@@ -17,7 +17,7 @@ sed -i -e 's/AllowTcpForwarding no/AllowTcpForwarding yes/' /etc/ssh/sshd_config
 
 # Run sshd
 if [ ! -e /var/run/sshd.pid ]; then
-	/usr/sbin/sshd
+	/usr/sbin/sshd -E /tmp/sshd.log
 	sleep 1
 fi
 
