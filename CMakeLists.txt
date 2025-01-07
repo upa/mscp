@@ -165,6 +165,8 @@ enable_testing()
 # Custom targets to build and test mscp in docker containers.
 # foreach(IN ZIP_LISTS) (cmake >= 3.17) can shorten the following lists.
 # However, ubuntu 20.04 has cmake 3.16.3. So this is a roundabout trick.
+#
+# When edit DIST_IDS and DIST_VERS, also edit .github/workflows/test.yaml
 list(APPEND DIST_IDS  ubuntu ubuntu ubuntu rocky rocky almalinux alpine arch)
 list(APPEND DIST_VERS  20.04  22.04  24.04   8.9   9.3       9.3   3.19 base)
 

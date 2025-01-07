@@ -12,6 +12,18 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        index: # see DIST_IDS and DIST_VERS lists in CMakeLists.txt
+        - ubuntu-20.04
+        - ubuntu-22.04
+        - ubuntu-24.04
+        - rocky-8.9
+        - rocky-9.3
+        - almalinux-9.3
+        - alpine-3.19
+        - arch-base
     steps:
     - uses: actions/checkout@v4
       with:
@@ -20,7 +32,7 @@ jobs:
     - name: patch to libssh
       run: patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
 
-    # TODO: just building docker does not require libssh. fix CMakeLists
+    # TODO: just building docker images does not require libssh. fix CMakeLists
     - name: install build dependency
       run: |
         sudo apt-get update
@@ -30,7 +42,7 @@ jobs:
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build Containers
-      run: make -C ${{github.workspace}}/build docker-build-all
+      run: make -C ${{github.workspace}}/build docker-build-${{ matrix.index }}
 
     - name: Run Test
-      run: make -C ${{github.workspace}}/build docker-test-all
+      run: make -C ${{github.workspace}}/build docker-test-${{ matrix.index }}
