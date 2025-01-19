@@ -45,7 +45,7 @@ done
 case $platform in
 	Darwin)
 		cmd="brew install"
-		pkgs="openssl@3.0"
+		pkgs="openssl@3"
 		;;
 	Linux-ubuntu*)
 		cmd="apt-get install --no-install-recommends -y"

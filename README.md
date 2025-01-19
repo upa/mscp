@@ -96,7 +96,7 @@ mkdir build && cd build
 cmake ..
 
 # in macOS, you may need OPENSSL_ROOT_DIR for cmake:
-# cmake .. -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl@1.1
+# cmake .. -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl@3
 
 # build
 make
