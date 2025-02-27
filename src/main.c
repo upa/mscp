@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
 #include <math.h>
@@ -311,6 +312,24 @@ long atol_with_unit(char *value, bool i)
 	return v * factor;
 }
 
+int to_dev_null(int fd)
+{
+	int nfd = open("/dev/null", O_WRONLY);
+	if (nfd < 0) {
+		pr_err("open /dev/null: %s", strerrno());
+		return -1;
+	}
+
+	if (dup2(nfd, fd) < 0) {
+		pr_err("dup2: %s", strerrno());
+		return -1;
+	}
+
+	close(nfd);
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	struct mscp_ssh_opts s;
@@ -320,7 +339,7 @@ int main(int argc, char **argv)
 	int ch, n, i, ret;
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
-	bool dryrun = false, resume = false;
+	bool quiet = false, dryrun = false, resume = false;
 	int nr_options = 0;
 
 	memset(&s, 0, sizeof(s));
@@ -378,7 +397,7 @@ int main(int argc, char **argv)
 			o.severity++;
 			break;
 		case 'q':
-			o.severity = MSCP_SEVERITY_NONE;
+			quiet = true;
 			break;
 		case 'D':
 			dryrun = true;
@@ -440,6 +459,9 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
+
+	if (quiet)
+		to_dev_null(STDOUT_FILENO);
 
 	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
 	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
