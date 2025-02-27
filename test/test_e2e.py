@@ -15,17 +15,19 @@ from subprocess import check_call, CalledProcessError
 from util import File, check_same_md5sum
 
 
-def run2ok(args, env = None):
+def run2ok(args, env = None, quiet = False):
     cmd = list(map(str, args))
-    print("cmd: {}".format(" ".join(cmd)))
+    if not quiet:
+        print("cmd: {}".format(" ".join(cmd)))
     check_call(cmd, env = env)
 
-def run2ng(args, env = None, timeout = None):
+def run2ng(args, env = None, timeout = None, quiet = False):
     if timeout:
         args = ["timeout", "-s", "INT", timeout] + args
     cmd = list(map(str, args))
-    print("cmd: {}".format(" ".join(cmd)))
-    with pytest.raises(CalledProcessError) as e:
+    if not quiet:
+        print("cmd: {}".format(" ".join(cmd)))
+    with pytest.raises(CalledProcessError):
         check_call(cmd, env = env)
 
 
@@ -417,6 +419,18 @@ def test_v6_to_v4_should_fail(mscp):
     dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
     run2ng([mscp, "-vvv", "-6", src.path, dst_prefix + dst.path])
     src.cleanup()
+
+def test_quiet_mode(capsys, mscp):
+    src = File("src", size = 1024).make()
+    dst = File("dst")
+    dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
+    run2ok([mscp, "-vvv", "-q", src.path, dst_prefix + dst.path], quiet=True)
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert not captured.err
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_set_conn_interval(mscp, src_prefix, dst_prefix):
