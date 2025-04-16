@@ -1,4 +1,13 @@
-mscp (0.2.1) UNRELEASED; urgency=medium
+mscp (0.2.2) UNRELEASED; urgency=medium
+
+  * bump cmake_minimum_version on libssh (#32)
+  * fix quiet mode (#30)
+  * use openssl@3 on macOS (#29)
+  * add archlinux support (#28)
+
+ -- Ryo Nakamura <upa@haeena.net>  Wed, 16 Apr 2025 17:01:17 +0900
+
+mscp (0.2.1) unstable; urgency=medium
 
   * fix broken checkpoint files when copying multiple files (#16)
   * fix broken password inputs for resume transfers (#17 and #18)
