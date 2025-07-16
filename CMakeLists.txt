@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 file (STRINGS "VERSION" MSCP_VERSION)
 
-project(mscp
+project(mpscp
 	VERSION ${MSCP_VERSION}
 	LANGUAGES C)
 
@@ -75,10 +75,10 @@ add_subdirectory(libssh EXCLUDE_FROM_ALL)
 
 
 
-# setup mscp compile options
+# setup mpscp compile options
 list(APPEND MSCP_COMPILE_OPTS -iquote ${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 list(APPEND MSCP_BUILD_INCLUDE_DIRS
-	${mscp_SOURCE_DIR}/src
+	${mpscp_SOURCE_DIR}/src
 	${CMAKE_CURRENT_BINARY_DIR}/libssh/include)
 
 list(APPEND MSCP_LINK_LIBS ssh-static)
@@ -101,44 +101,43 @@ endif()
 
 # generate config.h in build dir
 configure_file(
-	${mscp_SOURCE_DIR}/include/config.h.in
+	${mpscp_SOURCE_DIR}/include/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/include/config.h)
 list(APPEND MSCP_BUILD_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 
-# libmscp.a
-set(LIBMSCP_SRC
+# libmpscp.a
+set(LIBMPSCP_SRC
 	src/mscp.c src/ssh.c src/fileops.c src/path.c src/checkpoint.c
 	src/bwlimit.c src/platform.c src/print.c src/pool.c src/strerrno.c
-	${OPENBSD_COMPAT_SRC})
-add_library(mscp-static STATIC ${LIBMSCP_SRC})
-target_include_directories(mscp-static
-	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
-target_compile_options(mscp-static PRIVATE ${MSCP_COMPILE_OPTS})
-target_link_libraries(mscp-static PRIVATE ${MSCP_LINK_LIBS})
-set_target_properties(mscp-static
+	src/netdev.c ${OPENBSD_COMPAT_SRC})
+add_library(mpscp-static STATIC ${LIBMPSCP_SRC})
+target_include_directories(mpscp-static
+	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mpscp_SOURCE_DIR}/include)
+target_compile_options(mpscp-static PRIVATE ${MSCP_COMPILE_OPTS})
+target_link_libraries(mpscp-static PRIVATE ${MSCP_LINK_LIBS})
+set_target_properties(mpscp-static
 	PROPERTIES
-	OUTPUT_NAME	mscp)
+	OUTPUT_NAME	mpscp)
 
-# mscp executable
+# mpscp executable
 list(APPEND MSCP_LINK_LIBS m pthread)
 
-add_executable(mscp src/main.c)
-target_include_directories(mscp
-	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mscp_SOURCE_DIR}/include)
-target_link_libraries(mscp mscp-static ${MSCP_LINK_LIBS})
+add_executable(mpscp src/main.c)
+target_include_directories(mpscp
+	PRIVATE ${MSCP_BUILD_INCLUDE_DIRS} ${mpscp_SOURCE_DIR}/include)
+target_link_libraries(mpscp mpscp-static ${MSCP_LINK_LIBS})
 if (BUILD_STATIC)
-	target_link_options(mscp PRIVATE -static)
+	target_link_options(mpscp PRIVATE -static)
 endif()
-target_compile_options(mscp PRIVATE ${MSCP_COMPILE_OPTS})
+target_compile_options(mpscp PRIVATE ${MSCP_COMPILE_OPTS})
+
+install(TARGETS mpscp RUNTIME DESTINATION bin)
 
 
-install(TARGETS mscp RUNTIME DESTINATION bin)
-
-
-# mscp manpage and document
+# mpscp manpage and document
 configure_file(
-	${mscp_SOURCE_DIR}/doc/mscp.1.in
+	${mpscp_SOURCE_DIR}/doc/mscp.1.in
 	${PROJECT_BINARY_DIR}/mscp.1)
 
 add_custom_target(update-rst
@@ -187,14 +186,14 @@ foreach(x RANGE ${DIST_LISTLEN})
 
 	add_custom_target(docker-build-${DOCKER_INDEX}
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
-		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+		WORKING_DIRECTORY ${mpscp_SOURCE_DIR}
 		COMMAND
 		${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS}
 		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
 
 	add_custom_target(docker-build-${DOCKER_INDEX}-no-cache
 		COMMENT "Build mscp in ${DOCKER_IMAGE} container"
-		WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+		WORKING_DIRECTORY ${mpscp_SOURCE_DIR}
 		COMMAND
 		${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS} --no-cache
 		-t ${DOCKER_IMAGE} -f Dockerfile/${DOCKER_INDEX}.Dockerfile .)
@@ -229,7 +228,7 @@ execute_process(
 
 add_custom_target(build-deb
 	COMMENT "build mscp deb files inside a container"
-	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	WORKING_DIRECTORY ${mpscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/debbuild
 	COMMAND
 	${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS_DEB}
@@ -243,12 +242,12 @@ add_custom_target(build-deb
 
 # generate files for rpmbuild
 configure_file(
-	${mscp_SOURCE_DIR}/rpm/mscp.spec.in
-	${mscp_SOURCE_DIR}/rpm/mscp.spec
+	${mpscp_SOURCE_DIR}/rpm/mscp.spec.in
+	${mpscp_SOURCE_DIR}/rpm/mscp.spec
 	@ONLY)
 #configure_file(
-#	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile.in
-#	${mscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile
+#	${mpscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile.in
+#	${mpscp_SOURCE_DIR}/Dockerfile/build-srpm.Dockerfile
 #	@ONLY)
 
 # Custom target to build mscp as a src.rpm in docker.
@@ -261,7 +260,7 @@ execute_process(
 
 add_custom_target(build-srpm
 	COMMENT "Build mscp src.rpm inside a container"
-	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	WORKING_DIRECTORY ${mpscp_SOURCE_DIR}
 	COMMAND
 	${CE} build --build-arg REQUIREDPKGS=${REQUIREDPKGS_RPM}
 	--build-arg MSCP_VERSION=${MSCP_VERSION}
@@ -276,7 +275,7 @@ add_custom_target(build-srpm
 set(SINGLEBINARYFILE mscp.linux.${CMAKE_SYSTEM_PROCESSOR}.static)
 add_custom_target(build-single-binary
 	COMMENT "Build mscp as a single binary in alpine conatiner"
-	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
+	WORKING_DIRECTORY ${mpscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SINGLEBINARYFILE}
 	DEPENDS docker-build-alpine-3.19
 	COMMAND

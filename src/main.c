@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <getopt.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
@@ -13,6 +14,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <ctype.h>
+#include <netdev.h>
 
 #include <mscp.h>
 #include <minmax.h>
@@ -20,6 +23,10 @@
 #include <print.h>
 
 #include <config.h>
+
+// 保存用户指定的网卡名
+static const char *user_netdevs[16];
+static int user_netdev_count = 0;
 
 void usage(bool print_help)
 {
@@ -330,6 +337,28 @@ int to_dev_null(int fd)
 	return 0;
 }
 
+// 解析逗号分隔的网卡名
+static void parse_netdevs(const char *arg) {
+    char *s = strdup(arg);
+    char *p = s, *tok;
+    user_netdev_count = 0;
+    while ((tok = strsep(&p, ",")) && user_netdev_count < 16) {
+        while (*tok && isspace(*tok)) ++tok;
+        if (*tok) user_netdevs[user_netdev_count++] = strdup(tok);
+    }
+    free(s);
+}
+
+// -p 打印所有网卡详细信息
+void print_netdevs(void) {
+    extern struct netdev *netdev_list;
+    struct netdev *dev;
+    printf("Available network devices:\n");
+    for (dev = netdev_list; dev; dev = dev->next) {
+        printf("  %s\tMAC: %s\tIP: %s\n", dev->name, dev->mac, dev->ip);
+    }
+}
+
 int main(int argc, char **argv)
 {
 	struct mscp_ssh_opts s;
@@ -347,8 +376,12 @@ int main(int argc, char **argv)
 	o.severity = MSCP_SEVERITY_WARN;
 
 #define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:F:o:i:J:c:M:C:g:pdNh"
-	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
-		switch (ch) {
+    static struct option longopts[] = {
+        {"device", required_argument, 0, 1000},
+        {0, 0, 0, 0}
+    };
+    while ((ch = getopt_long(argc, argv, mscpopts, longopts, NULL)) != -1) {
+        switch (ch) {
 		case 'n':
 			o.nr_threads = atoi(optarg);
 			if (o.nr_threads < 1) {
@@ -454,6 +487,9 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(true);
 			return 0;
+		case 1000: // --device
+            parse_netdevs(optarg);
+            break;
 		default:
 			usage(false);
 			return 1;
@@ -466,9 +502,22 @@ int main(int argc, char **argv)
 	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
 	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
 
-	if ((m = mscp_init(&o, &s)) == NULL) {
+	// 初始化网卡列表
+    if (get_netdev_list(user_netdev_count ? user_netdevs : NULL, user_netdev_count) < 0) {
+        pr_err("get_netdev_list failed");
+        return -1;
+    }
+
+    if ((m = mscp_init(&o, &s)) == NULL) {
 		pr_err("mscp_init: %s", priv_get_err());
 		return -1;
+	}
+
+	// 设置网卡绑定
+	if (user_netdev_count > 0) {
+		// 为第一个连接设置网卡（其他线程会在 mscp_copy_thread 中设置）
+		s.bind_dev = user_netdevs[0];
+		pr_notice("Setting bind_dev to %s for first connection", s.bind_dev);
 	}
 
 	if (!resume) {
@@ -690,12 +739,12 @@ void print_progress_bar(double percent, char *suffix)
 		buf[thresh] = '>';
 		buf[0] = '[';
 		buf[bar_width - 1] = ']';
-		snprintf(buf + bar_width, sizeof(buf) - bar_width, " %3d%% ",
+		snprintf(buf + bar_width, sizeof(buf) - bar_width, " %3d%%",
 			 (int)floor(percent));
 	}
 
 	print_cli("\r\033[K"
-		  "%s%s",
+		  "%s%s\n",
 		  buf, suffix);
 }
 

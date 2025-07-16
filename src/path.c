@@ -495,6 +495,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	       int nr_ahead, int buf_sz, bool preserve_ts, struct bwlimit *bw,
 	       size_t *counter)
 {
+	pr_debug("copy_chunk: %s -> %s, off=%zu, len=%zu", c->p->path, c->p->dst_path, c->off, c->len);
 	mode_t mode;
 	int flags;
 	mf *s, *d;
@@ -509,11 +510,11 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	flags = O_RDONLY;
 	mode = S_IRUSR;
 	if (!(s = mscp_open(c->p->path, flags, mode, src_sftp))) {
-		priv_set_errv("mscp_open: %s: %s", c->p->path, strerrno());
+		pr_err("mscp_open failed: %s, errno=%d (%s)", c->p->path, errno, strerror(errno));
 		return -1;
 	}
 	if (mscp_lseek(s, c->off) < 0) {
-		priv_set_errv("mscp_lseek: %s: %s", c->p->path, strerrno());
+		pr_err("mscp_lseek failed: %s, off=%zu, errno=%d (%s)", c->p->path, c->off, errno, strerror(errno));
 		return -1;
 	}
 
@@ -522,11 +523,11 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 	mode = S_IRUSR | S_IWUSR;
 	if (!(d = mscp_open(c->p->dst_path, flags, mode, dst_sftp))) {
 		mscp_close(s);
-		priv_set_errv("mscp_open: %s: %s", c->p->dst_path, strerrno());
+		pr_err("mscp_open failed: %s, errno=%d (%s)", c->p->dst_path, errno, strerror(errno));
 		return -1;
 	}
 	if (mscp_lseek(d, c->off) < 0) {
-		priv_set_errv("mscp_lseek: %s: %s", c->p->dst_path, strerrno());
+		pr_err("mscp_lseek failed: %s, off=%zu, errno=%d (%s)", c->p->dst_path, c->off, errno, strerror(errno));
 		return -1;
 	}
 
@@ -535,6 +536,7 @@ int copy_chunk(struct chunk *c, sftp_session src_sftp, sftp_session dst_sftp,
 
 	ret = _copy_chunk(c, s, d, nr_ahead, buf_sz, bw, counter);
 
+	pr_debug("copy_chunk: done, ret=%d", ret);
 	pr_debug("copy chunk done: %s 0x%lx-0x%lx", c->p->path, c->off, c->off + c->len);
 
 	mscp_close(d);

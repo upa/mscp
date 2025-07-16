@@ -1,7 +1,11 @@
-build
-html
+# CMake临时文件
+CMakeFiles/
+CPackConfig.cmake
+CPackSourceConfig.cmake
 compile_commands.json
-CMakeUserPresets.json
-.*.swp
+# build目录（推荐忽略整个build文件夹）
+build/
+# 不要忽略build.sh（确保被git跟踪）
+!build.sh
 
 include/mscp_version.h

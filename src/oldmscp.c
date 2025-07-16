@@ -1,27 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-#define _GNU_SOURCE
-#define _POSIX_C_SOURCE 200809L
-#define _XOPEN_SOURCE 700
-
-#include <stddef.h>  /* for size_t and NULL */
-#include <features.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/time.h>
-#include <time.h>
-#include <sched.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <libssh/libssh.h>
-#include <libssh/socket.h>
 
 #include <pool.h>
 #include <minmax.h>
@@ -35,7 +18,6 @@
 #include <strerrno.h>
 #include <mscp.h>
 #include <bwlimit.h>
-#include <netdev.h>
 
 #include <openbsd-compat/openbsd-compat.h>
 
@@ -47,7 +29,6 @@ struct mscp_thread {
 	size_t copied_bytes;
 	int id;
 	int cpu;
-	int netdev_index;  /* network device index for this thread */
 
 	/* thread-specific values */
 	pthread_t tid;
@@ -537,7 +518,6 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 {
 	struct mscp_thread *t;
 	int ret;
-	const char *netdev;
 
 	if (!(t = malloc(sizeof(*t)))) {
 		priv_set_errv("malloc: %s", strerrno());
@@ -551,13 +531,6 @@ static struct mscp_thread *mscp_copy_thread_spawn(struct mscp *m, int id)
 		t->cpu = -1; /* not pinned to cpu */
 	else
 		t->cpu = m->cores[id % m->nr_cores];
-
-	/* Assign network device to thread */
-	t->netdev_index = id % get_netdev_count();
-	netdev = get_netdev_by_index(t->netdev_index);
-	if (netdev) {
-		pr_notice("thread[%d]: using network device %s", t->id, netdev);
-	}
 
 	if ((ret = pthread_create(&t->tid, NULL, mscp_copy_thread, t)) < 0) {
 		priv_set_errv("pthread_create: %d", ret);
@@ -660,7 +633,6 @@ void *mscp_copy_thread(void *arg)
 	struct mscp *m = t->m;
 	struct chunk *c;
 	bool next_chunk_exist;
-	const char *netdev;
 
 	/* when error occurs, each thread prints error messages
 	 * immediately with pr_* functions. */
@@ -682,17 +654,7 @@ void *mscp_copy_thread(void *arg)
 		if (m->opts->interval > 0)
 			wait_for_interval(m->opts->interval);
 		pr_notice("thread[%d]: connecting to %s", t->id, m->remote);
-		
-		// 为当前线程设置对应的网卡
-		const char *netdev = get_netdev_by_index(t->netdev_index);
-		if (netdev) {
-			m->ssh_opts->bind_dev = netdev;
-			pr_notice("thread[%d]: using network device %s", t->id, netdev);
-		}
-		
 		t->sftp = ssh_init_sftp_session(m->remote, m->ssh_opts);
-		
-		// 移除旧的绑定逻辑，现在在 ssh_init_session 中处理
 	}
 
 	if (sem_post(m->sem) < 0) {
@@ -724,31 +686,27 @@ void *mscp_copy_thread(void *arg)
 		goto err_out; /* not reached */
 	}
 
-	// 在线程开始时打印
-	pr_notice("thread[%d] using device %s starting", t->id, netdev);
-	pr_notice("thread[%d] entering copy loop", t->id);
 	while (1) {
-		pr_debug("thread[%d] waiting for chunk...", t->id);
 		c = pool_iter_next_lock(m->chunk_pool);
 		if (c == NULL) {
-			pr_debug("thread[%d] no chunk, pool_size=%d, ready=%d", t->id, pool_size(m->chunk_pool), chunk_pool_is_ready(m));
 			if (!chunk_pool_is_ready(m)) {
+				/* a new chunk will be added. wait for it. */
 				usleep(100);
 				continue;
 			}
-			pr_notice("thread[%d] finished, total transferred: %zu bytes", t->id, t->copied_bytes);
-			break;
+			break; /* no more chunks */
 		}
-		pr_notice("thread[%d] got chunk off=%zu len=%zu state=%d", t->id, c->off, c->len, c->state);
-		int ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead, m->opts->buf_sz, m->opts->preserve_ts, &m->bw, &t->copied_bytes);
-		pr_notice("thread[%d] copy_chunk ret=%d", t->id, ret);
-		if (ret < 0) break;
+
+		if ((t->ret = copy_chunk(c, src_sftp, dst_sftp, m->opts->nr_ahead,
+					 m->opts->buf_sz, m->opts->preserve_ts, &m->bw,
+					 &t->copied_bytes)) < 0)
+			break;
 	}
 
 	if (t->ret < 0) {
 		pr_err("thread[%d]: copy failed: %s -> %s, 0x%010lx-0x%010lx, %s", t->id,
-			   c->p->path, c->p->dst_path, c->off, c->off + c->len,
-			   priv_get_err());
+		       c->p->path, c->p->dst_path, c->off, c->off + c->len,
+		       priv_get_err());
 	}
 
 	return NULL;

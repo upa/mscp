@@ -68,6 +68,7 @@ struct mscp_ssh_opts {
 	char	*hmac;		/** hmacp spec */
 	char	*compress;	/** yes, no, zlib@openssh.com */
 	char	*ccalgo;	/** TCP cc algorithm */
+	char	*bind_dev;	/** network device to bind socket to */
 
 	char	*password;	/** password auth passowrd */
 	char	*passphrase;	/** passphrase for private key */

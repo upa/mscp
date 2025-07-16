@@ -3,10 +3,17 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h> // Added for errno
 
 #include <ssh.h>
 #include <mscp.h>
 #include <strerrno.h>
+#include <print.h>
+#include <netdev.h>
 
 #include "libssh/callbacks.h"
 #include "libssh/options.h"
@@ -210,6 +217,75 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 
 	if (ssh_set_opts(ssh, opts) != 0)
 		goto free_out;
+
+	// 方案A：自定义socket，SO_BINDTODEVICE+bind(ip)，用SSH_OPTIONS_FD传递给libssh
+	if (opts->bind_dev) {
+		struct ifreq ifr;
+		int sock = socket(AF_INET, SOCK_STREAM, 0);
+		if (sock >= 0) {
+			// 1. SO_BINDTODEVICE
+			memset(&ifr, 0, sizeof(ifr));
+			strncpy(ifr.ifr_name, opts->bind_dev, IFNAMSIZ - 1);
+			if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+				pr_err("setsockopt SO_BINDTODEVICE %s failed: %s", opts->bind_dev, strerror(errno));
+				close(sock);
+				goto free_out;
+			}
+			// 2. 获取设备IP并bind
+			memset(&ifr, 0, sizeof(ifr));
+			strncpy(ifr.ifr_name, opts->bind_dev, IFNAMSIZ - 1);
+			if (ioctl(sock, SIOCGIFADDR, &ifr) == 0) {
+				struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
+				struct sockaddr_in addr;
+				memset(&addr, 0, sizeof(addr));
+				addr.sin_family = AF_INET;
+				addr.sin_addr = sin->sin_addr;
+				addr.sin_port = 0;
+				if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+					pr_err("bind to %s failed: %s", inet_ntoa(sin->sin_addr), strerror(errno));
+					close(sock);
+					goto free_out;
+				}
+				pr_notice("SO_BINDTODEVICE+bind: %s (%s) success", opts->bind_dev, inet_ntoa(sin->sin_addr));
+				// 3. TCP connect 到目标主机
+				struct sockaddr_in remote_addr;
+				memset(&remote_addr, 0, sizeof(remote_addr));
+				remote_addr.sin_family = AF_INET;
+				remote_addr.sin_port = htons(opts->port ? atoi(opts->port) : 22);
+				// 解析目标主机 IP
+				const char *host = sshdst;
+				if (host) {
+					if (inet_pton(AF_INET, host, &remote_addr.sin_addr) <= 0) {
+						pr_err("inet_pton failed for host %s", host);
+						close(sock);
+						goto free_out;
+					}
+					if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0) {
+						pr_err("tcp connect to %s:%d failed: %s", host, ntohs(remote_addr.sin_port), strerror(errno));
+						close(sock);
+						goto free_out;
+					}
+					pr_notice("tcp connect to %s:%d success", host, ntohs(remote_addr.sin_port));
+				} else {
+					pr_err("no host to connect");
+					close(sock);
+					goto free_out;
+				}
+				// 4. 传递socket给libssh
+				if (ssh_options_set(ssh, SSH_OPTIONS_FD, &sock) != SSH_OK) {
+					pr_err("ssh_options_set SSH_OPTIONS_FD failed");
+					close(sock);
+					goto free_out;
+				}
+				pr_notice("Custom connected socket passed to libssh");
+			}
+			else {
+				pr_err("ioctl SIOCGIFADDR %s failed: %s", opts->bind_dev, strerror(errno));
+				close(sock);
+				goto free_out;
+			}
+		}
+	}
 
 	if (ssh_connect(ssh) != SSH_OK) {
 		priv_set_errv("failed to connect ssh server: %s", ssh_get_error(ssh));
