@@ -42,13 +42,15 @@ jobs:
       with:
         submodules: true
 
+    - name: apply the patch to libssh
+      run: |
+        git -C libssh fetch --all --tags --prune
+        patch -d libssh -p1 < patch/$(git -C libssh describe).patch
+
     - name: install build dependency
       run: |
         sudo apt-get update
         sudo ./scripts/install-build-deps.sh
-
-    - name: patch to libssh
-      run: patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

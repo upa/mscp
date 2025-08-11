@@ -17,8 +17,10 @@ jobs:
         with:
           submodules: true
 
-      - name: patch to libssh
-        run: patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
+      - name: apply the patch to libssh
+        run: |
+          git -C libssh fetch --all --tags --prune
+          patch -d libssh -p1 < patch/$(git -C libssh describe).patch
 
       # TODO: just building docker does not require packages. fix CMakeLists
       - name: install build dependency
@@ -43,8 +45,10 @@ jobs:
         with:
           submodules: true
 
-      - name: patch to libssh
-        run: patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
+      - name: apply the patch to libssh
+        run: |
+          git -C libssh fetch --all --tags --prune
+          patch -d libssh -p1 < patch/$(git -C libssh describe).patch
 
       - name: Set variables
         run: |

@@ -15,13 +15,17 @@ jobs:
       with:
         submodules: true
 
+    - name: apply the patch to libssh
+      run: |
+        git -C libssh fetch --all --tags --prune
+        patch -d libssh -p1 < patch/$(git -C libssh describe).patch
+
     - name: Build in FreeBSD
       uses: vmactions/freebsd-vm@v1
       with:
         prepare: |
           pkg install -y git cmake
         run: |
-          patch -d libssh -p1 < patch/libssh-0.10.6-2-g6f1b1e76.patch
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           build/mscp -h
