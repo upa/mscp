@@ -1,0 +1,573 @@
+diff --git a/ConfigureChecks.cmake b/ConfigureChecks.cmake
+index 8765dc6e..766e7d16 100644
+--- a/ConfigureChecks.cmake
++++ b/ConfigureChecks.cmake
+@@ -209,6 +209,7 @@ if (UNIX)
+     check_library_exists(util forkpty "" HAVE_LIBUTIL)
+     check_function_exists(cfmakeraw HAVE_CFMAKERAW)
+     check_function_exists(__strtoull HAVE___STRTOULL)
++    check_symbol_exists(TCP_CONGESTION "netinet/tcp.h" HAVE_TCP_CONGESTION)
+ endif (UNIX)
+ 
+ set(LIBSSH_REQUIRED_LIBRARIES ${_REQUIRED_LIBRARIES} CACHE INTERNAL "libssh required system libraries")
+diff --git a/config.h.cmake b/config.h.cmake
+index 8dce5273..ef534762 100644
+--- a/config.h.cmake
++++ b/config.h.cmake
+@@ -219,6 +219,8 @@
+ 
+ #cmakedefine HAVE_GCC_BOUNDED_ATTRIBUTE 1
+ 
++#cmakedefine HAVE_TCP_CONGESTION 1
++
+ /* Define to 1 if you want to enable GSSAPI */
+ #cmakedefine WITH_GSSAPI 1
+ 
+diff --git a/include/libssh/buffer.h b/include/libssh/buffer.h
+index d22178e7..2d6aa0a7 100644
+--- a/include/libssh/buffer.h
++++ b/include/libssh/buffer.h
+@@ -37,6 +37,8 @@ int ssh_buffer_add_u8(ssh_buffer buffer, uint8_t data);
+ int ssh_buffer_add_u16(ssh_buffer buffer, uint16_t data);
+ int ssh_buffer_add_u32(ssh_buffer buffer, uint32_t data);
+ int ssh_buffer_add_u64(ssh_buffer buffer, uint64_t data);
++ssize_t ssh_buffer_add_func(ssh_buffer buffer, ssh_add_func f, size_t max_bytes,
++			    void *userdata);
+ 
+ int ssh_buffer_validate_length(struct ssh_buffer_struct *buffer, size_t len);
+ 
+diff --git a/include/libssh/libssh.h b/include/libssh/libssh.h
+index 3bddb019..c6b01c1c 100644
+--- a/include/libssh/libssh.h
++++ b/include/libssh/libssh.h
+@@ -373,6 +373,7 @@ enum ssh_options_e {
+     SSH_OPTIONS_HOST,
+     SSH_OPTIONS_PORT,
+     SSH_OPTIONS_PORT_STR,
++    SSH_OPTIONS_AI_FAMILY,
+     SSH_OPTIONS_FD,
+     SSH_OPTIONS_USER,
+     SSH_OPTIONS_SSH_DIR,
+@@ -407,6 +408,7 @@ enum ssh_options_e {
+     SSH_OPTIONS_GSSAPI_AUTH,
+     SSH_OPTIONS_GLOBAL_KNOWNHOSTS,
+     SSH_OPTIONS_NODELAY,
++    SSH_OPTIONS_CCALGO,
+     SSH_OPTIONS_PUBLICKEY_ACCEPTED_TYPES,
+     SSH_OPTIONS_PROCESS_CONFIG,
+     SSH_OPTIONS_REKEY_DATA,
+@@ -876,6 +878,7 @@ LIBSSH_API const char* ssh_get_hmac_in(ssh_session session);
+ LIBSSH_API const char* ssh_get_hmac_out(ssh_session session);
+ 
+ LIBSSH_API ssh_buffer ssh_buffer_new(void);
++LIBSSH_API ssh_buffer ssh_buffer_new_size(uint32_t size, uint32_t headroom);
+ LIBSSH_API void ssh_buffer_free(ssh_buffer buffer);
+ #define SSH_BUFFER_FREE(x) \
+     do { if ((x) != NULL) { ssh_buffer_free(x); x = NULL; } } while(0)
+@@ -886,6 +889,11 @@ LIBSSH_API void *ssh_buffer_get(ssh_buffer buffer);
+ LIBSSH_API uint32_t ssh_buffer_get_len(ssh_buffer buffer);
+ LIBSSH_API int ssh_session_set_disconnect_message(ssh_session session, const char *message);
+ 
++typedef ssize_t (*ssh_add_func) (void *ptr, size_t max_bytes, void *userdata);
++
++LIBSSH_API const char **ssh_ciphers(void);
++LIBSSH_API const char **ssh_hmacs(void);
++
+ #ifndef LIBSSH_LEGACY_0_4
+ #include "libssh/legacy.h"
+ #endif
+diff --git a/include/libssh/session.h b/include/libssh/session.h
+index aed94072..327cf4fe 100644
+--- a/include/libssh/session.h
++++ b/include/libssh/session.h
+@@ -255,6 +255,7 @@ struct ssh_session_struct {
+         unsigned long timeout; /* seconds */
+         unsigned long timeout_usec;
+         uint16_t port;
++        int  ai_family;
+         socket_t fd;
+         int StrictHostKeyChecking;
+         char compressionlevel;
+@@ -264,6 +265,7 @@ struct ssh_session_struct {
+         int flags;
+         int exp_flags;
+         int nodelay;
++        char *ccalgo;
+         bool config_processed;
+         uint8_t options_seen[SOC_MAX];
+         uint64_t rekey_data;
+diff --git a/include/libssh/sftp.h b/include/libssh/sftp.h
+index cf4458c3..1a864795 100644
+--- a/include/libssh/sftp.h
++++ b/include/libssh/sftp.h
+@@ -569,6 +569,10 @@ SSH_DEPRECATED LIBSSH_API int sftp_async_read(sftp_file file,
+                                               uint32_t len,
+                                               uint32_t id);
+ 
++LIBSSH_API ssize_t sftp_async_write(sftp_file file, ssh_add_func f, size_t count,
++				    void *userdata, uint32_t* id);
++LIBSSH_API int sftp_async_write_end(sftp_file file, uint32_t id, int blocking);
++
+ /**
+  * @brief Write to a file using an opened sftp file handle.
+  *
+diff --git a/src/buffer.c b/src/buffer.c
+index 449fa941..f49e8af6 100644
+--- a/src/buffer.c
++++ b/src/buffer.c
+@@ -142,6 +142,40 @@ struct ssh_buffer_struct *ssh_buffer_new(void)
+     return buf;
+ }
+ 
++/**
++ * @brief Create a new SSH buffer with a specified size and headroom.
++ *
++ * @param[in] len       length for newly initialized SSH buffer.
++ * @param[in] headroom  length for headroom
++ * @return A newly initialized SSH buffer, NULL on error.
++ */
++struct ssh_buffer_struct *ssh_buffer_new_size(uint32_t len, uint32_t headroom)
++{
++    struct ssh_buffer_struct *buf = NULL;
++    int rc;
++
++    if (len < headroom)
++	    return NULL;
++
++    buf = calloc(1, sizeof(struct ssh_buffer_struct));
++    if (buf == NULL) {
++        return NULL;
++    }
++
++    rc = ssh_buffer_allocate_size(buf, len);
++    if (rc != 0) {
++        SAFE_FREE(buf);
++        return NULL;
++    }
++
++    buf->pos += headroom;
++    buf->used += headroom;
++
++    buffer_verify(buf);
++
++    return buf;
++}
++
+ /**
+  * @brief Deallocate a SSH buffer.
+  *
+@@ -329,6 +363,49 @@ int ssh_buffer_add_data(struct ssh_buffer_struct *buffer, const void *data, uint
+     return 0;
+ }
+ 
++/**
++ * @brief Add data at the tail of a buffer by an external function
++ *
++ * @param[in]  buffer    The buffer to add data.
++ *
++ * @param[in]  f         function that adds data to the buffer.
++ *
++ * @param[in]  max_bytes The maximum length of the data to add.
++ *
++ * @return               actual bytes added on success, < 0 on error.
++ */
++ssize_t ssh_buffer_add_func(struct ssh_buffer_struct *buffer, ssh_add_func f,
++			    size_t max_bytes, void *userdata)
++{
++    ssize_t actual;
++
++    if (buffer == NULL) {
++        return -1;
++    }
++
++    buffer_verify(buffer);
++
++    if (buffer->used + max_bytes < max_bytes) {
++        return -1;
++    }
++
++    if (buffer->allocated < (buffer->used + max_bytes)) {
++        if (buffer->pos > 0) {
++            buffer_shift(buffer);
++        }
++        if (realloc_buffer(buffer, buffer->used + max_bytes) < 0) {
++            return -1;
++        }
++    }
++
++    if ((actual = f(buffer->data + buffer->used, max_bytes, userdata)) < 0)
++      return -1;
++
++    buffer->used += actual;
++    buffer_verify(buffer);
++    return actual;
++}
++
+ /**
+  * @brief Ensure the buffer has at least a certain preallocated size.
+  *
+diff --git a/src/connect.c b/src/connect.c
+index 2cb64037..51f4c87e 100644
+--- a/src/connect.c
++++ b/src/connect.c
+@@ -109,7 +109,7 @@ static int ssh_connect_socket_close(socket_t s)
+ #endif
+ }
+ 
+-static int getai(const char *host, int port, struct addrinfo **ai)
++static int getai(const char *host, int port, int ai_family, struct addrinfo **ai)
+ {
+     const char *service = NULL;
+     struct addrinfo hints;
+@@ -118,7 +118,7 @@ static int getai(const char *host, int port, struct addrinfo **ai)
+     ZERO_STRUCT(hints);
+ 
+     hints.ai_protocol = IPPROTO_TCP;
+-    hints.ai_family = PF_UNSPEC;
++    hints.ai_family = ai_family > 0 ? ai_family : PF_UNSPEC;
+     hints.ai_socktype = SOCK_STREAM;
+ 
+     if (port == 0) {
+@@ -151,6 +151,20 @@ static int set_tcp_nodelay(socket_t socket)
+                       sizeof(opt));
+ }
+ 
++static int set_tcp_ccalgo(socket_t socket, const char *ccalgo)
++{
++#ifdef HAVE_TCP_CONGESTION
++	return setsockopt(socket,
++			  IPPROTO_TCP,
++			  TCP_CONGESTION,
++			  (void *)ccalgo,
++			  strlen(ccalgo));
++#else
++	errno = ENOTSUP;
++	return -1;
++#endif
++}
++
+ /**
+  * @internal
+  *
+@@ -168,7 +182,7 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
+     struct addrinfo *ai = NULL;
+     struct addrinfo *itr = NULL;
+ 
+-    rc = getai(host, port, &ai);
++    rc = getai(host, port, session->opts.ai_family, &ai);
+     if (rc != 0) {
+         ssh_set_error(session, SSH_FATAL,
+                       "Failed to resolve hostname %s (%s)",
+@@ -194,7 +208,7 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
+ 
+             SSH_LOG(SSH_LOG_PACKET, "Resolving %s", bind_addr);
+ 
+-            rc = getai(bind_addr, 0, &bind_ai);
++            rc = getai(bind_addr, 0, session->opts.ai_family, &bind_ai);
+             if (rc != 0) {
+                 ssh_set_error(session, SSH_FATAL,
+                               "Failed to resolve bind address %s (%s)",
+@@ -251,6 +265,18 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
+             }
+         }
+ 
++        if (session->opts.ccalgo) {
++	     rc = set_tcp_ccalgo(s, session->opts.ccalgo);
++	     if (rc < 0) {
++		 ssh_set_error(session, SSH_FATAL,
++			       "Failed to set TCP_CONGESTION on socket: %s",
++			       ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
++		 ssh_connect_socket_close(s);
++		 s = -1;
++		 continue;
++	     }
++	}
++
+         errno = 0;
+         rc = connect(s, itr->ai_addr, itr->ai_addrlen);
+         if (rc == -1) {
+diff --git a/src/misc.c b/src/misc.c
+index 774211fb..ae62ddfe 100644
+--- a/src/misc.c
++++ b/src/misc.c
+@@ -71,6 +71,8 @@
+ #include "libssh/priv.h"
+ #include "libssh/misc.h"
+ #include "libssh/session.h"
++#include "libssh/wrapper.h"
++#include "libssh/crypto.h"
+ 
+ #ifdef HAVE_LIBGCRYPT
+ #define GCRYPT_STRING "/gcrypt"
+@@ -2054,6 +2056,42 @@ ssize_t ssh_readn(int fd, void *buf, size_t nbytes)
+     return total_bytes_read;
+ }
+ 
++/**
++ * @brief Return supported cipher names
++ * @return	The list of cipher names.
++ */
++const char **ssh_ciphers(void)
++{
++     struct ssh_cipher_struct *tab=ssh_get_ciphertab();
++     static const char *ciphers[32];
++     int n;
++
++     memset(ciphers, 0, sizeof(*ciphers));
++
++     for (n = 0; tab[n].name != NULL; n++) {
++	  ciphers[n] = tab[n].name;
++     }
++     return ciphers;
++}
++
++/**
++ * @brief Return supported hmac names
++ * @return	The list of hmac names.
++ */
++const char **ssh_hmacs(void)
++{
++     struct ssh_hmac_struct *tab=ssh_get_hmactab();
++     static const char *hmacs[32];
++     int n;
++
++     memset(hmacs, 0, sizeof(*hmacs));
++
++     for (n = 0; tab[n].name != NULL; n++) {
++	  hmacs[n] = tab[n].name;
++     }
++     return hmacs;
++}
++
+ /**
+  * @brief Write the requested number of bytes to a local file.
+  *
+diff --git a/src/options.c b/src/options.c
+index 785296dd..a82d4d81 100644
+--- a/src/options.c
++++ b/src/options.c
+@@ -251,6 +251,7 @@ int ssh_options_copy(ssh_session src, ssh_session *dest)
+     new->opts.gss_delegate_creds    = src->opts.gss_delegate_creds;
+     new->opts.flags                 = src->opts.flags;
+     new->opts.nodelay               = src->opts.nodelay;
++    new->opts.ccalgo                = src->opts.ccalgo;
+     new->opts.config_processed      = src->opts.config_processed;
+     new->opts.control_master        = src->opts.control_master;
+     new->common.log_verbosity       = src->common.log_verbosity;
+@@ -326,6 +327,9 @@ int ssh_options_set_algo(ssh_session session,
+  *              - SSH_OPTIONS_PORT_STR:
+  *                The port to connect to (const char *).
+  *
++ *              - SSH_OPTIONS_AI_FAMILY:
++ *                The address family for connecting (int *).
++ *
+  *              - SSH_OPTIONS_FD:
+  *                The file descriptor to use (socket_t).\n
+  *                \n
+@@ -571,6 +575,10 @@ int ssh_options_set_algo(ssh_session session,
+  *                Set it to disable Nagle's Algorithm (TCP_NODELAY) on the
+  *                session socket. (int, 0=false)
+  *
++ *              - SSH_OPTIONS_CCALGO
++ *                Set it to specify TCP congestion control algorithm on the
++ *                session socket (Linux only). (int, 0=false)
++ *
+  *              - SSH_OPTIONS_PROCESS_CONFIG
+  *                Set it to false to disable automatic processing of per-user
+  *                and system-wide OpenSSH configuration files. LibSSH
+@@ -727,6 +735,21 @@ int ssh_options_set(ssh_session session, enum ssh_options_e type,
+                 session->opts.port = i & 0xffffU;
+             }
+             break;
++        case SSH_OPTIONS_AI_FAMILY:
++            if (value == NULL) {
++                session->opts.ai_family = 0;
++                ssh_set_error_invalid(session);
++                return -1;
++            } else {
++                int *x = (int *) value;
++                if (*x < 0) {
++		    session->opts.ai_family = 0;
++                    ssh_set_error_invalid(session);
++                    return -1;
++                }
++                session->opts.ai_family = *x;
++            }
++            break;
+         case SSH_OPTIONS_FD:
+             if (value == NULL) {
+                 session->opts.fd = SSH_INVALID_SOCKET;
+@@ -1241,6 +1264,20 @@ int ssh_options_set(ssh_session session, enum ssh_options_e type,
+                 session->opts.nodelay = (*x & 0xff) > 0 ? 1 : 0;
+             }
+             break;
++	case SSH_OPTIONS_CCALGO:
++            v = value;
++            if (v == NULL || v[0] == '\0') {
++                ssh_set_error_invalid(session);
++                return -1;
++            } else {
++                SAFE_FREE(session->opts.ccalgo);
++                session->opts.ccalgo = strdup(v);
++                if (session->opts.ccalgo == NULL) {
++                    ssh_set_error_oom(session);
++                    return -1;
++                }
++            }
++            break;
+         case SSH_OPTIONS_PROCESS_CONFIG:
+             if (value == NULL) {
+                 ssh_set_error_invalid(session);
+diff --git a/src/session.c b/src/session.c
+index 9fd5d946..ed9f908e 100644
+--- a/src/session.c
++++ b/src/session.c
+@@ -107,9 +107,11 @@ ssh_session ssh_new(void)
+     /* OPTIONS */
+     session->opts.StrictHostKeyChecking = 1;
+     session->opts.port = 22;
++    session->opts.ai_family = 0;
+     session->opts.fd = -1;
+     session->opts.compressionlevel = 7;
+     session->opts.nodelay = 0;
++    session->opts.ccalgo = NULL;
+     session->opts.identities_only = false;
+     session->opts.control_master = SSH_CONTROL_MASTER_NO;
+ 
+diff --git a/src/sftp.c b/src/sftp.c
+index 37b4133b..12b6d296 100644
+--- a/src/sftp.c
++++ b/src/sftp.c
+@@ -1488,6 +1488,132 @@ ssize_t sftp_write(sftp_file file, const void *buf, size_t count) {
+   return -1; /* not reached */
+ }
+ 
++/*
++ * sftp_async_write is based on and sftp_async_write_end is copied from
++ * https://github.com/limes-datentechnik-gmbh/libssh
++ *
++ * sftp_async_write has some optimizations:
++ * - use ssh_buffer_new_size() to reduce realoc_buffer.
++ * - use ssh_buffer_add_func() to avoid memcpy from read buffer to ssh buffer.
++ */
++ssize_t sftp_async_write(sftp_file file, ssh_add_func f, size_t count, void *userdata,
++			 uint32_t* id) {
++  sftp_session sftp = file->sftp;
++  ssh_buffer buffer;
++  uint32_t buf_sz;
++  ssize_t actual;
++  int len;
++  int packetlen;
++  int rc;
++
++#define HEADROOM 16
++  /* sftp_packet_write() prepends a 5-bytes (uint32_t length and
++   * 1-byte type) header to the head of the payload by
++   * ssh_buffer_prepend_data(). Inserting headroom by
++   * ssh_buffer_new_size() eliminates memcpy for prepending the
++   * header.
++   */
++
++  buf_sz = (HEADROOM + /* for header */
++	    sizeof(uint32_t) + /* id */
++	    ssh_string_len(file->handle) + 4 + /* file->handle */
++	    sizeof(uint64_t) + /* file->offset */
++	    sizeof(uint32_t) + /* count */
++	    count); /* datastring */
++
++  buffer = ssh_buffer_new_size(buf_sz, HEADROOM);
++  if (buffer == NULL) {
++    ssh_set_error_oom(sftp->session);
++    return -1;
++  }
++
++  *id = sftp_get_new_id(file->sftp);
++
++  rc = ssh_buffer_pack(buffer,
++                       "dSqd",
++                       *id,
++                       file->handle,
++                       file->offset,
++                       count); /* len of datastring */
++
++  if (rc != SSH_OK){
++    ssh_set_error_oom(sftp->session);
++    ssh_buffer_free(buffer);
++    return SSH_ERROR;
++  }
++
++  actual = ssh_buffer_add_func(buffer, f, count, userdata);
++  if (actual < 0){
++    ssh_set_error_oom(sftp->session);
++    ssh_buffer_free(buffer);
++    return SSH_ERROR;
++  }
++
++  packetlen=ssh_buffer_get_len(buffer)+5;
++  len = sftp_packet_write(file->sftp, SSH_FXP_WRITE, buffer);
++  ssh_buffer_free(buffer);
++  if (len < 0) {
++    return SSH_ERROR;
++  } else  if (len != packetlen) {
++    ssh_set_error(sftp->session, SSH_FATAL,
++      "Could only send %d of %d bytes to remote host!", len, packetlen);
++    SSH_LOG(SSH_LOG_PACKET,
++        "Could not write as much data as expected");
++    return SSH_ERROR;
++  }
++
++  file->offset += actual;
++
++  return actual;
++}
++
++int sftp_async_write_end(sftp_file file, uint32_t id, int blocking) {
++  sftp_session sftp = file->sftp;
++  sftp_message msg = NULL;
++  sftp_status_message status;
++
++  msg = sftp_dequeue(sftp, id);
++  while (msg == NULL) {
++    if (!blocking && ssh_channel_poll(sftp->channel, 0) == 0) {
++      /* we cannot block */
++      return SSH_AGAIN;
++    }
++    if (sftp_read_and_dispatch(sftp) < 0) {
++      /* something nasty has happened */
++      return SSH_ERROR;
++    }
++    msg = sftp_dequeue(sftp, id);
++  }
++
++  switch (msg->packet_type) {
++    case SSH_FXP_STATUS:
++      status = parse_status_msg(msg);
++      sftp_message_free(msg);
++      if (status == NULL) {
++        return SSH_ERROR;
++      }
++      sftp_set_error(sftp, status->status);
++      switch (status->status) {
++        case SSH_FX_OK:
++          status_msg_free(status);
++          return SSH_OK;
++        default:
++          break;
++      }
++      ssh_set_error(sftp->session, SSH_REQUEST_DENIED,
++          "SFTP server: %s", status->errormsg);
++      status_msg_free(status);
++      return SSH_ERROR;
++    default:
++      ssh_set_error(sftp->session, SSH_FATAL,
++          "Received message %d during write!", msg->packet_type);
++      sftp_message_free(msg);
++      return SSH_ERROR;
++  }
++
++  return SSH_ERROR; /* not reached */
++}
++
+ /* Seek to a specific location in a file. */
+ int sftp_seek(sftp_file file, uint32_t new_offset) {
+   if (file == NULL) {
