@@ -61,12 +61,6 @@ sudo dnf copr enable upaaa/mscp
 sudo dnf install mscp
 ```
 
-- Single binary `mscp` for x86_64 (not optimal performance)
-```console
-wget https://github.com/upa/mscp/releases/latest/download/mscp.linux.x86_64.static -O /usr/local/bin/mscp
-chmod 755 /usr/local/bin/mscp
-```
-
 
 ## Build
 
@@ -86,7 +80,7 @@ cd mscp
 
 # prepare patched libssh
 git submodule update --init
-patch -d libssh -p1 < patch/$(git --git-dir=./libssh/.git describe).patch
+patch -d libssh -p1 < patch/$(git -C libssh describe).patch
 
 # install build dependency
 bash ./scripts/install-build-deps.sh

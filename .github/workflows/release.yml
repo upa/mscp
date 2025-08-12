@@ -10,34 +10,6 @@ env:
     BUILD_TYPE: Release
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: apply the patch to libssh
-        run: |
-          git -C libssh fetch --all --tags --prune
-          patch -d libssh -p1 < patch/$(git -C libssh describe).patch
-
-      # TODO: just building docker does not require packages. fix CMakeLists
-      - name: install build dependency
-        run: sudo ./scripts/install-build-deps.sh
-
-      - name: Configure Cmake
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-
-      - name: Build single binary mscp
-        run: make -C ${{github.workspace}}/build build-single-binary
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ${{github.workspace}}/build/mscp.linux.x86_64.static
-
   source-release:
     runs-on: ubuntu-latest
     steps:
