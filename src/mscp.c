@@ -273,7 +273,6 @@ struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s)
 		priv_set_errv("bwlimit_init: %s", strerrno());
 		goto free_out;
 	}
-	pr_notice("bitrate limit: %lu bps", o->bitrate);
 
 	/* workaround: set libssh using openssh proxyjump
 	 * https://gitlab.com/libssh/libssh-mirror/-/issues/319 */
@@ -562,6 +561,9 @@ int mscp_start(struct mscp *m)
 		pr_notice("we have %d chunk(s), set number of connections to %d", n, n);
 		m->opts->nr_threads = n;
 	}
+
+	pr_notice("threads: %d",m->opts->nr_threads);
+	pr_notice("bwlimit: %ld bps", m->bw.bps);
 
 	for (n = 0; n < m->opts->nr_threads; n++) {
 		t = mscp_copy_thread_spawn(m, n);
