@@ -329,10 +329,12 @@ int mscp_set_dst_path(struct mscp *m, const char *dst_path)
 		return -1;
 	}
 
-	if (!non_null_string(dst_path))
-		strncpy(m->dst_path, ".", 1);
-	else
-		strncpy(m->dst_path, dst_path, PATH_MAX);
+	if (!non_null_string(dst_path)) {
+		priv_set_errv("empty dst path");
+		return -1;
+	}
+
+	strncpy(m->dst_path, dst_path, PATH_MAX);
 
 	return 0;
 }

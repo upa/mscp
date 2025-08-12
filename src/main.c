@@ -205,7 +205,7 @@ struct target *validate_targets(char **arg, int len)
 	 */
 
 	struct target *t, *t0;
-	int n;
+	int n, nslash;
 
 	if ((t = calloc(len, sizeof(struct target))) == NULL) {
 		pr_err("calloc: %s", strerrno());
@@ -223,9 +223,33 @@ struct target *validate_targets(char **arg, int len)
 		}
 	}
 
-	/* check all user@host are identical. t[len - 1] is destination,
-	 * so we need to check t[0] to t[len - 2] having the identical
-	 * remote notation */
+	/* expand remote path, e.g., empty dst path and '~' */
+	for (n = 0; n < len; n++) {
+		if (!t[n].host)
+			continue;
+
+		/* this target is a remote path. check the path and
+		 * expand it. this part is derived from
+		 * openssh-portal prepare_remote_path() function.
+		 */
+		char *path = t[n].path;
+		if (*path == '\0' || strcmp(path, "~") == 0)
+			t[n].path = strdup(".");
+		else if (strncmp(path, "~/", 2) == 0) {
+			if ((nslash = strspn(path + 2, "/")) == strlen(path + 2))
+				t[n].path = strdup(".");
+			else
+				t[n].path = strdup(path + 2 + nslash);
+		}
+		if (!t[n].path) {
+			pr_err("strdup failed: %s", strerrno());
+			goto free_target_out;
+		}
+	}
+
+	/* check all user@host are identical. t[len - 1] is the
+	 * destination, so we need to check t[0] to t[len - 2] having
+	 * the identical remote notation */
 	t0 = &t[0];
 	for (n = 1; n < len - 1; n++) {
 		if (compare_remote(t0, &t[n]) != 0)
