@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM alpine:3.22
 
 # do not use REQUIREDPKGS build argument because
 # this Dockerfile compiles mscp with conan,so we do not need

@@ -168,7 +168,7 @@ enable_testing()
 #
 # When edit DIST_IDS and DIST_VERS, also edit .github/workflows/test.yaml
 list(APPEND DIST_IDS  ubuntu ubuntu ubuntu rocky rocky almalinux alpine arch)
-list(APPEND DIST_VERS  20.04  22.04  24.04   8.9   9.3       9.3   3.19 base)
+list(APPEND DIST_VERS  20.04  22.04  24.04   8.9   9.3       9.3   3.22 base)
 
 list(LENGTH DIST_IDS _DIST_LISTLEN)
 math(EXPR DIST_LISTLEN "${_DIST_LISTLEN} - 1")
@@ -288,9 +288,9 @@ add_custom_target(build-single-binary
 	COMMENT "Build mscp as a single binary in alpine conatiner"
 	WORKING_DIRECTORY ${mscp_SOURCE_DIR}
 	BYPRODUCTS ${CMAKE_BINARY_DIR}/${SINGLEBINARYFILE}
-	DEPENDS docker-build-alpine-3.19
+	DEPENDS docker-build-alpine-3.22
 	COMMAND
-	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-alpine:3.19
+	${CE} run --rm -v ${CMAKE_BINARY_DIR}:/out mscp-alpine:3.22
 	cp /mscp/build/mscp /out/${SINGLEBINARYFILE})
 
 
