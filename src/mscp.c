@@ -279,6 +279,9 @@ struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s)
 	 * https://gitlab.com/libssh/libssh-mirror/-/issues/319 */
 	ssh_use_openssh_proxy_jumps(1);
 
+	/* call ssh_init() because libssh is statically linked */
+	ssh_init();
+
 	return m;
 
 free_out:
