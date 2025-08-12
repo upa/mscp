@@ -208,6 +208,16 @@ foreach(x RANGE ${DIST_LISTLEN})
 		--add-host=ip6-localhost:::1
 		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh)
 
+	add_custom_target(docker-run-${DOCKER_INDEX}
+		COMMENT "Start ${DOCKER_IMAGE} container"
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+		COMMAND
+		${CE} run --init --rm --privileged
+		--sysctl net.ipv6.conf.all.disable_ipv6=0
+		--add-host=ip6-localhost:::1
+		-it
+		${DOCKER_IMAGE} /mscp/scripts/test-in-container.sh bash)
+
 	list(APPEND DOCKER_BUILDS		docker-build-${DOCKER_INDEX})
 	list(APPEND DOCKER_BUILDS_NO_CACHE	docker-build-${DOCKER_INDEX}-no-cache)
 	list(APPEND DOCKER_TESTS		docker-test-${DOCKER_INDEX})

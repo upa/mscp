@@ -28,5 +28,11 @@ for port in 22 8022; do
 	ssh-keyscan -p $port ::1 >> ${HOME}/.ssh/known_hosts
 done
 
-# Run test
-python3 -m pytest -v ../test 
+
+if [ $# -gt 0 ]; then
+	# command arguments are passed, exec them
+	"$@"
+else
+	# no arguments passed, run the test
+	python3 -m pytest -v ../test
+fi
