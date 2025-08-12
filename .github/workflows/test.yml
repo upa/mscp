@@ -22,7 +22,7 @@ jobs:
         - rocky-8.9
         - rocky-9.3
         - almalinux-9.3
-        - alpine-3.19
+        - alpine-3.22
         - arch-base
     steps:
     - uses: actions/checkout@v4
