@@ -245,6 +245,43 @@ def test_dst_has_suffix_slash(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup()
 
+param_tilde_paths = [
+    ("src", "localhost:~/dst"),
+    ("localhost:~/src", "dst"),
+]
+@pytest.mark.parametrize("src_path, dst_path", param_tilde_paths)
+def test_remote_path_contains_tilde(mscp, src_path, dst_path):
+    """
+    if remote path contains '~' as prefix, it should be expanded as '.'.
+    Note that `~user` notation is not supported yet.
+    """
+    def extract_and_expand(path):
+        path = path if not ':' in path else path[path.index(':')+1:]
+        return path.replace('~', os.environ["HOME"])
+
+    src_f_path = extract_and_expand(src_path)
+    dst_f_path = extract_and_expand(dst_path)
+
+    src = File(src_f_path, size = 1024 * 1024).make()
+    dst = File(dst_f_path)
+
+    run2ok([mscp, "-vvv", src_path, dst_path])
+    assert check_same_md5sum(src, dst)
+
+    src.cleanup(preserve_dir=True)
+    dst.cleanup(preserve_dir=True)
+
+
+def test_remote_path_contains_tilde2(mscp):
+    src = File("src", size = 1024 * 1024).make()
+    dst = File(f"{os.environ['HOME']}/src")
+
+    run2ok([mscp, "-vvv", src.path, f"localhost:~"])
+    assert check_same_md5sum(src, dst)
+
+    src.cleanup(preserve_dir=True)
+    dst.cleanup(preserve_dir=True)
+
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_min_chunk(mscp, src_prefix, dst_prefix):
