@@ -1,4 +1,15 @@
-mscp (0.2.2) UNRELEASED; urgency=medium
+mscp (0.2.3) UNRELEASED; urgency=medium
+
+  * bump libssh version to 0.11.2 (#25)
+  * adopt new AIO read API of libssh
+  * fix path handling when remote dst path has suffix '/' (#24)
+  * fix remote path handling including '~' (partially)
+  * try pubkey auth first to avoid PerSourcePenalties
+  * remove the single-binary version of mscp from release
+
+ -- Ryo Nakamura <upa@haeena.net>  Tue, 12 Aug 2025 18:11:47 +0900
+
+mscp (0.2.2) unstable; urgency=medium
 
   * bump cmake_minimum_version on libssh (#32)
   * fix quiet mode (#30)

@@ -38,6 +38,9 @@ make -C build install DESTDIR=%{buildroot}
 
 
 %changelog
+* Tue Aug 12 2025 Ryo Nakamura <upa@haeena.net> - 0.2.3-1
+- RPM release for v0.2.3
+
 * Wed Apr 16 2025 Ryo Nakamura <upa@haeena.net> - 0.2.2-1
 - RPM release for v0.2.2
 
