@@ -19,6 +19,10 @@ RUN ssh-keygen -A \
 	&& ssh-keygen -f /root/.ssh/id_rsa -N ""                \
 	&& cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
 
+# disable PerSourcePenaltie, which would distrub test:
+# https://undeadly.org/cgi?action=article;sid=20240607042157
+RUN echo "PerSourcePenalties=no" > /etc/ssh/sshd_config.d/90-mscp-test.conf
+
 # create test user
 RUN addgroup -S test \
 	&& adduser -S test -G test \
