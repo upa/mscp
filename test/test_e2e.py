@@ -226,6 +226,25 @@ def test_copy_file_under_root_to_dir(mscp, src_prefix, dst_prefix):
     src.cleanup()
     dst.cleanup(preserve_dir = True)
 
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_dst_has_suffix_slash(mscp, src_prefix, dst_prefix):
+    """
+    if dst path has suffix '/' like "dir/" and does not exist,
+    mscp should create dir/ and put dir/src-file-name.
+    """
+    dstdir = "non_existent_dstdir/"
+    shutil.rmtree(dstdir, ignore_errors=True)
+
+    src = File("src", size = 1024 * 1024).make()
+    dst = File(f"{dstdir}/src")
+
+    run2ok([mscp, "-vvv", src_prefix + src.path,
+            dst_prefix + dstdir])
+
+    assert check_same_md5sum(src, dst)
+    src.cleanup()
+    dst.cleanup()
+
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_min_chunk(mscp, src_prefix, dst_prefix):
