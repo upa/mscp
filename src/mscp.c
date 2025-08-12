@@ -400,6 +400,9 @@ void *mscp_scan_thread(void *arg)
 	if (pool_size(m->src_pool) > 1)
 		a.dst_path_should_dir = true;
 
+	if (m->dst_path[strlen(m->dst_path) - 1] == '/')
+		a.dst_path_should_dir = true;
+
 	if (mscp_stat(m->dst_path, &ds, dst_sftp) == 0) {
 		if (S_ISDIR(ds.st_mode))
 			a.dst_path_is_dir = true;
