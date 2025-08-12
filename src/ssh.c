@@ -117,22 +117,10 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 	int auth_bit_mask;
 	int ret;
 
-	/* none method */
-	ret = ssh_userauth_none(ssh, NULL);
-	if (ret == SSH_AUTH_SUCCESS)
+	/* try publickey auth first */
+	char *p = opts->passphrase ? opts->passphrase : NULL;
+	if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
 		return 0;
-
-	auth_bit_mask = ssh_userauth_list(ssh, NULL);
-	if (auth_bit_mask & SSH_AUTH_METHOD_NONE &&
-	    ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
-		return 0;
-
-	auth_bit_mask = ssh_userauth_list(ssh, NULL);
-	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
-		char *p = opts->passphrase ? opts->passphrase : NULL;
-		if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
-			return 0;
-	}
 
 	auth_bit_mask = ssh_userauth_list(ssh, NULL);
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
