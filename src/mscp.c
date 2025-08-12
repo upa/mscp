@@ -275,6 +275,10 @@ struct mscp *mscp_init(struct mscp_opts *o, struct mscp_ssh_opts *s)
 	}
 	pr_notice("bitrate limit: %lu bps", o->bitrate);
 
+	/* workaround: set libssh using openssh proxyjump
+	 * https://gitlab.com/libssh/libssh-mirror/-/issues/319 */
+	ssh_use_openssh_proxy_jumps(1);
+
 	return m;
 
 free_out:

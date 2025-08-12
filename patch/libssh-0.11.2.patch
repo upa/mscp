@@ -37,7 +37,7 @@ index d22178e7..2d6aa0a7 100644
  int ssh_buffer_validate_length(struct ssh_buffer_struct *buffer, size_t len);
  
 diff --git a/include/libssh/libssh.h b/include/libssh/libssh.h
-index 3bddb019..c6b01c1c 100644
+index 3bddb019..1d5d7761 100644
 --- a/include/libssh/libssh.h
 +++ b/include/libssh/libssh.h
 @@ -373,6 +373,7 @@ enum ssh_options_e {
@@ -64,7 +64,7 @@ index 3bddb019..c6b01c1c 100644
  LIBSSH_API void ssh_buffer_free(ssh_buffer buffer);
  #define SSH_BUFFER_FREE(x) \
      do { if ((x) != NULL) { ssh_buffer_free(x); x = NULL; } } while(0)
-@@ -886,6 +889,11 @@ LIBSSH_API void *ssh_buffer_get(ssh_buffer buffer);
+@@ -886,6 +889,12 @@ LIBSSH_API void *ssh_buffer_get(ssh_buffer buffer);
  LIBSSH_API uint32_t ssh_buffer_get_len(ssh_buffer buffer);
  LIBSSH_API int ssh_session_set_disconnect_message(ssh_session session, const char *message);
  
@@ -72,6 +72,7 @@ index 3bddb019..c6b01c1c 100644
 +
 +LIBSSH_API const char **ssh_ciphers(void);
 +LIBSSH_API const char **ssh_hmacs(void);
++LIBSSH_API void ssh_use_openssh_proxy_jumps(int);
 +
  #ifndef LIBSSH_LEGACY_0_4
  #include "libssh/legacy.h"
@@ -287,7 +288,7 @@ index 2cb64037..51f4c87e 100644
          rc = connect(s, itr->ai_addr, itr->ai_addrlen);
          if (rc == -1) {
 diff --git a/src/misc.c b/src/misc.c
-index 774211fb..ae62ddfe 100644
+index 774211fb..74e57959 100644
 --- a/src/misc.c
 +++ b/src/misc.c
 @@ -71,6 +71,8 @@
@@ -342,6 +343,37 @@ index 774211fb..ae62ddfe 100644
  /**
   * @brief Write the requested number of bytes to a local file.
   *
+@@ -2227,6 +2265,17 @@ ssh_proxyjumps_free(struct ssh_list *proxy_jump_list)
+     }
+ }
+ 
++static bool force_openssh_proxy_jumps;
++
++/**
++ * @breif set use openssh proxy jumps without the OPENSSH_PROXYJUMP env var
++ */
++void
++ssh_use_openssh_proxy_jumps(int v)
++{
++    force_openssh_proxy_jumps = (v > 0);
++}
++
+ /**
+  * @brief Check if libssh proxy jumps is enabled
+  *
+@@ -2241,7 +2290,12 @@ ssh_libssh_proxy_jumps(void)
+ {
+     const char *t = getenv("OPENSSH_PROXYJUMP");
+ 
++    if (force_openssh_proxy_jumps)
++	    return false;
++
+     return !(t != NULL && t[0] == '1');
+ }
+ 
++
++
+ /** @} */
 diff --git a/src/options.c b/src/options.c
 index 785296dd..a82d4d81 100644
 --- a/src/options.c
