@@ -410,46 +410,45 @@ static int copy_chunk_l2r(struct chunk *c, int fd, sftp_file sf, int nr_ahead, i
 	return 0;
 }
 
-static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, int buf_sz,
-			  struct bwlimit *bw, size_t *counter)
+static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd,
+			   int nr_ahead, int buf_sz,
+			   struct bwlimit *bw, size_t *counter)
 {
-	ssize_t read_bytes, write_bytes, remaind, thrown;
+	ssize_t read_bytes, write_bytes, remain, thrown, len, requested;
+	sftp_aio reqs[nr_ahead];
 	char buf[buf_sz];
-	int idx;
-	struct {
-		int id;
-		ssize_t len;
-	} reqs[nr_ahead];
+	int i;
 
 	if (c->len == 0)
 		return 0;
 
-	remaind = thrown = c->len;
+	remain = thrown = c->len;
 
-	for (idx = 0; idx < nr_ahead && thrown > 0; idx++) {
-		reqs[idx].len = min(thrown, sizeof(buf));
-		reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
-		if (reqs[idx].id < 0) {
-			priv_set_errv("sftp_async_read_begin: %d",
+	for (i = 0; i < nr_ahead && thrown > 0; i++) {
+		len = min(thrown, sizeof(buf));
+		requested = sftp_aio_begin_read(sf, len, &reqs[i]);
+		if (requested == SSH_ERROR) {
+			priv_set_errv("sftp_aio_begin_read: %d",
 				      sftp_get_error(sf->sftp));
 			return -1;
 		}
-		thrown -= reqs[idx].len;
-		bwlimit_wait(bw, reqs[idx].len);
+		thrown -= requested;
+		bwlimit_wait(bw, requested);
 	}
 
-	for (idx = 0; remaind > 0; idx = (idx + 1) % nr_ahead) {
-		read_bytes = sftp_async_read(sf, buf, reqs[idx].len, reqs[idx].id);
+	for (i = 0; remain > 0; i = (i + 1) % nr_ahead) {
+		read_bytes = sftp_aio_wait_read(&reqs[i], buf, sizeof(buf));
 		if (read_bytes == SSH_ERROR) {
-			priv_set_errv("sftp_async_read: %d", sftp_get_error(sf->sftp));
+			priv_set_errv("sftp_aio_wait_read: %d",
+				      sftp_get_error(sf->sftp));
 			return -1;
 		}
 
 		if (thrown > 0) {
-			reqs[idx].len = min(thrown, sizeof(buf));
-			reqs[idx].id = sftp_async_read_begin(sf, reqs[idx].len);
-			thrown -= reqs[idx].len;
-			bwlimit_wait(bw, reqs[idx].len);
+			len = min(thrown, sizeof(buf));
+			requested = sftp_aio_begin_read(sf, len, &reqs[i]);
+			thrown -= requested;
+			bwlimit_wait(bw, requested);
 		}
 
 		write_bytes = write(fd, buf, read_bytes);
@@ -464,13 +463,13 @@ static int copy_chunk_r2l(struct chunk *c, sftp_file sf, int fd, int nr_ahead, i
 		}
 
 		*counter += write_bytes;
-		remaind -= read_bytes;
+		remain -= write_bytes;
 	}
 
-	if (remaind < 0) {
-		priv_set_errv("invalid remaind bytes %ld. last async_read bytes %ld. "
+	if (remain < 0) {
+		priv_set_errv("invalid remain bytes %ld. last async_read bytes %ld. "
 			      "last write bytes %ld",
-			      remaind, read_bytes, write_bytes);
+			      remain, read_bytes, write_bytes);
 		return -1;
 	}
 
