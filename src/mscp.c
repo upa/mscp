@@ -78,7 +78,7 @@ struct mscp {
 
 static int expand_coremask(const char *coremask, int **cores, int *nr_cores)
 {
-	int n, *core_list, core_list_len = 0, nr_usable, nr_all;
+	int n, *core_list, nr_usable, nr_all;
 	char c[2] = { 'x', '\0' };
 	const char *_coremask;
 	long v, needle;

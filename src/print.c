@@ -9,7 +9,8 @@ void set_print_severity(int serverity)
 {
 	if (serverity < 0)
 		__print_severity = -1; /* no print */
-	__print_severity = serverity;
+        else
+                __print_severity = serverity;
 }
 
 int get_print_severity()

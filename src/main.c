@@ -117,8 +117,6 @@ char *split_user_host_path(const char *s, char **userp, char **hostp, char **pat
 		return NULL;
 	}
 
-	user = NULL;
-	host = NULL;
 	path = tmp;
 	for (cp = tmp; *cp; cp++) {
 		if (*cp == '@' && (cp > tmp) && *(cp - 1) != '\\' && user == NULL) {
@@ -211,7 +209,6 @@ struct target *validate_targets(char **arg, int len)
 		pr_err("calloc: %s", strerrno());
 		return NULL;
 	}
-	memset(t, 0, len * sizeof(struct target));
 
 	/* split remote:path into remote and path */
 	for (n = 0; n < len; n++) {
@@ -309,7 +306,7 @@ long atol_with_unit(char *value, bool i)
 {
 	/* value must be "\d+[kKmMgG]?" */
 
-	char *u = value + (strlen(optarg) - 1);
+	char *u = value + (strlen(value) - 1);
 	long k = i ? 1024 : 1000;
 	long factor = 1;
 	long v;
@@ -359,7 +356,6 @@ int main(int argc, char **argv)
 	struct mscp_ssh_opts s;
 	struct mscp_opts o;
 	struct target *t;
-	int pipe_fd[2];
 	int ch, n, i, ret;
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
@@ -781,8 +777,6 @@ struct xfer_stat x;
 void print_stat(bool final)
 {
 	struct mscp_stats s;
-	char buf[8192];
-	int timeout;
 
 	gettimeofday(&x.after, NULL);
 	if (calculate_timedelta(&x.before, &x.after) > 1 || final) {
@@ -798,9 +792,6 @@ void print_stat(bool final)
 
 void *print_stat_thread(void *arg)
 {
-	struct mscp_stats s;
-	char buf[8192];
-
 	memset(&x, 0, sizeof(x));
 	gettimeofday(&x.start, NULL);
 	x.before = x.start;
