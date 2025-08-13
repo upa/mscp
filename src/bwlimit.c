@@ -50,8 +50,6 @@ int bwlimit_init(struct bwlimit *bw, uint64_t bps, uint64_t win)
 #define timespeccmp(a, b, expr) \
 	((a.tv_sec * 1000000000 + a.tv_nsec) expr(b.tv_sec * 1000000000 + b.tv_nsec))
 
-#include <stdio.h>
-
 int bwlimit_wait(struct bwlimit *bw, size_t nr_bytes)
 {
 	struct timespec now, end, rq, rm;

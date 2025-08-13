@@ -101,7 +101,6 @@ MDIR *mscp_opendir_wrapped(const char *path)
 
 void mscp_closedir(MDIR *md)
 {
-	int ret;
 	if (md->remote)
 		sftp_closedir(md->remote);
 	else
