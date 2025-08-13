@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #define MSCP_DIRECTION_L2R	1	/** Indicates local to remote copy */
 #define MSCP_DIRECTION_R2L	2	/** Indicates remote to local copy */
