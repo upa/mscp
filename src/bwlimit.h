@@ -9,10 +9,10 @@
 #include <semaphore.h>
 
 struct bwlimit {
-	sem_t		*sem;	/* semaphore */
-	uint64_t	bps;	/* limit bit-rate (bps) */
-	uint64_t	win;	/* window size (msec) */
-	size_t		amt;	/* amount of bytes can be sent in a window */
+	sem_t	*sem;	/* semaphore */
+	size_t	bps;	/* limit bit-rate (bps) */
+	size_t	win;	/* window size (msec) */
+	size_t	amt;	/* amount of bytes can be sent in a window */
 
 	ssize_t		credit;	/* remaining bytes can be sent in a window */
 	struct timespec wstart, wend; /* window start time and end time */
