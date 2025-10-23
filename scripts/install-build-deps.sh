@@ -47,7 +47,7 @@ case $platform in
 		cmd="brew install"
 		pkgs="openssl@3"
 		;;
-	Linux-ubuntu*)
+	Linux-ubuntu* | Linux-debian*)
 		cmd="apt-get install --no-install-recommends -y"
 		pkgs="gcc make cmake zlib1g-dev libssl-dev libkrb5-dev"
 		;;
