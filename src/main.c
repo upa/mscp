@@ -697,8 +697,13 @@ void print_progress_bar(double percent, char *suffix)
 
 	buf[0] = '\0';
 
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0)
-		return; /* XXX */
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0 || ws.ws_col == 0) {
+
+		// fallback to default
+		ws.ws_col = 80;
+		ws.ws_row = 24;
+	}
+
 	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
 
 	memset(buf, 0, sizeof(buf));
