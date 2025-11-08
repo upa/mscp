@@ -1,4 +1,12 @@
-mscp (0.2.3) UNRELEASED; urgency=medium
+mscp (0.2.4) UNRELEASED; urgency=medium
+
+  * fix password auth does not work (issue #36)
+  * add Debian and Devuan to the install dep script (pr #38)
+  * fallback to default terminal size on no tty (pr #39)
+
+ -- Ryo Nakamura <upa@haeena.net>  Sat, 08 Nov 2025 19:23:07 +0900
+
+mscp (0.2.3) unstable; urgency=medium
 
   * bump libssh version to 0.11.2 (#25)
   * adopt new AIO read API of libssh
