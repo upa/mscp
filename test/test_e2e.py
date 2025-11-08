@@ -49,6 +49,8 @@ def cleanup_files():
         "{}/src".format(os.environ["HOME"]),
         "{}/dst".format(os.environ["HOME"]),
         "/tmp/mscp_test_ssh_config",
+        "/home/test/dst",
+        "/home/test/src",
         "checkpoint",
     ]
 
@@ -657,11 +659,14 @@ def move_pubkey_temporally():
 def test_passwordauth_without_pubkey(move_pubkey_temporally,
                                      mscp, src_prefix, dst_prefix):
     """
-    make sure password auth works (by removing publick keys)
+    make sure password auth works (by removing public keys)
     """
-    src = File("src", size = 10 * 1024 * 1024).make()
-    dst = File("dst")
-    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    src = File(os.getcwd() + "/src", size = 1024).make()
+    dst = File("/home/test/dst")
+    env = os.environ
+    env["MSCP_SSH_AUTH_PASSWORD"]  = "userpassword"
+    run2ok([mscp, "-vvv", "-l", "test",
+            src.path, "localhost:" + dst.path], env = env)
     assert check_same_md5sum(src, dst)
 
 

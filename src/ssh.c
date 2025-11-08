@@ -114,15 +114,25 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 
 static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 {
-	int auth_bit_mask;
+	static int auth_bit_mask;
 	int ret;
 
-	/* try publickey auth first */
-	char *p = opts->passphrase ? opts->passphrase : NULL;
-	if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
-		return 0;
+        if (auth_bit_mask == 0) {
+                /* the first authentication attempt. try none auth to
+                 * get available auth methods. */
+                if (ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
+                        return 0;
 
-	auth_bit_mask = ssh_userauth_list(ssh, NULL);
+                /* save auth_bit_mask for further authentications */
+                auth_bit_mask = ssh_userauth_list(ssh, NULL);
+        }
+
+	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
+                char *p = opts->passphrase ? opts->passphrase : NULL;
+                if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
+                        return 0;
+        }
+
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
 		if (!opts->password) {
 			char buf[128] = {};
