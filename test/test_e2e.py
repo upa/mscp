@@ -9,6 +9,7 @@ import getpass
 import datetime
 import time
 import os
+import re
 import shutil
 
 from subprocess import check_call, CalledProcessError
@@ -628,6 +629,41 @@ def test_specify_invalid_password_via_env(mscp):
     env["MSCP_SSH_AUTH_PASSWORD"]  = "invalid-userpassword"
     run2ng([mscp, "-vvv", "-l", "test",
             src.path, "localhost:" + dst.path], env = env)
+
+
+@pytest.fixture
+def move_pubkey_temporally():
+    """
+    mv ~/.ssh/id_* to id_rsa.bak before test, and move it back after test.
+    """
+
+    sshdir = os.path.join(os.environ["HOME"], ".ssh")
+
+    # move pubkeys to /tmp
+    moved = []
+    for fname in os.listdir(sshdir):
+        if re.match(r"^id_[a-z0-9]+$", fname):
+            moved.append(fname)
+            shutil.move(f"{sshdir}/{fname}", f"/tmp/{fname}")
+
+    yield
+
+    # move back the keys
+    for fname in moved:
+        shutil.move(f"/tmp/{fname}", f"{sshdir}/{fname}")
+
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_passwordauth_without_pubkey(move_pubkey_temporally,
+                                     mscp, src_prefix, dst_prefix):
+    """
+    make sure password auth works (by removing publick keys)
+    """
+    src = File("src", size = 10 * 1024 * 1024).make()
+    dst = File("dst")
+    run2ok([mscp, "-vvv", src_prefix + src.path, dst_prefix + dst.path])
+    assert check_same_md5sum(src, dst)
+
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_10k_files(mscp, src_prefix, dst_prefix):
