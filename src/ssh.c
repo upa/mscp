@@ -123,14 +123,21 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
                 if (ssh_userauth_none(ssh, NULL) == SSH_AUTH_SUCCESS)
                         return 0;
 
-                /* save auth_bit_mask for further authentications */
+                /* save auth_bit_mask for further authentications.
+                 * when an authentication succeeds, auth_bit_mask is
+                 * overwritten with the suceeded authentication method
+                 * to avoid authentication failures by other methods.
+                 */
                 auth_bit_mask = ssh_userauth_list(ssh, NULL);
         }
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PUBLICKEY) {
                 char *p = opts->passphrase ? opts->passphrase : NULL;
-                if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS)
+                if (ssh_userauth_publickey_auto(ssh, NULL, p) == SSH_AUTH_SUCCESS) {
+                        auth_bit_mask = SSH_AUTH_METHOD_PUBLICKEY;
                         return 0;
+                }
+
         }
 
 	if (auth_bit_mask & SSH_AUTH_METHOD_PASSWORD) {
@@ -146,14 +153,17 @@ static int ssh_authenticate(ssh_session ssh, struct mscp_ssh_opts *opts)
 			}
 		}
 
-		if (ssh_userauth_password(ssh, NULL, opts->password) == SSH_AUTH_SUCCESS)
-			return 0;
+		if (ssh_userauth_password(ssh, NULL, opts->password) == SSH_AUTH_SUCCESS) {
+                        auth_bit_mask = SSH_AUTH_METHOD_PASSWORD;
+                        return 0;
+                }
 	}
 
-	auth_bit_mask = ssh_userauth_list(ssh, NULL);
 	if (auth_bit_mask & SSH_AUTH_METHOD_INTERACTIVE) {
-		if (ssh_authenticate_kbdint(ssh) == SSH_AUTH_SUCCESS)
-			return 0;
+		if (ssh_authenticate_kbdint(ssh) == SSH_AUTH_SUCCESS) {
+                        auth_bit_mask = SSH_AUTH_METHOD_INTERACTIVE;
+                        return 0;
+                }
 	}
 
 	return -1;
