@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.4-2-g7b5a970
+:Date: v0.2.4-6-gcd61363
 
 NAME
 ====
@@ -124,8 +124,8 @@ OPTIONS
 **-B BIND_ADDR**
    Specifies a local IP address to bind. When multiple -B options are
    specified, SSH connections will be bound to the addresses in a round
-   robin manner. This feature enables using multiple NICs having
-   differnt IP addresses.
+   robin manner. This feature enables using multiple network interfaces
+   having differnt IP addresses.
 
 **-4**
    Uses IPv4 addresses only.
@@ -275,6 +275,15 @@ threads to specific CPU cores, **-a** increases asynchronous inflight
 SFTP WRITE/READ commands, and **-c aes128-gcm@openssh.com** will be
 faster than the default chacha20-poly1305 cipher, particularly on hosts
 that support AES-NI.
+
+Use multiple network interfaces having different IP addresses:
+
+::
+
+       $ mscp -n 9 -B 10.0.0.10 -B 10.0.0.11 -B 10.0.0.12 many-large-files 192.168.0.1:dst/
+
+Out of the 9 SSH connections, three of them are bound to each of
+10.0.0.10, 10.0.0.11, and 10.0.0.12 in a round robin manner.
 
 SEE ALSO
 ========
