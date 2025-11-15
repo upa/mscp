@@ -16,20 +16,18 @@ from subprocess import check_output, CalledProcessError, STDOUT
 from util import File, check_same_md5sum
 
 
-def run2ok(args, env = None, quiet = False) -> str:
+def run2ok(args, env = None) -> str:
     cmd = list(map(str, args))
-    if not quiet:
-        print("cmd: {}".format(" ".join(cmd)))
+    print("cmd: {}".format(" ".join(cmd)))
     out = check_output(cmd, env = env, stderr = STDOUT).decode()
     print(out)
     return out
 
-def run2ng(args, env = None, timeout = None, quiet = False):
+def run2ng(args, env = None, timeout = None):
     if timeout:
         args = ["timeout", "-s", "INT", timeout] + args
     cmd = list(map(str, args))
-    if not quiet:
-        print("cmd: {}".format(" ".join(cmd)))
+    print("cmd: {}".format(" ".join(cmd)))
     with pytest.raises(CalledProcessError) as execinfo:
         check_output(cmd, env = env, stderr = STDOUT)
     out = execinfo.value.stdout.decode()
@@ -496,16 +494,13 @@ def test_v6_to_v4_should_fail(mscp):
     dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
     run2ng([mscp, "-vvv", "-6", src.path, dst_prefix + dst.path])
 
-def test_quiet_mode(capsys, mscp):
+def test_quiet_mode(mscp):
     src = File("src", size = 1024).make()
     dst = File("dst")
     dst_prefix = "127.0.0.1:{}/".format(os.getcwd())
-    run2ok([mscp, "-vvv", "-q", src.path, dst_prefix + dst.path], quiet=True)
+    out = run2ok([mscp, "-vvv", "-q", src.path, dst_prefix + dst.path])
     assert check_same_md5sum(src, dst)
-
-    captured = capsys.readouterr()
-    assert not captured.out
-    assert not captured.err
+    assert not out
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
 def test_set_conn_interval(mscp, src_prefix, dst_prefix):
