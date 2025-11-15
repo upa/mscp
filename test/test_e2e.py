@@ -431,7 +431,8 @@ def test_bind_ng(mscp, src_prefix, dst_prefix):
     """Bind to invalid address should fail."""
     out = run2ng([mscp, "-vvv", "-ddd", "-B", "192.168.10.10",
                   src_prefix + "src", dst_prefix + "dst"])
-    assert "Cannot assign requested address" in out
+    assert ("Cannot assign requested address" in out or
+            "Address not available" in out)
 
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
