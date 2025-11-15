@@ -30,6 +30,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
+
 #define MSCP_DIRECTION_L2R	1	/** Indicates local to remote copy */
 #define MSCP_DIRECTION_R2L	2	/** Indicates remote to local copy */
 
@@ -60,6 +61,7 @@ struct mscp_ssh_opts {
 	/* ssh options */
 	char	*login_name;	/** ssh username */
 	char	*port;		/** ssh port */
+	char    **bind_addrs;   /** addresses to bind, terminated by NULL  */
 	int	ai_family;	/** address family */
 	char	*config;	/** path to ssh_config, default ~/.ssh/config*/
 	char	**options;	/** array of ssh_config options, terminated by NULL */

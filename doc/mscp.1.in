@@ -41,6 +41,9 @@ mscp \- copy files over multiple SSH connections
 .BI \-L \ LIMIT_BITRATE\c
 ]
 [\c
+.BI \-B \ BIND_ADDR\c
+]
+[\c
 .BI \-l \ LOGIN_NAME\c
 ]
 [\c
@@ -219,6 +222,13 @@ delivered over SSH. Changing this value is not recommended at present.
 .B \-L \fILIMIT_BITRATE\fR
 Limits the bitrate, specified with k (K), m (M), and g (G), e.g., 100m
 indicates 100 Mbps.
+
+.TP
+.B \-B \fIBIND_ADDR\fR
+Specifies a local IP address to bind. When multiple -B options are
+specified, SSH connections will be bound to the addresses in a round
+robin manner. This feature enables using multiple NICs having differnt
+IP addresses.
 
 .TP
 .B \-4

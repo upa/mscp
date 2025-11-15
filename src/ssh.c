@@ -6,6 +6,7 @@
 
 #include <ssh.h>
 #include <mscp.h>
+#include <atomic.h>
 #include <strerrno.h>
 
 #include "libssh/callbacks.h"
@@ -13,6 +14,9 @@
 
 static int ssh_verify_known_hosts(ssh_session session);
 static int ssh_authenticate_kbdint(ssh_session session);
+
+static lock bind_addr_lock = PTHREAD_MUTEX_INITIALIZER;
+static int bind_addr_idx;
 
 static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 {
@@ -27,6 +31,21 @@ static int ssh_set_opts(ssh_session ssh, struct mscp_ssh_opts *opts)
 	if (opts->port && ssh_options_set(ssh, SSH_OPTIONS_PORT_STR, opts->port) < 0) {
 		priv_set_errv("failed to set port number");
 		return -1;
+	}
+
+	if (opts->bind_addrs) {
+		/* ssh_set_opts can be called from multiple threads,
+		 * thus protect bind_addr_idx with a lock. */
+		char *bind_addr;
+		LOCK_ACQUIRE(&bind_addr_lock);
+		bind_addr = opts->bind_addrs[bind_addr_idx];
+		bind_addr_idx = (opts->bind_addrs[bind_addr_idx + 1] == NULL ?
+				 0 : bind_addr_idx + 1);
+		LOCK_RELEASE();
+		if (ssh_options_set(ssh, SSH_OPTIONS_BINDADDR, bind_addr) < 0) {
+			priv_set_errv("failed to set bind address %s", bind_addr);
+			return -1;
+		}
 	}
 
 	if (opts->ai_family &&

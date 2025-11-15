@@ -2,7 +2,7 @@
 MSCP
 ====
 
-:Date: v0.2.4
+:Date: v0.2.4-2-g7b5a970
 
 NAME
 ====
@@ -16,10 +16,11 @@ SYNOPSIS
 *COREMASK* ] [ **-u** *MAX_STARTUPS* ] [ **-I** *INTERVAL* ] [ **-W**
 *CHECKPOINT* ] [ **-R** *CHECKPOINT* ] [ **-s** *MIN_CHUNK_SIZE* ] [
 **-S** *MAX_CHUNK_SIZE* ] [ **-a** *NR_AHEAD* ] [ **-b** *BUF_SIZE* ] [
-**-L** *LIMIT_BITRATE* ] [ **-l** *LOGIN_NAME* ] [ **-P** *PORT* ] [
-**-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [ **-i** *IDENTITY* ] [
-**-J** *DESTINATION* ] [ **-c** *CIPHER* ] [ **-M** *HMAC* ] [ **-C**
-*COMPRESS* ] [ **-g** *CONGESTION* ] *source ... target*
+**-L** *LIMIT_BITRATE* ] [ **-B** *BIND_ADDR* ] [ **-l** *LOGIN_NAME* ]
+[ **-P** *PORT* ] [ **-F** *SSH_CONFIG* ] [ **-o** *SSH_OPTION* ] [
+**-i** *IDENTITY* ] [ **-J** *DESTINATION* ] [ **-c** *CIPHER* ] [
+**-M** *HMAC* ] [ **-C** *COMPRESS* ] [ **-g** *CONGESTION* ] *source
+... target*
 
 DESCRIPTION
 ===========
@@ -119,6 +120,12 @@ OPTIONS
 **-L LIMIT_BITRATE**
    Limits the bitrate, specified with k (K), m (M), and g (G), e.g.,
    100m indicates 100 Mbps.
+
+**-B BIND_ADDR**
+   Specifies a local IP address to bind. When multiple -B options are
+   specified, SSH connections will be bound to the addresses in a round
+   robin manner. This feature enables using multiple NICs having
+   differnt IP addresses.
 
 **-4**
    Uses IPv4 addresses only.

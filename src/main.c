@@ -28,7 +28,7 @@ void usage(bool print_help)
 	       "Usage: mscp [-46vqDpdNh] [-n nr_conns] [-m coremask] [-u max_startups]\n"
 	       "            [-I interval] [-W checkpoint] [-R checkpoint]\n"
 	       "            [-s min_chunk_sz] [-S max_chunk_sz] [-a nr_ahead]\n"
-	       "            [-b buf_sz] [-L limit_bitrate]\n"
+	       "            [-b buf_sz] [-L limit_bitrate] [-B bind_addr]\n"
 	       "            [-l login_name] [-P port] [-F ssh_config] [-o ssh_option]\n"
 	       "            [-i identity_file] [-J destination] [-c cipher_spec] [-M hmac_spec]\n"
 	       "            [-C compress] [-g congestion]\n"
@@ -51,7 +51,8 @@ void usage(bool print_help)
 	       "    -S MAX_CHUNK_SIZE  max chunk size (default: filesize/nr_conn/4)\n"
 	       "    -a NR_AHEAD        number of inflight SFTP commands (default: 32)\n"
 	       "    -b BUF_SZ          buffer size for i/o and transfer\n"
-	       "    -L LIMIT_BITRATE   Limit the bitrate, n[KMG] (default: 0, no limit)\n"
+	       "    -L LIMIT_BITRATE   limit the bitrate, n[KMG] (default: 0, no limit)\n"
+	       "    -B BIND_ADDR       bind address (accept multiple times)\n"
 	       "\n"
 	       "    -4                 use IPv4\n"
 	       "    -6                 use IPv6\n"
@@ -360,13 +361,14 @@ int main(int argc, char **argv)
 	int direction = 0;
 	char *remote = NULL, *checkpoint_save = NULL, *checkpoint_load = NULL;
 	bool quiet = false, dryrun = false, resume = false;
+	int nr_baddrs = 0;
 	int nr_options = 0;
 
 	memset(&s, 0, sizeof(s));
 	memset(&o, 0, sizeof(o));
 	o.severity = MSCP_SEVERITY_WARN;
 
-#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:46vqDrl:P:F:o:i:J:c:M:C:g:pdNh"
+#define mscpopts "n:m:u:I:W:R:s:S:a:b:L:B:46vqDrl:P:F:o:i:J:c:M:C:g:pdNh"
 	while ((ch = getopt(argc, argv, mscpopts)) != -1) {
 		switch (ch) {
 		case 'n':
@@ -406,6 +408,17 @@ int main(int argc, char **argv)
 			break;
 		case 'L':
 			o.bitrate = atol_with_unit(optarg, false);
+			break;
+		case 'B':
+			nr_baddrs++;
+			s.bind_addrs = realloc(s.bind_addrs,
+					       sizeof(char *) * (nr_baddrs + 1));
+			if (!s.bind_addrs) {
+				pr_err("realloc: %s", strerrno());
+				return 1;
+			}
+			s.bind_addrs[nr_baddrs - 1] = optarg;
+			s.bind_addrs[nr_baddrs] = NULL;
 			break;
 		case '4':
 			s.ai_family = AF_INET;
