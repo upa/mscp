@@ -12,15 +12,17 @@ import os
 import re
 import shutil
 
-from subprocess import check_call, CalledProcessError
+from subprocess import check_output, CalledProcessError, STDOUT
 from util import File, check_same_md5sum
 
 
-def run2ok(args, env = None, quiet = False):
+def run2ok(args, env = None, quiet = False) -> str:
     cmd = list(map(str, args))
     if not quiet:
         print("cmd: {}".format(" ".join(cmd)))
-    check_call(cmd, env = env)
+    out = check_output(cmd, env = env, stderr = STDOUT).decode()
+    print(out)
+    return out
 
 def run2ng(args, env = None, timeout = None, quiet = False):
     if timeout:
@@ -28,8 +30,11 @@ def run2ng(args, env = None, timeout = None, quiet = False):
     cmd = list(map(str, args))
     if not quiet:
         print("cmd: {}".format(" ".join(cmd)))
-    with pytest.raises(CalledProcessError):
-        check_call(cmd, env = env)
+    with pytest.raises(CalledProcessError) as execinfo:
+        check_output(cmd, env = env, stderr = STDOUT)
+    out = execinfo.value.stdout.decode()
+    print(out)
+    return out
 
 
 @pytest.fixture(autouse=True)
@@ -421,6 +426,35 @@ def test_bwlimit(mscp, src_prefix, dst_prefix):
     end = datetime.datetime.now().timestamp()
     assert check_same_md5sum(src, dst)
     assert end - start > 7
+
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_bind_ng(mscp, src_prefix, dst_prefix):
+    """Bind to invalid address should fail."""
+    out = run2ng([mscp, "-vvv", "-ddd", "-B", "192.168.10.10",
+                  src_prefix + "src", dst_prefix + "dst"])
+    assert "Cannot assign requested address" in out
+
+
+@pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
+def test_bind_ok(mscp, src_prefix, dst_prefix):
+    """Bind to multiple lo addresses and check all of them used """
+
+    srcs = [ File(f"src-{x}", size = 128).make() for x in range(10) ]
+    src_paths = [ src_prefix + src.path for src in srcs ]
+
+    out = run2ok([mscp, "-v",  "-ddd",
+                  "-B", "127.0.0.10", "-B", "127.0.0.20", "-B", "127.0.0.30",
+                  ] +
+                 src_paths + [dst_prefix + "dst/"])
+
+    for src in srcs:
+        dst = File(f"dst/{src.path}")
+        assert check_same_md5sum(src, dst)
+
+    assert "127.0.0.10" in out
+    assert "127.0.0.20" in out
+    assert "127.0.0.30" in out
 
 
 @pytest.mark.parametrize("src_prefix, dst_prefix", param_remote_prefix)
