@@ -170,7 +170,7 @@ static int validate_and_set_defaut_params(struct mscp_opts *o)
 
 	if (o->buf_sz == 0)
 		o->buf_sz = DEFAULT_BUF_SZ;
-	else if (o->buf_sz == 0) {
+	else if (o->buf_sz < 0) {
 		priv_set_errv("invalid buf size: %lu", o->buf_sz);
 		return -1;
 	}
