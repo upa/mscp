@@ -207,14 +207,22 @@ static bool check_path_should_skip(const char *path)
 	return false;
 }
 
+#define WALK_PATH_MAX_DEPTH 256
+
 static int walk_path_recursive(sftp_session sftp, const char *path,
-			       struct path_resolve_args *a)
+			       struct path_resolve_args *a, unsigned int depth)
 {
 	char next_path[PATH_MAX + 1];
 	struct dirent *e;
 	struct stat st;
 	MDIR *d;
 	int ret;
+
+	if (depth > WALK_PATH_MAX_DEPTH) {
+		pr_err("directory nesting too deep (>%d): %s",
+		       WALK_PATH_MAX_DEPTH, path);
+		return -1;
+	}
 
 	if (mscp_stat(path, &st, sftp) < 0) {
 		pr_err("stat: %s: %s", path, strerrno());
@@ -245,7 +253,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			continue;
 		}
 
-		walk_path_recursive(sftp, next_path, a);
+		walk_path_recursive(sftp, next_path, a, depth + 1);
 		/* do not stop even when walk_path_recursive returns
 		 * -1 due to an unreadable file. go to a next
 		 * file. Thus, do not pass error messages via
@@ -262,7 +270,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 int walk_src_path(sftp_session src_sftp, const char *src_path,
 		  struct path_resolve_args *a)
 {
-	return walk_path_recursive(src_sftp, src_path, a);
+	return walk_path_recursive(src_sftp, src_path, a, 0);
 }
 
 /* based on
