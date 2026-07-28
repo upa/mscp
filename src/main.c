@@ -484,18 +484,7 @@ int main(int argc, char **argv)
 	if (quiet)
 		to_dev_null(STDOUT_FILENO);
 
-	/* Snapshot password/passphrase from the environment, then wipe
-	 * them in place. getenv() returns a pointer directly into the
-	 * process's original environment block, which stays readable by
-	 * any local process with the same uid via /proc/PID/environ for
-	 * as long as the bytes remain unmodified -- calling unsetenv()
-	 * alone does NOT clear this, since /proc/PID/environ reflects
-	 * the raw exec-time memory, not libc's environ[] bookkeeping.
-	 * Copy the value to the heap, then memset the original bytes to
-	 * remove them from that memory, keeping non-interactive usage
-	 * (scripts, CI) working without leaving the secret exposed for
-	 * the remaining lifetime of the process.
-	 */
+	/* Preserve credentials while removing them from the environment. */
 	s.password = getenv(ENV_SSH_AUTH_PASSWORD);
 	s.passphrase = getenv(ENV_SSH_AUTH_PASSPHRASE);
 	if (s.password) {
