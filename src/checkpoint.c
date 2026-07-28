@@ -233,8 +233,7 @@ int checkpoint_save(const char *pathname, int dir, const char *user, const char 
 	unsigned int i, nr_paths, nr_chunks;
 	int fd, ret;
 
-	fd = open(pathname, O_WRONLY | O_CREAT | O_TRUNC,
-		  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+	fd = open(pathname, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		priv_set_errv("open: %s: %s", pathname, strerrno());
 		return -1;
