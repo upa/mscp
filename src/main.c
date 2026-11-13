@@ -656,6 +656,23 @@ double calculate_bps(size_t diff, struct timeval *b, struct timeval *a)
 	return (double)diff / calculate_timedelta(b, a);
 }
 
+static bool duration_parts(double duration, int *minutes, int *seconds)
+{
+	double rounded = round(duration);
+	double mins;
+
+	if (!isfinite(rounded) || rounded < 0)
+		return false;
+
+	mins = floor(rounded / 60);
+	if (mins > INT_MAX)
+		return false;
+
+	*minutes = (int)mins;
+	*seconds = (int)fmod(rounded, 60);
+	return true;
+}
+
 char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeval *a,
 		    bool final)
 {
@@ -663,10 +680,12 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
 
 #define bps_window_size 16
 	static double bps_window[bps_window_size];
-	static size_t sum, idx, count;
+	static double sum;
+	static size_t idx, count;
 	double elapsed = calculate_timedelta(b, a);
 	double bps = diff / elapsed;
 	double avg, eta;
+	int minutes, seconds;
 
 	/* early return when diff == 0 (stalled) or final output */
 	if (diff == 0) {
@@ -674,8 +693,10 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
 		return buf;
 	}
 	if (final) {
-		snprintf(buf, sizeof(buf), "%02d:%02d    ", (int)(floor(elapsed / 60)),
-			 (int)round(elapsed) % 60);
+		if (!duration_parts(elapsed, &minutes, &seconds))
+			snprintf(buf, sizeof(buf), "--:--    ");
+		else
+			snprintf(buf, sizeof(buf), "%02d:%02d    ", minutes, seconds);
 		return buf;
 	}
 
@@ -689,15 +710,17 @@ char *calculate_eta(size_t remain, size_t diff, struct timeval *b, struct timeva
 	/* calcuate ETA from avg of recent bps values */
 	avg = sum / min(count, bps_window_size);
 	eta = remain / avg;
-	snprintf(buf, sizeof(buf), "%02d:%02d ETA", (int)floor(eta / 60),
-		 (int)round(eta) % 60);
+	if (!duration_parts(eta, &minutes, &seconds))
+		snprintf(buf, sizeof(buf), "--:-- ETA");
+	else
+		snprintf(buf, sizeof(buf), "%02d:%02d ETA", minutes, seconds);
 
 	return buf;
 }
 
 void print_progress_bar(double percent, char *suffix)
 {
-	int n, thresh, bar_width;
+	int n, filled, bar_width;
 	struct winsize ws;
 	char buf[128];
 
@@ -714,19 +737,26 @@ void print_progress_bar(double percent, char *suffix)
 		ws.ws_row = 24;
 	}
 
-	bar_width = min(sizeof(buf), ws.ws_col) - strlen(suffix) - 7;
+	bar_width = (int)min(sizeof(buf), (size_t)ws.ws_col);
+	bar_width -= (int)strlen(suffix) + 7;
+
+	if (!isfinite(percent) || percent < 0)
+		percent = 0;
+	else if (percent > 100)
+		percent = 100;
 
 	memset(buf, 0, sizeof(buf));
 	if (bar_width > 8) {
-		thresh = floor(bar_width * (percent / 100)) - 1;
+		filled = floor((bar_width - 2) * (percent / 100));
 
 		for (n = 1; n < bar_width - 1; n++) {
-			if (n <= thresh)
+			if (n <= filled)
 				buf[n] = '=';
 			else
 				buf[n] = ' ';
 		}
-		buf[thresh] = '>';
+		if (filled < bar_width - 2)
+			buf[filled + 1] = '>';
 		buf[0] = '[';
 		buf[bar_width - 1] = ']';
 		snprintf(buf + bar_width, sizeof(buf) - bar_width, " %3d%% ",
@@ -746,7 +776,8 @@ void print_progress(struct timeval *b, struct timeval *a, size_t total, size_t l
 	char suffix[128];
 	int bps_u, byte_tu, byte_du;
 	double total_round, done_round;
-	int percent;
+	size_t diff, remain;
+	double percent;
 	double bps;
 
 #define array_size(a) (sizeof(a) / sizeof(a[0]))
@@ -762,8 +793,10 @@ void print_progress(struct timeval *b, struct timeval *a, size_t total, size_t l
 	     byte_tu++)
 		total_round /= 1024;
 
-	bps = calculate_bps(done - last, b, a);
-	for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units); bps_u++)
+	diff = done >= last ? done - last : 0;
+	remain = done >= total ? 0 : total - done;
+	bps = calculate_bps(diff, b, a);
+	for (bps_u = 0; bps > 1000 && bps_u < array_size(bps_units) - 1; bps_u++)
 		bps /= 1000;
 
 	percent = floor(((double)(done) / (double)total) * 100);
@@ -775,7 +808,7 @@ void print_progress(struct timeval *b, struct timeval *a, size_t total, size_t l
 
 	snprintf(suffix, sizeof(suffix), "%4.1lf%s/%.1lf%s %6.1f%s  %s", done_round,
 		 byte_units[byte_du], total_round, byte_units[byte_tu], bps,
-		 bps_units[bps_u], calculate_eta(total - done, done - last, b, a, final));
+		 bps_units[bps_u], calculate_eta(remain, diff, b, a, final));
 
 	print_progress_bar(percent, suffix);
 }

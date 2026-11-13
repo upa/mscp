@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <libgen.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdint.h>
 
 #include <ssh.h>
 #include <minmax.h>
@@ -166,6 +168,12 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 	struct path *p;
 	char *src, *dst;
 
+	if (st.st_size < 0 || (uintmax_t)st.st_size > SIZE_MAX - *a->total_bytes) {
+		pr_err("file size overflow: %s", path);
+		errno = EOVERFLOW;
+		return -1;
+	}
+
 	if (!(src = strdup(path))) {
 		pr_err("strdup: %s", strerrno());
 		return -1;
@@ -179,7 +187,7 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 	if (!(p = alloc_path(src, dst)))
 		return -1;
 
-	if (resolve_chunk(p, st.st_size, a) < 0)
+	if (resolve_chunk(p, (size_t)st.st_size, a) < 0)
 		return -1; /* XXX: do not free path becuase chunk(s)
 			    * was added to chunk pool already */
 
@@ -188,7 +196,7 @@ static int append_path(sftp_session sftp, const char *path, struct stat st,
 		goto free_out;
 	}
 
-	*a->total_bytes += st.st_size;
+	*a->total_bytes += (size_t)st.st_size;
 
 	return 0;
 
@@ -217,7 +225,9 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 	int ret;
 
 	if (mscp_stat(path, &st, sftp) < 0) {
+		int error = errno;
 		pr_err("stat: %s: %s", path, strerrno());
+		errno = error;
 		return -1;
 	}
 
@@ -245,7 +255,13 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			continue;
 		}
 
-		walk_path_recursive(sftp, next_path, a);
+		errno = 0;
+		ret = walk_path_recursive(sftp, next_path, a);
+		/* A wrapped total is unsafe, so propagate size overflows. */
+		if (ret < 0 && errno == EOVERFLOW) {
+			mscp_closedir(d);
+			return -1;
+		}
 		/* do not stop even when walk_path_recursive returns
 		 * -1 due to an unreadable file. go to a next
 		 * file. Thus, do not pass error messages via
