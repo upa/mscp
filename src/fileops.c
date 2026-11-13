@@ -15,6 +15,9 @@
 sftp_session __thread tls_sftp;
 /* tls_sftp is used *_wrapped() functions */
 
+/* Propagate errors from mscp_readdir() through glob's callback interface. */
+static int __thread tls_readdir_errno;
+
 void set_tls_sftp_session(sftp_session sftp)
 {
 	tls_sftp = sftp;
@@ -119,11 +122,23 @@ struct dirent *mscp_readdir(MDIR *md)
 	sftp_attributes attr;
 	struct dirent *ret = NULL;
 	static int inum = 1;
+	int error = 0;
 
+	errno = 0;
 	if (md->remote) {
 		attr = sftp_readdir(md->remote->sftp, md->remote);
 		if (!attr) {
 			sftp_err_to_errno(md->remote->sftp);
+			return NULL;
+		}
+		if (!attr->name || attr->name[0] == '\0' || strchr(attr->name, '/'))
+			error = EBADMSG;
+		else if (strlen(attr->name) >= sizeof(tls_dirent.d_name))
+			error = ENAMETOOLONG;
+		if (error) {
+			tls_readdir_errno = error;
+			errno = error;
+			sftp_attributes_free(attr);
 			return NULL;
 		}
 
@@ -337,7 +352,7 @@ int mscp_setstat(const char *path, struct stat *st, bool preserve_ts, sftp_sessi
 
 int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 {
-	int ret;
+	int error = 0, ret;
 	if (sftp) {
 #ifndef GLOB_ALTDIRFUNC
 #define GLOB_NOALTDIRMAGIC INT_MAX
@@ -349,6 +364,7 @@ int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 		return 0;
 #else
 		flags |= GLOB_ALTDIRFUNC;
+		tls_readdir_errno = 0;
 		set_tls_sftp_session(sftp);
 #if defined(__APPLE__) || defined(__FreeBSD__)
 		pglob->gl_opendir = (void *(*)(const char *))mscp_opendir_wrapped;
@@ -370,9 +386,22 @@ int mscp_glob(const char *pattern, int flags, glob_t *pglob, sftp_session sftp)
 
 	ret = glob(pattern, flags, NULL, pglob);
 
-	if (sftp)
+	if (sftp) {
 		set_tls_sftp_session(NULL);
-	return ret;
+		if (tls_readdir_errno)
+			error = tls_readdir_errno;
+	}
+	if (ret != 0 && !error) {
+		error = errno;
+		if (!error)
+			error = ret == GLOB_NOSPACE ? ENOMEM : EIO;
+	}
+	if (error) {
+		globfree(pglob);
+		errno = error;
+		return -1;
+	}
+	return 0;
 }
 
 void mscp_globfree(glob_t *pglob)

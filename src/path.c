@@ -207,6 +207,13 @@ static bool check_path_should_skip(const char *path)
 	return false;
 }
 
+#define WALK_PATH_INVALID_ENTRY -2
+
+static bool readdir_error_is_fatal(int error)
+{
+	return error == EBADMSG || error == ENAMETOOLONG;
+}
+
 static int walk_path_recursive(sftp_session sftp, const char *path,
 			       struct path_resolve_args *a)
 {
@@ -235,6 +242,7 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		return -1;
 	}
 
+	errno = 0;
 	for (e = mscp_readdir(d); e; e = mscp_readdir(d)) {
 		if (check_path_should_skip(e->d_name))
 			continue;
@@ -245,7 +253,12 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 			continue;
 		}
 
-		walk_path_recursive(sftp, next_path, a);
+		ret = walk_path_recursive(sftp, next_path, a);
+		if (ret == WALK_PATH_INVALID_ENTRY) {
+			mscp_closedir(d);
+			errno = EBADMSG;
+			return ret;
+		}
 		/* do not stop even when walk_path_recursive returns
 		 * -1 due to an unreadable file. go to a next
 		 * file. Thus, do not pass error messages via
@@ -253,8 +266,14 @@ static int walk_path_recursive(sftp_session sftp, const char *path,
 		 * the error with pr_err immediately.
 		 */
 	}
+	ret = errno;
 
 	mscp_closedir(d);
+	if (ret) {
+		errno = ret;
+		pr_err("readdir: %s: %s", path, strerrno());
+		return readdir_error_is_fatal(ret) ? WALK_PATH_INVALID_ENTRY : -1;
+	}
 
 	return 0;
 }
