@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <sys/times.h>
 #include <utime.h>
+#include <stdint.h>
 
 #include <fileops.h>
 #include <ssh.h>
@@ -157,10 +158,16 @@ int mscp_mkdir(const char *path, mode_t mode, sftp_session sftp)
 	return ret;
 }
 
-static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
+static int sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 {
+	off_t size = (off_t)attr->size;
+
 	memset(st, 0, sizeof(*st));
-	st->st_size = attr->size;
+	if (size < 0 || (uint64_t)size != attr->size) {
+		errno = EOVERFLOW;
+		return -1;
+	}
+	st->st_size = size;
 	st->st_uid = attr->uid;
 	st->st_gid = attr->gid;
 	st->st_mode = attr->permissions;
@@ -196,6 +203,8 @@ static void sftp_attr_to_stat(sftp_attributes attr, struct stat *st)
 	default:
 		pr_warn("unkown SSH_FILEXFER_TYPE %d", attr->type);
 	}
+
+	return 0;
 }
 
 int mscp_stat(const char *path, struct stat *st, sftp_session sftp)
@@ -211,7 +220,10 @@ int mscp_stat(const char *path, struct stat *st, sftp_session sftp)
 		if (!attr)
 			return -1;
 
-		sftp_attr_to_stat(attr, st);
+		if (sftp_attr_to_stat(attr, st) < 0) {
+			sftp_attributes_free(attr);
+			return -1;
+		}
 		sftp_attributes_free(attr);
 		ret = 0;
 	} else
@@ -236,7 +248,10 @@ int mscp_lstat(const char *path, struct stat *st, sftp_session sftp)
 		if (!attr)
 			return -1;
 
-		sftp_attr_to_stat(attr, st);
+		if (sftp_attr_to_stat(attr, st) < 0) {
+			sftp_attributes_free(attr);
+			return -1;
+		}
 		sftp_attributes_free(attr);
 		ret = 0;
 	} else
