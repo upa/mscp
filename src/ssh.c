@@ -214,13 +214,13 @@ static ssh_session ssh_init_session(const char *sshdst, struct mscp_ssh_opts *op
 		goto free_out;
 	}
 
-	if (ssh_authenticate(ssh, opts) != 0) {
-		priv_set_errv("authentication failed: %s", ssh_get_error(ssh));
+	if (ssh_verify_known_hosts(ssh) != 0) {
+		priv_set_errv("ssh_verify_known_hosts failed");
 		goto disconnect_out;
 	}
 
-	if (ssh_verify_known_hosts(ssh) != 0) {
-		priv_set_errv("ssh_veriy_known_hosts failed");
+	if (ssh_authenticate(ssh, opts) != 0) {
+		priv_set_errv("authentication failed: %s", ssh_get_error(ssh));
 		goto disconnect_out;
 	}
 
